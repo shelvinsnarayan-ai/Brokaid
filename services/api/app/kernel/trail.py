@@ -105,7 +105,44 @@ async def _project(conn: asyncpg.Connection, ev: Event) -> None:
             ev.tenant_id, p["matter_id"], p["status"],
             datetime.fromisoformat(ev.ts), ev.event_id,
         )
+    elif t == "WorkflowWait":
+        await conn.execute(
+            """
+            INSERT INTO proj_workflow_waits
+              (tenant_id, workflow_id, step, resume_predicate,
+               fire_at, timeout_at, resolved, updated_by_event)
+            VALUES ($1::uuid, $2, $3, $4::jsonb, $5, $6, FALSE, $7::uuid)
+            ON CONFLICT (tenant_id, workflow_id, step) DO UPDATE SET
+              resume_predicate = EXCLUDED.resume_predicate,
+              fire_at = EXCLUDED.fire_at,
+              timeout_at = EXCLUDED.timeout_at,
+              updated_by_event = EXCLUDED.updated_by_event
+            """,
+            ev.tenant_id, p["workflow_id"], p["step"],
+            json.dumps(p.get("resume_predicate", {})),
+            _parse_ts(p.get("fire_at")), _parse_ts(p.get("timeout_at")),
+            ev.event_id,
+        )
+    elif t == "WorkflowResumed" or t == "TimerFired":
+        await conn.execute(
+            """
+            UPDATE proj_workflow_waits
+               SET resolved = TRUE, resolved_at = $4,
+                   updated_by_event = $5::uuid
+             WHERE tenant_id = $1::uuid AND workflow_id = $2 AND step = $3
+            """,
+            ev.tenant_id, p["workflow_id"], p["step"],
+            datetime.fromisoformat(ev.ts), ev.event_id,
+        )
     # unknown types: no projection (silent by design)
+
+
+def _parse_ts(v):
+    if v is None:
+        return None
+    if isinstance(v, str):
+        return datetime.fromisoformat(v)
+    return v
 
 
 async def append(
