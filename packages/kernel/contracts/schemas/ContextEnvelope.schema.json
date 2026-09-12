@@ -1,0 +1,183 @@
+{
+  "$defs": {
+    "Actor": {
+      "additionalProperties": false,
+      "description": "Who initiated / performed something. Matches trAIl's actor shape.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "system",
+            "human",
+            "agent"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "name"
+      ],
+      "title": "Actor",
+      "type": "object"
+    },
+    "EventRef": {
+      "additionalProperties": false,
+      "description": "Pointer into the tenant's ledger.",
+      "properties": {
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seq"
+        }
+      },
+      "required": [
+        "event_id"
+      ],
+      "title": "EventRef",
+      "type": "object"
+    },
+    "InvocationBudget": {
+      "additionalProperties": false,
+      "description": "Per-invocation resource cap for brAIn.",
+      "properties": {
+        "max_input_tokens": {
+          "exclusiveMinimum": 0,
+          "title": "Max Input Tokens",
+          "type": "integer"
+        },
+        "max_output_tokens": {
+          "exclusiveMinimum": 0,
+          "title": "Max Output Tokens",
+          "type": "integer"
+        },
+        "max_wall_ms": {
+          "exclusiveMinimum": 0,
+          "title": "Max Wall Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_input_tokens",
+        "max_output_tokens",
+        "max_wall_ms"
+      ],
+      "title": "InvocationBudget",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The input every agent gets.\n\nSCHEMA_VERIFICATION_PENDING: Field names based on plan v1.3.1;\nawaiting verbatim \u00a77.5-7.7 confirmation from spec owner.",
+  "properties": {
+    "budget": {
+      "$ref": "#/$defs/InvocationBudget"
+    },
+    "caller": {
+      "$ref": "#/$defs/Actor"
+    },
+    "class_key": {
+      "title": "Class Key",
+      "type": "string"
+    },
+    "client_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Client Id"
+    },
+    "context_events": {
+      "items": {
+        "$ref": "#/$defs/EventRef"
+      },
+      "title": "Context Events",
+      "type": "array"
+    },
+    "envelope_id": {
+      "format": "uuid",
+      "title": "Envelope Id",
+      "type": "string"
+    },
+    "inputs": {
+      "additionalProperties": true,
+      "title": "Inputs",
+      "type": "object"
+    },
+    "intent": {
+      "title": "Intent",
+      "type": "string"
+    },
+    "matter_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Matter Id"
+    },
+    "risk_schema_refs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Risk Schema Refs",
+      "type": "array"
+    },
+    "tenant_config": {
+      "additionalProperties": true,
+      "title": "Tenant Config",
+      "type": "object"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "ts": {
+      "format": "date-time",
+      "title": "Ts",
+      "type": "string"
+    }
+  },
+  "required": [
+    "envelope_id",
+    "tenant_id",
+    "class_key",
+    "intent",
+    "budget",
+    "caller",
+    "ts"
+  ],
+  "title": "ContextEnvelope",
+  "type": "object"
+}

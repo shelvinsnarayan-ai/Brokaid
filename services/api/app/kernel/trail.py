@@ -134,6 +134,32 @@ async def _project(conn: asyncpg.Connection, ev: Event) -> None:
             ev.tenant_id, p["workflow_id"], p["step"],
             datetime.fromisoformat(ev.ts), ev.event_id,
         )
+    elif t == "AgentOutputProduced":
+        tokens = p.get("tokens_used") or {}
+        delta = int(tokens.get("input", 0)) + int(tokens.get("output", 0))
+        await conn.execute(
+            """
+            INSERT INTO proj_sprint_usage
+              (tenant_id, tokens_used, invocations,
+               last_alert_pct, updated_by_event)
+            VALUES ($1::uuid, $2, 1, 0, $3::uuid)
+            ON CONFLICT (tenant_id) DO UPDATE SET
+              tokens_used = proj_sprint_usage.tokens_used + EXCLUDED.tokens_used,
+              invocations = proj_sprint_usage.invocations + 1,
+              updated_by_event = EXCLUDED.updated_by_event
+            """,
+            ev.tenant_id, delta, ev.event_id,
+        )
+    elif t == "SprintCapAlert":
+        await conn.execute(
+            """
+            UPDATE proj_sprint_usage
+               SET last_alert_pct = GREATEST(last_alert_pct, $2),
+                   updated_by_event = $3::uuid
+             WHERE tenant_id = $1::uuid
+            """,
+            ev.tenant_id, int(p.get("threshold_pct", 0)), ev.event_id,
+        )
     # unknown types: no projection (silent by design)
 
 
