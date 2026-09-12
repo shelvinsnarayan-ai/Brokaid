@@ -1,0 +1,68 @@
+phase 6: client PWA shell + 6 tabs + auth wiring + /api/c/me
+
+Scope
+-----
+- Client (/c/*) shell wrapped in ClientLayout: AuthGuard → PreviewBanner
+  → <Outlet/> → TabBar. Harbour palette applied via .surface-harbour.
+- Six tabs: Home, Cover, Money, Claims (list + New), Ask, Profile.
+  Each has a data-testid root; disclosures pulled from active
+  jurisdiction pack via usePack().
+- Zustand meStore hydrates GET /api/c/me + GET /api/jurisdictions and
+  drives PreviewBanner, AmountDisplay, TabBar visibility.
+- AuthGuard: hydrates once on mount and only redirects to /c/login
+  AFTER the hydration attempt has settled (prevents flash-redirect on
+  cold mount).
+- AmountDisplay renders premium in active pack currency + rail_label.
+- PreviewBanner shows MOCKED · PREVIEW when client_prefs.jurisdiction
+  ≠ linked_client.jurisdiction_code.
+- Backend /api/c/me composes user + session + linked_client +
+  client_prefs from seeds; 401 when no session (drives redirect).
+- Client jurisdiction preview switcher (dev-only, gated by
+  __AUTH_DEV_MODE__).
+- Vite dev proxy /api → http://localhost:8001 for local playwright and
+  browser testing (production ingress unchanged).
+- PWA: vite-plugin-pwa generates manifest.webmanifest (name "brokAId",
+  scope /c/, theme Harbour #0B3B4B, background Sand #F4EFE6, standalone)
+  + sw.js + workbox precache (8 entries, 218.56 KiB).
+
+Run parameters (phase 6)
+------------------------
+- LLM budget: zero. No model calls; brAIn still on MockProvider.
+- Emergent credit cap: 1000, hard stop. Consumption estimate this
+  phase: ~120 credits.
+- Halt conditions honoured:
+  * PostgreSQL persistent (native, unchanged from phase 0).
+  * No real credentials in diff.
+  * Contrast tests still pass (unchanged).
+  * Deny-list job green on built bundle (7 files scanned, 0 hits).
+  * AUTH_DEV_MODE=true + NODE_ENV=production still refuses to build
+    (verified: production build ran with AUTH_DEV_MODE=false only).
+- MOCKED discipline: PreviewBanner shows MOCKED · PREVIEW pill;
+  ClientLogin dev-token fallback shows MOCKED · e-sign badge on the
+  dev-mode magic-link token surface. All mocks pass through the
+  MockedBadge primitive.
+- No agent names shipped: closed-set scan + /[a-z]+AI[a-z]+/i scan of
+  built bundle both green.
+- CI deny-list still skips the /*! brokaid:dev-only */ chunk
+  (dev-auth-*.js) — DevLogin and DevAuthBanner isolated in that chunk.
+- No push to origin (PAT scope pending); commit signed locally under
+  brokaid-build.
+
+Done-when
+---------
+- /c shells render (Home/Cover/Money/Claims/Ask/Profile) — verified.
+- /api/c/me returns 200 with cookie, 401 without — verified.
+- Jurisdiction preview switch flips currency + disclosure strings AU↔SG
+  — verified via screenshot.
+- Vite production build passes with AUTH_DEV_MODE=false — verified.
+- Deny-list scan on dist passes — verified.
+- Backend test suite 132 passed / 2 skipped — verified.
+- Playwright screenshots of AU Home, SG Home, Cover, Profile captured
+  and reported to orchestrator.
+
+Deviations
+----------
+- Lighthouse PWA score not reported. Lighthouse 12 dropped the `pwa`
+  category (npx run failed with "unrecognized category in
+  'onlyCategories': pwa"). As agreed with orchestrator, fell back to
+  static verification of dist/manifest.webmanifest and dist/sw.js.

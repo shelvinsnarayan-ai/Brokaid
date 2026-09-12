@@ -95,6 +95,12 @@ export default defineConfig(({ mode }) => {
       hmr: {
         clientPort: 443,
       },
+      proxy: {
+        "/api": {
+          target: "http://localhost:8001",
+          changeOrigin: false,
+        },
+      },
     },
     build: {
       target: "es2022",

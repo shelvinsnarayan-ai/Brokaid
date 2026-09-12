@@ -1,30 +1,8 @@
 {
-  "name": "@brokaid/web",
-  "version": "0.0.1",
+  "name": "brokaid-frontend-shim",
   "private": true,
-  "type": "module",
+  "version": "0.0.1",
   "scripts": {
-    "start": "vite --host 0.0.0.0 --port 3000",
-    "dev": "vite --host 0.0.0.0 --port 3000",
-    "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 3000",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@brokaid/brand-tokens": "0.0.1",
-    "@brokaid/kernel": "0.0.1",
-    "@brokaid/mocks": "0.0.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
-    "zustand": "^5.0.2"
-  },
-  "devDependencies": {
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
-    "typescript": "^5.5.4",
-    "vite": "^5.4.11",
-    "vite-plugin-pwa": "^0.21.1"
+    "start": "cd /app/apps/web && node /app/node_modules/vite/bin/vite.js --host 0.0.0.0 --port 3000"
   }
 }
