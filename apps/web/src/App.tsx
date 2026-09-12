@@ -8,7 +8,14 @@ import { ClientMoney } from "./pages/ClientMoney";
 import { ClientClaims, ClaimsNew } from "./pages/ClientClaims";
 import { ClientAsk } from "./pages/ClientAsk";
 import { ClientProfile } from "./pages/ClientProfile";
-import { OperatorShell } from "./shells/OperatorShell";
+import { OperatorControlLayout } from "./shells/OperatorControlLayout";
+import { Dashboard as OperatorDashboard } from "./pages/operator/Dashboard";
+import { Queue as OperatorQueue } from "./pages/operator/Queue";
+import { DecisionCard } from "./pages/operator/DecisionCard";
+import { DailyBrief } from "./pages/operator/DailyBrief";
+import { KpiDetail } from "./pages/operator/KpiDetail";
+import { Clients as OperatorClients } from "./pages/operator/Clients";
+import { Client360 } from "./pages/operator/Client360";
 import { OperatorMatters } from "./pages/OperatorMatters";
 import { OperatorPolicies } from "./pages/OperatorPolicies";
 import { ClientLogin } from "./pages/ClientLogin";
@@ -51,11 +58,19 @@ export function App() {
           ) : null}
         </Route>
 
-        <Route path="/o" element={<OperatorShell />} />
         <Route path="/o/login" element={<OperatorLogin />} />
         <Route path="/o/enrol" element={<OperatorEnrol />} />
-        <Route path="/o/matters" element={<OperatorMatters />} />
-        <Route path="/o/policies" element={<OperatorPolicies />} />
+        <Route path="/o" element={<OperatorControlLayout />}>
+          <Route index element={<OperatorDashboard />} />
+          <Route path="queue" element={<OperatorQueue />} />
+          <Route path="queue/:envelope_id" element={<DecisionCard />} />
+          <Route path="brief" element={<DailyBrief />} />
+          <Route path="kpi/:id" element={<KpiDetail />} />
+          <Route path="clients" element={<OperatorClients />} />
+          <Route path="clients/:id" element={<Client360 />} />
+          <Route path="matters" element={<OperatorMatters />} />
+          <Route path="policies" element={<OperatorPolicies />} />
+        </Route>
 
         {__AUTH_DEV_MODE__ ? (
           <Route

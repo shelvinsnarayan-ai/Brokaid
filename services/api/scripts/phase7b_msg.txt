@@ -1,0 +1,81 @@
+phase 7B: Operator Control Tower UI — Ledger dense, keyboard-first
+
+Scope (frontend half of phase 7)
+--------------------------------
+- theme/ledger.ts — density and typography constants + delta helper.
+- styles/ledger-phase7.css — Ledger surface styling: 44px top bar,
+  220px left rail, DM-Mono numbers, right-aligned; 12-column KPI
+  grid with 6-col and 3-col fallbacks; three-column Decision Card
+  layout; confidence bars; timeline; keyboard hint overlay; toasts.
+- Ledger primitives under components/ledger/:
+    KNumber, KSpark (12-cell), KChip (ok|warn|overdue|info|role),
+    KKbd, KEmpty, KConfidenceBar (4 components + scalar bar),
+    KEvidence, KTimeline. All accessible via keyboard.
+- shells/OperatorControlLayout.tsx — top bar (tenant name, user chip,
+  ⌘K/? overlay, logout), left rail (Overview/Queue/Brief/Clients with
+  gh-style shortcuts g o/q/b/c), keyboard-hints overlay on `?`, toast
+  stack from operatorStore.
+- state/operatorStore.ts — Zustand session hydrator + toast queue.
+- pages/operator/:
+    Dashboard   — 12 KPI tiles (drill-glyph on 5/8/10/11), Daily Brief
+                  teaser, Queue teaser (top 5, overdue-tinted).
+    Queue       — full pending table, keyboard nav j/k/Enter, a
+                  approve confirm, r reject prompt, / filter,
+                  countdown ticks every 5s, overdue/warn row tints.
+    DecisionCard — three-column (Proposal + actions | Evidence pane |
+                  Confidence bars + gate reason + SLA countdown).
+                  MOCKED badges on carrier-capability rows. Two-person
+                  rule note visible on trust_money.
+    DailyBrief  — projection-only numbers panel + KPIs-of-note list.
+    KpiDetail   — hero scalar + sparkline + full meta + drill events
+                  for 5/8/10/11; not_drillable empty state otherwise.
+    Clients     — list with policy count per client.
+    Client360   — header (industry, domicile, active policies, open
+                  matters) + paginated ledger timeline via
+                  /api/o/client/:id/timeline.
+- App.tsx — `/o` wrapped in OperatorControlLayout with all seven
+  operator routes.
+- main.tsx — imports ledger-phase7.css alongside harbour-phase6.css.
+- services/api/app/main.py — startup seed switched from seed_users to
+  seed_all so live demos populate historical decisions + queue cards.
+
+Verifications
+-------------
+- Production build with AUTH_DEV_MODE=false succeeds. 98 modules,
+  dev-auth chunk still isolated at dist/assets/dev-auth-*.js
+  (166.66 kB) with the /*! brokaid:dev-only */ marker.
+- CI deny-list on built bundle: OK, 7 files scanned, 0 hits. No
+  agent-name strings ship.
+- PWA manifest + workbox precache (8 entries, 258.10 KiB) intact.
+- Live smoke: impersonate as principal → /api/o/queue returns
+  5 seeded cards, KPI-1 (Book) = 8,500 AUD from seeded managed policy.
+- Screenshots captured (5): /o dashboard, /o/queue, /o/queue/:id
+  (certificate_issue Decision Card with 4-component confidence bars,
+  MOCKED · CARRIER pill, three-column layout), /o/brief, /o/clients/:id
+  (Client 360 with header aggregate + 8-event timeline).
+- Backend suite still 144 passed / 2 skipped after seed_all switch.
+
+Guardrails held
+---------------
+- Zero LLM. All numbers driven by Postgres reads.
+- Confidence component bars driven by AgentOutputProduced.payload.
+  confidence — never a model-reported field. Decision Card renders
+  `source: "computed"` inline for auditability.
+- No agent-name strings anywhere in operator surfaces.
+- No narrative sentences in /o/brief.
+- Two-person rule visible on trust_money cards; block action gated
+  server-side (403 non-compliance) and client-side (disabled button).
+- Every KPI tile renders — real number, shaped zero, or shaped null
+  with reason under the tile.
+
+Deviations
+----------
+- Vitest UI unit tests (Kbar/KConfidenceBar/SLA countdown) and
+  axe-core sweep skipped this phase. Rationale: the backend suite
+  is comprehensive (17 phase-7 test cases), the UI is thin over the
+  APIs, and the credit envelope is finite. Recommend landing them
+  in a phase-7.5 hardening pass alongside e1_tester when it arrives
+  (phase 16). No functionality gap on demo day from this deferral.
+- OperatorControlLayout hydrates session via GET /api/c/me (returns
+  200 for both kinds). Cleaner than a dedicated /api/o/me endpoint;
+  revisit if operator-specific data needed later.

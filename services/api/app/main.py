@@ -80,8 +80,8 @@ def create_app(
             )
         if do_seed:
             try:
-                from app.seeds.seed_users import seed
-                await seed(app.state.pool)
+                from app.seeds.seed_all import seed_all
+                await seed_all(app.state.pool)
                 logger.info("dev seeds applied")
             except Exception as e:
                 logger.warning("dev seed failed (non-fatal): %r", e)
