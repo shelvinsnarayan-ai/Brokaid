@@ -72,8 +72,10 @@ async def pool(_test_db_url) -> asyncpg.Pool:
         # Phase 4 adds users/brokerages/roles/sessions/magic_link_tokens/
         # user_client_links. `users` has no FK to tenants so must be
         # named explicitly. Everything else cascades via tenants.
+        # Phase 5 adds clients/policies. TRUNCATE cascades via tenants FK.
         await c.execute(
-            "TRUNCATE TABLE sessions, magic_link_tokens, user_client_links, "
+            "TRUNCATE TABLE policies, clients, "
+            "sessions, magic_link_tokens, user_client_links, "
             "user_brokerage_roles, brokerages, users, "
             "proj_matters, events, tenants "
             "RESTART IDENTITY CASCADE"

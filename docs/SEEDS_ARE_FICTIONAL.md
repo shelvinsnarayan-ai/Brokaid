@@ -60,3 +60,34 @@ Both are linked to the fictional client entity
 
 Phase 3 also auto-creates a `brokaid-ops` tenant for JobRun\* events
 emitted by the bounded-job runner. It has no operators or clients.
+
+## Phase 5 seeded entities
+
+### Licensee
+- **Name:** Fictional Licensee Pty Ltd *(fictional)*
+- **ABN placeholder:** `FICTIONAL_LICENSEE_ABN_0000` *(non-real; string
+  literally contains the word FICTIONAL)*
+
+### Client entity
+- **Name:** Harbour Marine Services Pty Ltd *(fictional)*
+- **`client_id`:** `00000000-0000-4000-8000-000000000001`
+- **Industry:** marine_services
+- **Domicile:** Sydney, AU
+- **Jurisdiction:** AU
+
+Linked to the two phase-4 client users (Kai Owner, Sam Finance).
+
+### Policies (all mocked-insurer)
+
+| policy_id                                    | status  | product          | insurer              | limits (AUD)     | premium (AUD) | source                |
+|----------------------------------------------|---------|------------------|----------------------|------------------|---------------|-----------------------|
+| 00000000-0000-4000-8000-000000000101         | managed | Marine Liability | Fictional Carrier A  | $10M / $20M agg  | $8,500        | in-house              |
+| 00000000-0000-4000-8000-000000000102         | tracked | Cyber            | Fictional Carrier B  | $2M              | $2,200        | manual_entry_burmac   |
+
+### Jurisdiction packs
+Two packs (`AU`, `SG`) live in
+`services/api/app/kernel/jurisdiction.py` and mirror to JSON at
+`packages/kernel/jurisdiction/{AU,SG}.json`. **Every** disclosure
+string in every pack is prefixed with the literal token
+`<FICTIONAL_PLACEHOLDER>`; a test asserts this invariant so no draft
+regulatory text can accidentally ship without the marker.

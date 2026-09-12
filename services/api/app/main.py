@@ -113,6 +113,13 @@ def create_app(
     app.include_router(auth_operator_router)
     app.include_router(auth_client_router)
     app.include_router(compliance_router)
+    # Phase 5 additions
+    from app.routes.jurisdictions import router as jurisdictions_router
+    from app.routes.policies import router as policies_router
+    from app.routes.client_preferences import router as client_prefs_router
+    app.include_router(jurisdictions_router)
+    app.include_router(policies_router)
+    app.include_router(client_prefs_router)
 
     # Dev-only impersonation route — mounted only under AUTH_DEV_MODE.
     if settings.auth_dev_mode:

@@ -1,0 +1,15 @@
+{
+  "code": "AU",
+  "display_name": "Australia",
+  "currency_code": "AUD",
+  "currency_symbol": "$",
+  "rail_label": "PayTo",
+  "locale": "en-AU",
+  "regulator": "ASIC",
+  "disclosure_strings": {
+    "privacy_notice": "<FICTIONAL_PLACEHOLDER> Your information is handled under the Australian Privacy Principles set out in the Privacy Act 1988.",
+    "fsg": "<FICTIONAL_PLACEHOLDER> This Financial Services Guide explains the services and remuneration your broker receives, as required by the Corporations Act 2001.",
+    "pds": "<FICTIONAL_PLACEHOLDER> Read the Product Disclosure Statement carefully before deciding whether the cover is right for you.",
+    "duty_of_disclosure": "<FICTIONAL_PLACEHOLDER> You have a duty to take reasonable care not to make a misrepresentation to your insurer."
+  }
+}

@@ -1,9 +1,10 @@
 import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 import { Landing } from "./pages/Landing";
-import { ClientShell } from "./shells/ClientShell";
+import { ClientHome } from "./pages/ClientHome";
 import { OperatorShell } from "./shells/OperatorShell";
 import { OperatorMatters } from "./pages/OperatorMatters";
+import { OperatorPolicies } from "./pages/OperatorPolicies";
 import { ClientLogin } from "./pages/ClientLogin";
 import { OperatorLogin } from "./pages/OperatorLogin";
 import { OperatorEnrol } from "./pages/OperatorEnrol";
@@ -19,12 +20,13 @@ export function App() {
       {__AUTH_DEV_MODE__ ? <DevAuthBanner /> : null}
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/c" element={<ClientShell />} />
+        <Route path="/c" element={<ClientHome />} />
         <Route path="/c/login" element={<ClientLogin />} />
         <Route path="/o" element={<OperatorShell />} />
         <Route path="/o/login" element={<OperatorLogin />} />
         <Route path="/o/enrol" element={<OperatorEnrol />} />
         <Route path="/o/matters" element={<OperatorMatters />} />
+        <Route path="/o/policies" element={<OperatorPolicies />} />
         {__AUTH_DEV_MODE__ ? (
           <Route
             path="/dev/login"

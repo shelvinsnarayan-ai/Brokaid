@@ -34,6 +34,17 @@ export function OperatorShell() {
             Projection from the append-only ledger. Live, keyboard-nav.
           </div>
         </Link>
+        <Link
+          to="/o/policies"
+          className="brokaid-shell__card"
+          data-testid="link-operator-policies"
+        >
+          <div className="brokaid-shell__card-tag">/o/policies</div>
+          <div className="brokaid-shell__card-title">Program view</div>
+          <div className="brokaid-shell__card-note">
+            All policies for this tenant &mdash; Managed &amp; Tracked chips.
+          </div>
+        </Link>
       </div>
 
       <Link

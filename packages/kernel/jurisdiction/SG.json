@@ -1,0 +1,15 @@
+{
+  "code": "SG",
+  "display_name": "Singapore",
+  "currency_code": "SGD",
+  "currency_symbol": "$",
+  "rail_label": "PayNow",
+  "locale": "en-SG",
+  "regulator": "MAS",
+  "disclosure_strings": {
+    "privacy_notice": "<FICTIONAL_PLACEHOLDER> Your information is handled under Singapore's Personal Data Protection Act (PDPA).",
+    "fsg": "<FICTIONAL_PLACEHOLDER> This document sets out the services and remuneration your broker receives, per the Financial Advisers Act.",
+    "pds": "<FICTIONAL_PLACEHOLDER> Read the Product Summary and Bundled Product Disclosure carefully before deciding.",
+    "duty_of_disclosure": "<FICTIONAL_PLACEHOLDER> You must disclose material facts before a contract of insurance is concluded."
+  }
+}
