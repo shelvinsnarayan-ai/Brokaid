@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Contrast tests
+        run: yarn workspace @brokaid/brand-tokens test
+
+      - name: MockedBadge snapshot
+        run: yarn workspace @brokaid/mocks test
+
+      - name: Build web bundle
+        run: yarn workspace @brokaid/web build
+        env:
+          NODE_ENV: production
+          AUTH_DEV_MODE: "false"
+
+      - name: Deny-list scan
+        run: node ci/deny-list.js apps/web/dist

@@ -1,0 +1,280 @@
+/* apps/web base styles.
+ *
+ * Palette variables come from @brokaid/brand-tokens/tokens.css.
+ * This file only handles resets and structural rules that apply
+ * across both palettes.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+}
+
+::selection {
+  background: var(--copper);
+  color: var(--ink);
+}
+
+/* --- Dev auth banner ------------------------------------------- */
+.brokaid-dev-banner {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding: 8px 16px;
+  background: var(--alert);
+  color: #ffffff;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+/* --- Landing page ---------------------------------------------- */
+.brokaid-landing {
+  min-height: 100dvh;
+  background: var(--ink);
+  color: var(--bone);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 32px clamp(24px, 6vw, 96px);
+}
+
+.brokaid-landing__mark {
+  font-family: var(--font-display-ledger);
+  font-weight: 300;
+  font-size: 20px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--copper);
+}
+
+.brokaid-landing__hero {
+  align-self: center;
+  display: grid;
+  gap: 24px;
+  max-width: 720px;
+}
+
+.brokaid-landing__title {
+  font-family: var(--font-display-ledger);
+  font-weight: 300;
+  font-size: clamp(40px, 8vw, 88px);
+  line-height: 1.05;
+  margin: 0;
+  color: var(--bone);
+}
+
+.brokaid-landing__title em {
+  font-style: normal;
+  color: var(--copper);
+}
+
+.brokaid-landing__lede {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.5;
+  color: color-mix(in oklab, var(--bone) 82%, transparent);
+  max-width: 52ch;
+}
+
+.brokaid-landing__routes {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-top: 8px;
+}
+
+.brokaid-landing__route {
+  display: block;
+  padding: 20px 22px;
+  border: 1px solid color-mix(in oklab, var(--bone) 22%, transparent);
+  background: transparent;
+  transition: border-color 180ms ease, transform 180ms ease, background 180ms ease;
+}
+
+.brokaid-landing__route:hover {
+  border-color: var(--copper);
+  background: color-mix(in oklab, var(--copper) 8%, transparent);
+  transform: translateY(-1px);
+}
+
+.brokaid-landing__route-tag {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--copper);
+  letter-spacing: 0.12em;
+}
+
+.brokaid-landing__route-title {
+  font-family: var(--font-display-ledger);
+  font-weight: 400;
+  font-size: 22px;
+  margin: 6px 0 4px;
+}
+
+.brokaid-landing__route-note {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--slate);
+}
+
+.brokaid-landing__foot {
+  align-self: end;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 32px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--slate);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* --- Shells ---------------------------------------------------- */
+.brokaid-shell {
+  min-height: 100dvh;
+  padding: clamp(24px, 5vw, 64px);
+  display: grid;
+  gap: 24px;
+  align-content: start;
+}
+
+.brokaid-shell__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 16px;
+  opacity: 0.9;
+}
+
+.brokaid-shell__crumb {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.brokaid-shell__title {
+  font-size: clamp(28px, 5vw, 44px);
+  margin: 0;
+}
+
+.brokaid-shell__note {
+  font-size: 14px;
+  max-width: 60ch;
+  opacity: 0.8;
+}
+
+.brokaid-shell__back {
+  align-self: start;
+  display: inline-flex;
+  padding: 10px 18px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  min-height: 44px;
+  align-items: center;
+  transition: background 160ms ease;
+}
+
+.surface-ledger .brokaid-shell__back:hover {
+  background: color-mix(in oklab, var(--bone) 12%, transparent);
+}
+
+.surface-harbour .brokaid-shell__back:hover {
+  background: color-mix(in oklab, var(--harbour) 8%, transparent);
+}
+
+/* --- Dev login ------------------------------------------------- */
+.brokaid-dev-login {
+  min-height: 100dvh;
+  padding: 48px;
+  display: grid;
+  place-items: center;
+  background: var(--ink);
+  color: var(--bone);
+}
+
+.brokaid-dev-login__card {
+  width: min(420px, 100%);
+  padding: 32px;
+  border: 1px solid var(--copper);
+  display: grid;
+  gap: 16px;
+}
+
+.brokaid-dev-login__title {
+  font-family: var(--font-display-ledger);
+  font-weight: 300;
+  font-size: 28px;
+  margin: 0;
+}
+
+.brokaid-dev-login__roles {
+  display: grid;
+  gap: 10px;
+}
+
+.brokaid-dev-login__role {
+  padding: 12px 16px;
+  background: transparent;
+  color: var(--bone);
+  border: 1px solid var(--slate);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  text-align: left;
+  letter-spacing: 0.04em;
+}
+
+.brokaid-dev-login__role:hover {
+  border-color: var(--copper);
+  color: var(--copper);
+}
+
+.brokaid-dev-login__hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--slate);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}

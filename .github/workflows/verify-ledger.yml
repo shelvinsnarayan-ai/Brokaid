@@ -1,0 +1,21 @@
+name: Verify ledger chain
+
+# Placeholder for phase 1. The append-only ledger with per-tenant
+# hash chain is implemented then; this workflow will invoke a
+# bounded verifier job. For phase 0 it is a no-op that just
+# confirms the workflow file parses.
+
+on:
+  schedule:
+    - cron: "0 15 * * *" # 15:00 UTC daily (~01:00 Sydney AEST)
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Placeholder
+        run: |
+          echo "ledger verifier lands in phase 1"
+          exit 0

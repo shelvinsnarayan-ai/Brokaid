@@ -1,0 +1,26 @@
+.brokaid-mocked {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  border: 1px solid currentColor;
+  min-height: 22px;
+  white-space: nowrap;
+}
+
+.brokaid-mocked--operator {
+  color: var(--alert, #c94a3d);
+  background: var(--bone, #e8e2d6);
+}
+
+.brokaid-mocked--client {
+  color: var(--coral, #e8623a);
+  background: var(--sand, #f4efe6);
+}

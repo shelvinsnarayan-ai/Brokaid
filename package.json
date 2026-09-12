@@ -1,0 +1,22 @@
+{
+  "name": "brokaid",
+  "private": true,
+  "version": "0.0.1",
+  "description": "brokAId — agentic OS for insurance brokers (Synaion Pty Ltd)",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "ci"
+  ],
+  "scripts": {
+    "build": "yarn workspace @brokaid/web build",
+    "start": "yarn workspace @brokaid/web start",
+    "test": "yarn workspaces run test --if-present",
+    "typecheck": "yarn workspaces run typecheck --if-present",
+    "deny-list": "node ci/deny-list.js apps/web/dist"
+  },
+  "packageManager": "yarn@1.22.22",
+  "engines": {
+    "node": ">=20"
+  }
+}

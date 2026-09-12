@@ -1,0 +1,52 @@
+# Node / build artifacts
+node_modules/
+dist/
+build/
+.vite/
+*.log
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Local env — never commit real credentials
+.env
+.env.local
+.env.*.local
+.env.development
+services/api/.env
+apps/web/.env
+apps/web/.env.development
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Secrets and keys
+*.pem
+*.key
+.netrc
+
+# Legacy template artifacts (kept out of tree during phase 0 migration)
+.legacy_mobile/
+
+# Supervisor shims (this build environment only). Real repo consumers do
+# not need these paths — they run `yarn workspace @brokaid/web start`
+# and `uvicorn app.main:app` directly.
+/backend
+/frontend
+
+# Local Postgres cluster (dev container). Real repo consumers stand up
+# their own Postgres via `infra/postgres/bootstrap.sh`.
+/.postgres_data/
+
+# Emergent build artefacts
+.emergent/
+memory/
+test_reports/
