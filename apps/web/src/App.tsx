@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 import { Landing } from "./pages/Landing";
 import { ClientShell } from "./shells/ClientShell";
 import { OperatorShell } from "./shells/OperatorShell";
+import { OperatorMatters } from "./pages/OperatorMatters";
 import { DevAuthBanner } from "./components/DevAuthBanner";
 
 const DevLogin = lazy(() =>
@@ -16,7 +17,8 @@ export function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/c/*" element={<ClientShell />} />
-        <Route path="/o/*" element={<OperatorShell />} />
+        <Route path="/o" element={<OperatorShell />} />
+        <Route path="/o/matters" element={<OperatorMatters />} />
         {__AUTH_DEV_MODE__ ? (
           <Route
             path="/dev/login"

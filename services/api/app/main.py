@@ -1,7 +1,7 @@
 """brokAId API — FastAPI application.
 
-Phase 0 scope: healthz + Postgres connection verification.
-No tables, no auth, no business logic. See services/api/README.md.
+Phase 1 scope: trAIl (ledger) — migrations applied at startup,
+`/api/trail/export`, `/api/o/matters`, `/api/healthz`.
 """
 from __future__ import annotations
 
@@ -15,10 +15,11 @@ from fastapi import APIRouter, FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from app import db
+from app.migrate import apply_migrations
+from app.routes.matters import router as matters_router
+from app.routes.trail import router as trail_router
 from app.settings import get_settings
 
-# Load .env from the services/api directory (which is where supervisor runs from
-# via the /app/backend symlink).
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 logging.basicConfig(
@@ -31,7 +32,16 @@ logger = logging.getLogger("brokaid.api")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+    # 1. apply migrations
+    applied = await apply_migrations(settings.database_url)
+    if applied:
+        logger.info("migrations applied: %s", ", ".join(applied))
+    else:
+        logger.info("migrations: up to date")
+
+    # 2. open the app connection pool
     pool = await db.init_pool(settings.database_url)
+    app.state.pool = pool
     version = await db.fetch_version(pool)
     app.state.postgres_version = version
     logger.info("Connected to Postgres: %s", version.split(",")[0])
@@ -41,22 +51,13 @@ async def lifespan(app: FastAPI):
         await db.close_pool()
 
 
-app = FastAPI(
-    title="brokAId API",
-    version="0.0.1",
-    lifespan=lifespan,
-)
+app = FastAPI(title="brokAId API", version="0.1.0", lifespan=lifespan)
 
 api_router = APIRouter(prefix="/api")
 
 
 @api_router.get("/healthz")
 async def healthz() -> dict:
-    """Liveness + Postgres connectivity check.
-
-    Returns the Postgres server version so the phase 0 done-when check
-    can verify the API is actually talking to Postgres.
-    """
     pool = await db.get_pool()
     version = await db.fetch_version(pool)
     return {
@@ -67,6 +68,8 @@ async def healthz() -> dict:
 
 
 app.include_router(api_router)
+app.include_router(trail_router)
+app.include_router(matters_router)
 
 app.add_middleware(
     CORSMiddleware,

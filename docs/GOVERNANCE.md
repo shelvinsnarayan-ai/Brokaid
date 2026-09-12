@@ -4,6 +4,23 @@ These rules apply to **every phase**, not just phase 0. The repo carries
 them so contributors do not need to re-read the brief. Violations are
 build failures, not style preferences.
 
+## Repo location — TEMPORARY WAIVER (phase 1)
+
+The target home for this repo is `github.com/Synaion/brokaid` on
+`main`. Access to that org repo is pending. **By explicit user
+approval**, phase 1 (and any subsequent phases until access is
+resolved) commits to and pushes at
+
+```
+https://github.com/shelvinsnarayan-ai/Brokaid
+```
+
+Signed commits under `brokaid-build <build@synaion.com.au>` continue
+per rule 3. When the target repo becomes writable, migrate the full
+signed history in one push and delete the personal-account remote.
+
+# Rules
+
 1. **Store: PostgreSQL, not Mongo.** The ledger's integrity guarantees
    (append-only, RLS, triggers denying UPDATE/DELETE, hash chain per
    tenant) require Postgres. If Postgres is not natively available in a

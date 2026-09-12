@@ -278,3 +278,169 @@ button {
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
+
+/* --- Operator shell grid / cards ------------------------------- */
+.brokaid-shell__grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin-top: 8px;
+}
+
+.brokaid-shell__card {
+  display: block;
+  padding: 20px 22px;
+  border: 1px solid color-mix(in oklab, var(--bone) 22%, transparent);
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.brokaid-shell__card:hover {
+  border-color: var(--copper);
+  background: color-mix(in oklab, var(--copper) 8%, transparent);
+}
+
+.brokaid-shell__card-tag {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--copper);
+  letter-spacing: 0.12em;
+}
+
+.brokaid-shell__card-title {
+  font-family: var(--font-display-ledger);
+  font-weight: 400;
+  font-size: 22px;
+  margin: 6px 0 4px;
+}
+
+.brokaid-shell__card-note {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--slate);
+}
+
+/* --- Matters (operator projection screen) --------------------- */
+.brokaid-matters {
+  min-height: 100dvh;
+  padding: clamp(24px, 4vw, 48px);
+  display: grid;
+  gap: 20px;
+  align-content: start;
+}
+
+.brokaid-matters__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid color-mix(in oklab, var(--bone) 22%, transparent);
+  padding-bottom: 12px;
+}
+
+.brokaid-matters__tenant {
+  background: transparent;
+  color: var(--bone);
+  border: 1px solid var(--slate);
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  min-height: 32px;
+  min-width: 140px;
+}
+
+.brokaid-matters__tenant:focus {
+  outline: none;
+  border-color: var(--copper);
+  color: var(--copper);
+}
+
+.brokaid-matters__note {
+  font-size: 14px;
+  color: color-mix(in oklab, var(--bone) 78%, transparent);
+  max-width: 60ch;
+}
+
+.brokaid-matters__note kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid var(--slate);
+  border-radius: 3px;
+  margin: 0 2px;
+  color: var(--copper);
+}
+
+.brokaid-matters__error {
+  padding: 12px 16px;
+  border: 1px solid var(--alert);
+  color: var(--alert);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.brokaid-matters__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-ui);
+  font-size: 14px;
+}
+
+.brokaid-matters__table th {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--slate);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--copper);
+  font-weight: 500;
+}
+
+.brokaid-matters__table td {
+  padding: 12px;
+  border-bottom: 1px solid color-mix(in oklab, var(--bone) 12%, transparent);
+}
+
+.brokaid-matters__table tr {
+  cursor: pointer;
+}
+
+.brokaid-matters__table tr.is-selected td {
+  background: color-mix(in oklab, var(--copper) 12%, transparent);
+  border-color: var(--copper);
+}
+
+.brokaid-matters__table tr:hover td {
+  background: color-mix(in oklab, var(--bone) 5%, transparent);
+}
+
+.brokaid-matters__status {
+  display: inline-block;
+  padding: 3px 10px;
+  border: 1px solid var(--verify);
+  color: var(--verify);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 999px;
+}
+
+.brokaid-matters__mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: color-mix(in oklab, var(--bone) 70%, transparent);
+}
+
+.brokaid-matters__empty {
+  text-align: center;
+  color: var(--slate);
+  padding: 24px !important;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.brokaid-matters__empty code {
+  color: var(--copper);
+}

@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 /**
  * Operator shell — Ledger palette, desktop-dense.
- * Phase 0: placeholder page reading "Operator shell".
+ * Phase 1: landing card with a link into /o/matters.
  */
 export function OperatorShell() {
   return (
@@ -11,16 +11,30 @@ export function OperatorShell() {
       data-testid="operator-shell-root"
     >
       <header className="brokaid-shell__header">
-        <span className="brokaid-shell__crumb">/o/*</span>
+        <span className="brokaid-shell__crumb">/o</span>
         <span className="brokaid-shell__crumb">Ledger</span>
       </header>
 
-      <h1 className="brokaid-shell__title">Operator shell</h1>
+      <h1 className="brokaid-shell__title">Operator</h1>
       <p className="brokaid-shell__note">
         Dense desktop workspace for brokers. Ledger surfaces expose the
         append-only audit trail, agent activity, and MOCKED-flagged
-        integrations. Business flows land from phase 2 onward.
+        integrations.
       </p>
+
+      <div className="brokaid-shell__grid">
+        <Link
+          to="/o/matters"
+          className="brokaid-shell__card"
+          data-testid="link-operator-matters"
+        >
+          <div className="brokaid-shell__card-tag">/o/matters</div>
+          <div className="brokaid-shell__card-title">Matters</div>
+          <div className="brokaid-shell__card-note">
+            Projection from the append-only ledger. Live, keyboard-nav.
+          </div>
+        </Link>
+      </div>
 
       <Link
         to="/"
