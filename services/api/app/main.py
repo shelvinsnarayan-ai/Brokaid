@@ -122,6 +122,17 @@ def create_app(
     app.include_router(policies_router)
     app.include_router(client_prefs_router)
     app.include_router(c_me_router)
+    # Phase 7 additions
+    from app.routes.queue import router as queue_router
+    from app.routes.kpi import router as kpi_router
+    from app.routes.daily_brief import router as daily_brief_router
+    from app.routes.client_360 import router as client_360_router
+    app.include_router(queue_router)
+    app.include_router(kpi_router)
+    app.include_router(daily_brief_router)
+    app.include_router(client_360_router)
+    # Register the phase-7 compute_kpis job with the runner.
+    from app.jobs import compute_kpis  # noqa: F401
 
     # Dev-only impersonation route — mounted only under AUTH_DEV_MODE.
     if settings.auth_dev_mode:
