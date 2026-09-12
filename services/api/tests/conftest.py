@@ -65,14 +65,19 @@ async def _test_db_url() -> str:
 @pytest_asyncio.fixture
 async def pool(_test_db_url) -> asyncpg.Pool:
     pool = await asyncpg.create_pool(dsn=_test_db_url, min_size=1, max_size=5)
-    # Wipe events + proj + tenants before each test.
+    # Wipe events + projections + tenants before each test.
     async with pool.acquire() as c:
-        # Need to bypass RLS: TRUNCATE requires the row set to match policy,
-        # but the table owner with FORCE RLS also can't bypass — so we
-        # temporarily disable FORCE, truncate, and re-enable.
         await c.execute("ALTER TABLE proj_matters NO FORCE ROW LEVEL SECURITY")
         await c.execute("ALTER TABLE events NO FORCE ROW LEVEL SECURITY")
-        await c.execute("TRUNCATE TABLE proj_matters, events, tenants RESTART IDENTITY CASCADE")
+        # Phase 4 adds users/brokerages/roles/sessions/magic_link_tokens/
+        # user_client_links. `users` has no FK to tenants so must be
+        # named explicitly. Everything else cascades via tenants.
+        await c.execute(
+            "TRUNCATE TABLE sessions, magic_link_tokens, user_client_links, "
+            "user_brokerage_roles, brokerages, users, "
+            "proj_matters, events, tenants "
+            "RESTART IDENTITY CASCADE"
+        )
         await c.execute("ALTER TABLE events FORCE ROW LEVEL SECURITY")
         await c.execute("ALTER TABLE proj_matters FORCE ROW LEVEL SECURITY")
     yield pool
@@ -84,3 +89,35 @@ def event_loop():
     loop = asyncio.new_event_loop()
     yield loop
     loop.close()
+
+
+# ---- Phase 4 --------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def app_client(pool, monkeypatch):
+    """FastAPI app bound to the test pool + an httpx.AsyncClient."""
+    import httpx
+
+    # Force AUTH_DEV_MODE=true so the dev impersonation route mounts.
+    monkeypatch.setenv("AUTH_DEV_MODE", "true")
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    # Ensure no accidental RESEND path.
+    monkeypatch.delenv("RESEND_API_KEY", raising=False)
+
+    from app.main import create_app
+    app = create_app(pool_override=pool, seed_dev_users=False)
+
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://testserver"
+        ) as client:
+            yield app, client
+
+
+@pytest_asyncio.fixture
+async def seeded(pool):
+    """Seed users + brokerage + client links; return the seed result dict."""
+    from app.seeds.seed_users import seed
+    return await seed(pool)

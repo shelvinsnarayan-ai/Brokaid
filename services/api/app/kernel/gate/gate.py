@@ -1,7 +1,7 @@
 """gAIte.evaluate() — the central deterministic gate."""
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from app.kernel.gate.classes import CLASSES, ClassDef, get
@@ -41,14 +41,12 @@ def evaluate(
     confidence: Confidence,
     tenant_config: dict,
     unlock_lookup: Callable[[str], bool] | None = None,
+    compliance_block_id: str | None = None,
 ) -> GateDecision:
     """Evaluate one action. Deterministic; zero side effects.
 
-    unlock_lookup(class_key) -> bool tells whether the class is
-    currently unlocked for this tenant. If None, we treat classes as
-    unlocked (used in tests that don't exercise the unlock protocol).
-
     Decision rule (in this exact order):
+      0. compliance_block_id set → BLOCK (`compliance_block:<id>`)
       1. never_autonomous → HITL
       2. hitl_predicate    → HITL (reason)
       3. class not unlocked → HITL ("class not unlocked")
@@ -58,6 +56,16 @@ def evaluate(
     cls: ClassDef = get(class_key)
     conf = confidence.scalar
     applied: list[str] = []
+
+    # 0. Compliance block — takes precedence over everything else.
+    if compliance_block_id:
+        applied.append("compliance_block")
+        return GateDecision(
+            decision="BLOCK", class_key=class_key,
+            confidence=confidence,
+            reason=f"compliance_block:{compliance_block_id}",
+            applied_rules=applied,
+        )
 
     # 1. H invariant
     if cls.never_autonomous:

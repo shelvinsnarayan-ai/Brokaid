@@ -1,7 +1,10 @@
-"""brokAId API — FastAPI application.
+"""brokAId API — FastAPI application factory.
 
-Phase 1 scope: trAIl (ledger) — migrations applied at startup,
-`/api/trail/export`, `/api/o/matters`, `/api/healthz`.
+Phase 4 adds:
+  - auth routers (operator/client/dev)
+  - compliance router
+  - session middleware (attaches request.state.session lazily)
+  - startup guard: AUTH_DEV_MODE=true + ENVIRONMENT=production → refuse.
 """
 from __future__ import annotations
 
@@ -16,6 +19,9 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app import db
 from app.migrate import apply_migrations
+from app.routes.auth_client import router as auth_client_router
+from app.routes.auth_operator import router as auth_operator_router
+from app.routes.compliance import router as compliance_router
 from app.routes.matters import router as matters_router
 from app.routes.trail import router as trail_router
 from app.settings import get_settings
@@ -29,52 +35,98 @@ logging.basicConfig(
 logger = logging.getLogger("brokaid.api")
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+def create_app(
+    database_url: str | None = None,
+    *,
+    pool_override=None,
+    seed_dev_users: bool | None = None,
+) -> FastAPI:
+    """Build the FastAPI app.
+
+    Parameters
+    ----------
+    database_url
+        DSN. Defaults to env `DATABASE_URL`.
+    pool_override
+        Pre-created asyncpg pool to reuse (tests inject the conftest pool).
+        When set, lifespan skips its own migrations + pool bootstrap.
+    seed_dev_users
+        Force seeding on/off. Defaults to `AUTH_DEV_MODE`.
+    """
     settings = get_settings()
-    # 1. apply migrations
-    applied = await apply_migrations(settings.database_url)
-    if applied:
-        logger.info("migrations applied: %s", ", ".join(applied))
-    else:
-        logger.info("migrations: up to date")
+    settings.assert_safe_to_start()
+    dsn = database_url or settings.database_url
+    do_seed = (
+        seed_dev_users
+        if seed_dev_users is not None
+        else settings.auth_dev_mode
+    )
 
-    # 2. open the app connection pool
-    pool = await db.init_pool(settings.database_url)
-    app.state.pool = pool
-    version = await db.fetch_version(pool)
-    app.state.postgres_version = version
-    logger.info("Connected to Postgres: %s", version.split(",")[0])
-    try:
-        yield
-    finally:
-        await db.close_pool()
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        if pool_override is not None:
+            app.state.pool = pool_override
+            app.state.postgres_version = "injected"
+        else:
+            applied = await apply_migrations(dsn)
+            if applied:
+                logger.info("migrations applied: %s", ", ".join(applied))
+            pool = await db.init_pool(dsn)
+            app.state.pool = pool
+            version = await db.fetch_version(pool)
+            app.state.postgres_version = version
+            logger.info(
+                "Connected to Postgres: %s", version.split(",")[0]
+            )
+        if do_seed:
+            try:
+                from app.seeds.seed_users import seed
+                await seed(app.state.pool)
+                logger.info("dev seeds applied")
+            except Exception as e:
+                logger.warning("dev seed failed (non-fatal): %r", e)
+        try:
+            yield
+        finally:
+            if pool_override is None:
+                await db.close_pool()
+
+    app = FastAPI(
+        title="brokAId API", version="0.4.0", lifespan=lifespan,
+    )
+
+    api_router = APIRouter(prefix="/api")
+
+    @api_router.get("/healthz")
+    async def healthz() -> dict:
+        pool = app.state.pool
+        version = await db.fetch_version(pool)
+        return {
+            "status": "ok",
+            "service": "brokaid-api",
+            "postgres_version": version,
+        }
+
+    app.include_router(api_router)
+    app.include_router(trail_router)
+    app.include_router(matters_router)
+    app.include_router(auth_operator_router)
+    app.include_router(auth_client_router)
+    app.include_router(compliance_router)
+
+    # Dev-only impersonation route — mounted only under AUTH_DEV_MODE.
+    if settings.auth_dev_mode:
+        from app.routes.auth_dev import router as auth_dev_router
+        app.include_router(auth_dev_router)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_credentials=True,
+        allow_origins=settings.cors_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    return app
 
 
-app = FastAPI(title="brokAId API", version="0.1.0", lifespan=lifespan)
-
-api_router = APIRouter(prefix="/api")
-
-
-@api_router.get("/healthz")
-async def healthz() -> dict:
-    pool = await db.get_pool()
-    version = await db.fetch_version(pool)
-    return {
-        "status": "ok",
-        "service": "brokaid-api",
-        "postgres_version": version,
-    }
-
-
-app.include_router(api_router)
-app.include_router(trail_router)
-app.include_router(matters_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = create_app()

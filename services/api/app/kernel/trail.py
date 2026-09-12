@@ -160,6 +160,30 @@ async def _project(conn: asyncpg.Connection, ev: Event) -> None:
             """,
             ev.tenant_id, int(p.get("threshold_pct", 0)), ev.event_id,
         )
+    elif t == "ComplianceBlockAdded":
+        await conn.execute(
+            """
+            INSERT INTO proj_active_blocks
+              (tenant_id, block_id, target_kind, target_id,
+               reason, added_by_event)
+            VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6::uuid)
+            ON CONFLICT (tenant_id, block_id) DO NOTHING
+            """,
+            ev.tenant_id, p["block_id"], p["target_kind"], p["target_id"],
+            p.get("reason", ""), ev.event_id,
+        )
+    elif t == "ComplianceBlockCleared":
+        await conn.execute(
+            """
+            UPDATE proj_active_blocks
+               SET cleared_at = $3, cleared_reason = $4,
+                   cleared_by_event = $5::uuid
+             WHERE tenant_id = $1::uuid AND block_id = $2::uuid
+            """,
+            ev.tenant_id, p["block_id"],
+            datetime.fromisoformat(ev.ts), p.get("reason", ""),
+            ev.event_id,
+        )
     # unknown types: no projection (silent by design)
 
 
