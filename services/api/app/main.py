@@ -146,6 +146,11 @@ def create_app(
     # Phase 12 addition — client Ask channel (liAIson).
     from app.routes.c_ask import router as c_ask_router
     app.include_router(c_ask_router)
+    # Phase 13 additions — claim scene: client FNOL + operator status.
+    from app.routes.c_claims import router as c_claims_router
+    from app.routes.o_claims import router as o_claims_router
+    app.include_router(c_claims_router)
+    app.include_router(o_claims_router)
 
     # Dev-only impersonation + admin bundle download — mounted only
     # under AUTH_DEV_MODE. Settings.assert_safe_to_start already refuses
