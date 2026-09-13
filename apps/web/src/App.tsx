@@ -11,7 +11,8 @@ import { ClientSign } from "./pages/ClientSign";
 import { ClientCertificate } from "./pages/ClientCertificate";
 import { VerifyPublic } from "./pages/VerifyPublic";
 import { ClientMoney } from "./pages/ClientMoney";
-import { ClientClaims, ClaimsNew } from "./pages/ClientClaims";
+import { ClientClaims, ClaimsNew, ClaimDetail } from "./pages/ClientClaims";
+import { ClientNotifications } from "./pages/ClientNotifications";
 import { ClientAsk } from "./pages/ClientAsk";
 import { ClientProfile } from "./pages/ClientProfile";
 import { OperatorControlLayout } from "./shells/OperatorControlLayout";
@@ -24,6 +25,7 @@ import { Clients as OperatorClients } from "./pages/operator/Clients";
 import { Client360 } from "./pages/operator/Client360";
 import { OperatorMatters } from "./pages/OperatorMatters";
 import { OperatorPolicies } from "./pages/OperatorPolicies";
+import { OperatorClaim } from "./pages/operator/OperatorClaim";
 import { ClientLogin } from "./pages/ClientLogin";
 import { OperatorLogin } from "./pages/OperatorLogin";
 import { OperatorEnrol } from "./pages/OperatorEnrol";
@@ -57,6 +59,8 @@ export function App() {
           <Route path="money" element={<ClientMoney />} />
           <Route path="claims" element={<ClientClaims />} />
           <Route path="claims/new" element={<ClaimsNew />} />
+          <Route path="claims/:claim_id" element={<ClaimDetail />} />
+          <Route path="notifications" element={<ClientNotifications />} />
           <Route path="ask" element={<ClientAsk />} />
           <Route path="profile" element={<ClientProfile />} />
           {__AUTH_DEV_MODE__ ? (
@@ -83,6 +87,7 @@ export function App() {
           <Route path="clients/:id" element={<Client360 />} />
           <Route path="matters" element={<OperatorMatters />} />
           <Route path="policies" element={<OperatorPolicies />} />
+          <Route path="claims/:claim_id" element={<OperatorClaim />} />
         </Route>
 
         {__AUTH_DEV_MODE__ ? (
