@@ -1,0 +1,198 @@
+/* Phase 11 — reference-scene UI additions.
+ *
+ * Extends brokaid-tab / brokaid-quote-card CSS with request-change form,
+ * progress bar, pay + sign card variants, certificate card, and the
+ * public /verify/:token page.
+ */
+
+/* --- Request change form ---------------------------------------- */
+.brokaid-request-form {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+}
+.brokaid-request-form__label {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--slate);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.brokaid-request-form__textarea {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 30%, transparent);
+  background: #ffffff;
+  color: var(--harbour);
+  resize: vertical;
+  min-height: 132px;
+}
+.brokaid-request-form__textarea:focus {
+  outline: none;
+  border-color: var(--harbour);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--harbour) 22%, transparent);
+}
+
+/* progress */
+.brokaid-request-progress {
+  margin-top: 20px;
+  max-width: 640px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 22%, transparent);
+  background: color-mix(in oklab, var(--harbour) 5%, transparent);
+}
+.brokaid-request-progress__label {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--harbour);
+}
+.brokaid-request-progress__bar {
+  margin-top: 8px;
+  height: 4px;
+  background: color-mix(in oklab, var(--harbour) 15%, transparent);
+  overflow: hidden;
+}
+.brokaid-request-progress__bar-fill {
+  width: 40%;
+  height: 100%;
+  background: var(--sea);
+  animation: brokaid-progress 1.4s ease-in-out infinite;
+}
+@keyframes brokaid-progress {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+/* --- Pay / Sign cards ------------------------------------------ */
+.brokaid-pay-card,
+.brokaid-sign-card {
+  max-width: 640px;
+}
+.brokaid-pay-receipt {
+  display: grid;
+  gap: 4px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklab, var(--verify) 35%, transparent);
+  background: color-mix(in oklab, var(--verify) 8%, transparent);
+}
+
+/* --- Certificate ----------------------------------------------- */
+.brokaid-cert {
+  max-width: 720px;
+  padding: 20px 22px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 22%, transparent);
+  background: #ffffff;
+  display: grid;
+  gap: 16px;
+}
+.brokaid-cert__verifier {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px dashed color-mix(in oklab, var(--harbour) 40%, transparent);
+  background: var(--sand);
+}
+.brokaid-cert__qr {
+  display: block;
+  width: 140px;
+  height: 140px;
+}
+.brokaid-cert__qr svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+}
+.brokaid-cert__url {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  word-break: break-all;
+  color: var(--harbour);
+}
+
+/* --- Public /verify page --------------------------------------- */
+.brokaid-verify {
+  min-height: 100dvh;
+  background: var(--sand);
+  color: var(--harbour);
+  padding: clamp(32px, 6vw, 96px);
+  display: grid;
+  gap: 32px;
+  align-content: start;
+}
+.brokaid-verify__head {
+  display: grid;
+  gap: 8px;
+}
+.brokaid-verify__mark {
+  font-family: var(--font-display-harbour);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--harbour);
+  margin: 0;
+}
+.brokaid-verify__mark em { font-style: normal; color: var(--sea); }
+.brokaid-verify__title {
+  font-family: var(--font-display-harbour);
+  font-weight: 700;
+  font-size: clamp(32px, 5vw, 48px);
+  margin: 0;
+  color: var(--harbour);
+}
+.brokaid-verify__card {
+  max-width: 640px;
+  padding: 24px 28px;
+  background: #ffffff;
+  border: 1px solid color-mix(in oklab, var(--harbour) 22%, transparent);
+  display: grid;
+  gap: 20px;
+}
+.brokaid-verify__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.brokaid-verify__grid {
+  display: grid;
+  gap: 16px 24px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+.brokaid-verify__label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--slate);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 4px;
+}
+.brokaid-verify__value {
+  font-family: var(--font-ui);
+  font-size: 18px;
+  color: var(--harbour);
+  margin: 0;
+}
+.brokaid-verify__cover-list ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--harbour);
+}
+.brokaid-verify__body {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  color: var(--harbour);
+  max-width: 640px;
+}
+.brokaid-verify__footnote {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--slate);
+  margin: 0;
+}

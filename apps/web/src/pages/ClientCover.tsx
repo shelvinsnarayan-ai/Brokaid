@@ -55,8 +55,7 @@ export function ClientCover() {
             <button
               type="button"
               className="brokaid-btn brokaid-btn--secondary"
-              disabled
-              title="Coming in the endorsement flow"
+              onClick={() => (window.location.href = `/c/cover/${p.policy_id}/request-change`)}
               data-testid={`request-change-${p.status}`}
             >
               Request change

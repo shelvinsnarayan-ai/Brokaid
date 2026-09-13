@@ -5,6 +5,11 @@ import { ClientLayout } from "./shells/ClientLayout";
 import { ClientHome } from "./pages/ClientHome";
 import { ClientCover } from "./pages/ClientCover";
 import { ClientPendingQuote } from "./pages/ClientPendingQuote";
+import { ClientRequestChange } from "./pages/ClientRequestChange";
+import { ClientPay } from "./pages/ClientPay";
+import { ClientSign } from "./pages/ClientSign";
+import { ClientCertificate } from "./pages/ClientCertificate";
+import { VerifyPublic } from "./pages/VerifyPublic";
 import { ClientMoney } from "./pages/ClientMoney";
 import { ClientClaims, ClaimsNew } from "./pages/ClientClaims";
 import { ClientAsk } from "./pages/ClientAsk";
@@ -37,12 +42,18 @@ export function App() {
       {__AUTH_DEV_MODE__ ? <DevAuthBanner /> : null}
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/verify/:token" element={<VerifyPublic />} />
 
         <Route path="/c/login" element={<ClientLogin />} />
         <Route path="/c" element={<ClientLayout />}>
           <Route index element={<ClientHome />} />
           <Route path="cover" element={<ClientCover />} />
           <Route path="cover/:policy_id/pending" element={<ClientPendingQuote />} />
+          <Route path="cover/:policy_id/request-change" element={<ClientRequestChange />} />
+          <Route path="cover/:policy_id/pay/:envelope_id" element={<ClientPay />} />
+          <Route path="cover/:policy_id/sign/:envelope_id" element={<ClientSign />} />
+          <Route path="cover/:policy_id/certificate/:envelope_id" element={<ClientCertificate />} />
+          <Route path="cover/:policy_id/certificate" element={<ClientCertificate />} />
           <Route path="money" element={<ClientMoney />} />
           <Route path="claims" element={<ClientClaims />} />
           <Route path="claims/new" element={<ClaimsNew />} />
