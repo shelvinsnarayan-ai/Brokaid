@@ -80,3 +80,34 @@ signed history in one push and delete the personal-account remote.
 
 12. **LLM budget for phase 0:** zero. No model calls in this phase.
     If any code path invokes an LLM, that's a bug.
+
+## Phase16Blocker — deterministic verifier token in every snapshot
+
+**Owner:** placement + verifier authors. **Deadline:** BEFORE phase 16.
+
+The `verify-migration-durability` workflow currently asserts a **4xx**
+(and fails on any 5xx) from `/api/verifier/<random-token>` because the
+phase-11 snapshot only exposes hashed tokens. Before phase 16 we must
+commit a **deterministic raw + hashed verifier token pair** alongside
+every future phase snapshot — either as a fixture file loaded by the
+snapshot script or as a small `SEEDS_ARE_FICTIONAL.md`-marked seed row
+— so the smoke can assert a **200** with the expected public-safe
+subset (jurisdiction, policy class, verified-status flag) instead of
+only proving the route is reachable and non-5xx.
+
+Rationale: the current assertion catches durability breakage (5xx or
+missing route) but cannot catch a regression that returns 4xx on a
+token that *should* be valid. That gap must close before we start
+minting certificates against premium-funded placements in phase 16.
+
+## Deviations register
+
+- **Phase 12.5 deviation 1 (accepted, condition met by phase 12.6):**
+  the durability workflow's verifier smoke now asserts 4xx and fails
+  on 5xx. The full 200 assertion is tracked as Phase16Blocker above.
+- **Phase 12.5 deviation 3 (accepted, hardened in phase 12.6):**
+  `reconcile_migration_sha.py` now requires a `--reason` ≥ 20 chars,
+  a `--second-approver` in production environments, and emits a
+  `MigrationShaReconciled` ledger event under the `brokaid-ops`
+  tenant BEFORE the row update. If the ledger write fails, the row
+  is not touched.

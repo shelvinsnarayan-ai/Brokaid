@@ -147,10 +147,28 @@ def create_app(
     from app.routes.c_ask import router as c_ask_router
     app.include_router(c_ask_router)
 
-    # Dev-only impersonation route — mounted only under AUTH_DEV_MODE.
+    # Dev-only impersonation + admin bundle download — mounted only
+    # under AUTH_DEV_MODE. Settings.assert_safe_to_start already refuses
+    # to boot with AUTH_DEV_MODE=true and ENVIRONMENT=production.
     if settings.auth_dev_mode:
-        from app.routes.auth_dev import router as auth_dev_router
+        from app.routes.auth_dev import (
+            admin_bundle_router,
+            mount_admin_bundle_route,
+            router as auth_dev_router,
+        )
         app.include_router(auth_dev_router)
+        bundle_path = os.environ.get("ADMIN_BUNDLE_PATH", "").strip()
+        if bundle_path:
+            try:
+                ttl_min = int(os.environ.get("ADMIN_BUNDLE_TTL_MINUTES", "30"))
+                mount_admin_bundle_route(
+                    app, bundle_path=bundle_path, ttl_minutes=ttl_min
+                )
+                app.include_router(admin_bundle_router)
+            except FileNotFoundError as e:
+                logger.warning("admin bundle route not mounted: %s", e)
+            except RuntimeError as e:
+                logger.warning("admin bundle route refused: %s", e)
 
     app.add_middleware(
         CORSMiddleware,

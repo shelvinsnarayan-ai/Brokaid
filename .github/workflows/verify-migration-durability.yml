@@ -66,22 +66,33 @@ jobs:
           done
           echo "API failed to start"; cat /tmp/api.log; exit 1
 
-      - name: Public verifier smoke test
+      - name: Public verifier smoke test (asserts 4xx, fails on 5xx)
         run: |
-          TOKEN=$(psql "$DATABASE_URL" -tAc \
-            "SELECT token_hash FROM verifier_tokens LIMIT 1" || true)
-          if [[ -z "$TOKEN" ]]; then
-            echo "No seeded token in snapshot — skipping verifier hit"
-            exit 0
-          fi
-          # The public verifier expects the RAW token, not its hash. The
-          # snapshot exposes only the hash, so this step proves the route
-          # exists and rate-limits on unknowns; a real end-to-end read
-          # requires a raw token stashed alongside the snapshot (future
-          # phase-13+ enhancement).
-          curl -sf -o /dev/null -w "verifier unknown-token status: %{http_code}\n" \
-            "http://127.0.0.1:8001/api/verifier/unknown-$(date +%s)" \
-            || echo "verifier route reachable (non-200 expected for unknown token)"
+          # The public verifier expects the RAW token; the snapshot only
+          # exposes hashes. Until Phase16Blocker lands, we hit with a
+          # random token and *require* an explicit 4xx (401/403/404).
+          # Any 5xx is a durability failure — the route is broken.
+          RANDOM_TOKEN="unknown-$(date +%s)-$RANDOM"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "http://127.0.0.1:8001/api/verifier/${RANDOM_TOKEN}")
+          echo "verifier smoke status: ${STATUS}"
+          case "${STATUS}" in
+            401|403|404)
+              echo "OK — got expected 4xx for unknown token"
+              ;;
+            5*)
+              echo "FAIL — verifier returned ${STATUS} (5xx = durability break)"
+              exit 1
+              ;;
+            2*)
+              echo "FAIL — verifier returned ${STATUS} but no seeded raw token was provided"
+              exit 1
+              ;;
+            *)
+              echo "FAIL — verifier returned unexpected status ${STATUS}"
+              exit 1
+              ;;
+          esac
 
       - name: Operator queue smoke test (dev-mode session)
         run: |
