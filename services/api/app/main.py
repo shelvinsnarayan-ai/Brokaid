@@ -151,6 +151,9 @@ def create_app(
     from app.routes.o_claims import router as o_claims_router
     app.include_router(c_claims_router)
     app.include_router(o_claims_router)
+    # Phase 14 — Shadow Mode dashboard + export.
+    from app.routes.o_shadow_mode import router as o_shadow_router
+    app.include_router(o_shadow_router)
 
     # Dev-only impersonation + admin bundle download — mounted only
     # under AUTH_DEV_MODE. Settings.assert_safe_to_start already refuses

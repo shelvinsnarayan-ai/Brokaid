@@ -22,6 +22,9 @@ CLASSES_FOR_HISTORY = [
     "structure_risk", "endorsement_standard", "claim_admin",
     "certificate_issue", "renewal_pack_unchanged", "comms_service",
     "request_info", "submit_to_market",
+    # Phase 14: two more classes so the shadow-mode dashboard has ≥10 rows.
+    "comms_advisory",
+    "endorsement_execute_instructed_quoted",
 ]
 
 
