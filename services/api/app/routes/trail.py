@@ -49,18 +49,37 @@ def _iso_or_none(s: str | None) -> datetime | None:
     if not s:
         return None
     try:
-        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"bad date: {e}")
+    # Normalise to offset-aware UTC so comparisons never mix naive/aware.
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _parse_event_ts(ts) -> datetime:
+    """Event.ts is written as an ISO string by read_events(). Parse and
+    normalise to offset-aware UTC for comparison with filter bounds.
+    """
+    if isinstance(ts, datetime):
+        dt = ts
+    else:
+        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 def _filter_events(events, client_id, dt_from, dt_to):
     out = []
     for e in events:
-        if dt_from and e.ts < dt_from:
-            continue
-        if dt_to and e.ts > dt_to:
-            continue
+        if dt_from or dt_to:
+            e_ts = _parse_event_ts(e.ts)
+            if dt_from and e_ts < dt_from:
+                continue
+            if dt_to and e_ts > dt_to:
+                continue
         if client_id:
             payload = e.payload or {}
             if str(payload.get("client_id") or "") != client_id:
