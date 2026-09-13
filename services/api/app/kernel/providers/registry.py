@@ -12,6 +12,7 @@ from typing import Callable
 from app.kernel.providers.anthropic_stub import AnthropicProviderStub
 from app.kernel.providers.base import AgentProvider
 from app.kernel.agents.compliance import EmergentLLMProviderCompliance
+from app.kernel.agents.liaison import EmergentLLMProviderLiaison
 from app.kernel.agents.placement import EmergentLLMProviderPlacement
 from app.kernel.providers.emergent import EmergentLLMProviderIntake
 from app.kernel.providers.mock import MockProvider
@@ -39,13 +40,17 @@ def _compliance_factory() -> AgentProvider:
     return EmergentLLMProviderCompliance()
 
 
+def _liaison_factory() -> AgentProvider:
+    return EmergentLLMProviderLiaison()
+
+
 AGENT_PROVIDERS: dict[str, ProviderFactory] = {
     "mock": _mock_factory("mock"),
     "intake": _intake_factory,           # phase 8 — LIVE
     "placement": _placement_factory,     # phase 9 — LIVE
     "claims": _mock_factory("claims"),
     "compliance": _compliance_factory,   # phase 10 — LIVE
-    "liaison": _mock_factory("liaison"),
+    "liaison": _liaison_factory,         # phase 12 — LIVE
     "docs": _mock_factory("docs"),
     "notify": _mock_factory("notify"),
     "certs": _mock_factory("certs"),

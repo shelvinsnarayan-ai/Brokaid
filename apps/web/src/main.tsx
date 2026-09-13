@@ -4,6 +4,7 @@ import "./styles/harbour-phase6.css";
 import "./styles/ledger-phase7.css";
 import "./styles/pending-quote.css";
 import "./styles/phase11.css";
+import "./styles/phase12.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";

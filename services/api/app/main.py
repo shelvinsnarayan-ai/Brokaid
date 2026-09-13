@@ -143,6 +143,9 @@ def create_app(
     from app.routes.verifier import router as verifier_router
     app.include_router(c_scene_router)
     app.include_router(verifier_router)
+    # Phase 12 addition — client Ask channel (liAIson).
+    from app.routes.c_ask import router as c_ask_router
+    app.include_router(c_ask_router)
 
     # Dev-only impersonation route — mounted only under AUTH_DEV_MODE.
     if settings.auth_dev_mode:

@@ -263,7 +263,9 @@ def test_release_pipeline_audit_grep_backstop() -> None:
     )
     hits = [
         h for h in proc.stdout.strip().splitlines()
-        if h and h != "app/kernel/release.py" and not h.endswith("trail.py")
+        if h and h != "app/kernel/release.py"
+           and not h.endswith("trail.py")
+           and not h.endswith("c_ask.py")     # phase 12: read-only SELECT
     ]
     assert not hits, (
         f"ClientMessage* string appears outside release.py + trail.py: {hits}"

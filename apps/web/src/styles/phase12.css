@@ -1,0 +1,98 @@
+/* Phase 12 — liAIson Ask surface additions. */
+
+.brokaid-ask {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  max-height: 60dvh;
+  overflow-y: auto;
+  display: grid;
+  gap: 16px;
+}
+
+.brokaid-ask__msg {
+  padding: 14px 16px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 15%, transparent);
+  background: #ffffff;
+  display: grid;
+  gap: 6px;
+  max-width: 92%;
+}
+.brokaid-ask__msg--client {
+  justify-self: end;
+  background: color-mix(in oklab, var(--sea) 12%, #ffffff);
+  border-color: color-mix(in oklab, var(--sea) 30%, transparent);
+}
+.brokaid-ask__msg--broker {
+  justify-self: start;
+  background: var(--sand);
+  border-color: color-mix(in oklab, var(--harbour) 20%, transparent);
+}
+.brokaid-ask__msg--pending {
+  justify-self: start;
+  background: color-mix(in oklab, var(--coral) 10%, var(--sand));
+  border-color: color-mix(in oklab, var(--coral) 45%, transparent);
+}
+.brokaid-ask__meta {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--slate);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.brokaid-ask__attribution {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--harbour);
+}
+.brokaid-ask__body {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  color: var(--harbour);
+  line-height: 1.5;
+}
+.brokaid-ask__next-step {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--slate);
+  padding-top: 6px;
+  border-top: 1px dashed color-mix(in oklab, var(--harbour) 22%, transparent);
+}
+.brokaid-ask__next-step-label {
+  display: inline-block;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--sea);
+  text-transform: uppercase;
+  margin-right: 6px;
+}
+.brokaid-ask__verified {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--verify);
+  letter-spacing: 0.04em;
+}
+
+.brokaid-ask__form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: #ffffff;
+  padding: 8px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 22%, transparent);
+}
+.brokaid-ask__form input {
+  flex: 1;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  padding: 10px 12px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--harbour);
+}
+.brokaid-ask__form input:disabled {
+  color: var(--slate);
+}
