@@ -1,0 +1,93 @@
+/* Phase-9 pending quote card — Harbour surface. */
+
+.brokaid-quote-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(244,239,230,0.7));
+  border: 1px solid rgba(11, 59, 75, 0.14);
+  border-radius: 6px;
+  padding: 20px;
+  margin: 16px 0;
+  box-shadow: 0 2px 12px rgba(11, 59, 75, 0.08);
+}
+
+.brokaid-quote-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.brokaid-quote-card__label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--harbour);
+  margin: 0 0 4px;
+}
+.brokaid-quote-card__cover {
+  font-family: var(--font-display-harbour);
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--harbour);
+  margin: 0;
+  text-transform: capitalize;
+}
+.brokaid-quote-card__summary {
+  color: #1c3542;
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 4px 0 16px;
+}
+.brokaid-quote-card__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 8px 0 16px;
+  padding: 12px 14px;
+  background: rgba(31, 138, 158, 0.06);
+  border-radius: 4px;
+}
+@media (max-width: 640px) {
+  .brokaid-quote-card__grid { grid-template-columns: 1fr; }
+}
+.brokaid-quote-card__stat-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sea);
+  margin: 0 0 4px;
+}
+.brokaid-quote-card__stat-value {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--harbour);
+  margin: 0;
+  font-weight: 500;
+}
+.brokaid-quote-card__stat-value--emphasis {
+  font-family: var(--font-display-harbour);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--coral);
+}
+.brokaid-quote-card__terms {
+  margin: 8px 0 12px;
+  font-size: 14px;
+  color: #223b46;
+}
+.brokaid-quote-card__conditions {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: #3e5460;
+}
+.brokaid-quote-card__markets {
+  font-size: 13px;
+  color: #3e5460;
+  margin: 8px 0 12px;
+}
+.brokaid-quote-card__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}

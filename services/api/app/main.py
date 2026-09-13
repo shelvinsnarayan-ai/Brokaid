@@ -133,6 +133,11 @@ def create_app(
     app.include_router(client_360_router)
     # Register the phase-7 compute_kpis job with the runner.
     from app.jobs import compute_kpis  # noqa: F401
+    # Phase 9 additions — plAIce orchestration + pending quote surface.
+    from app.routes.o_placement import router as o_placement_router
+    from app.routes.c_pending_quote import router as c_pending_quote_router
+    app.include_router(o_placement_router)
+    app.include_router(c_pending_quote_router)
 
     # Dev-only impersonation route — mounted only under AUTH_DEV_MODE.
     if settings.auth_dev_mode:

@@ -137,6 +137,34 @@ async def get_card(
             citation_refs = list((proposal.get("payload") or {}).get("citations", []))
             evidence = await _load_evidence(c, session.tenant_id, citation_refs)
 
+            # Phase-9 addition: lineage events (SubmissionDrafted +
+            # CarrierQuoted + PlacementRerouted + EndorsementQuoteReady)
+            # keyed by envelope_id are appended to the evidence pane so
+            # the Decision Card renders them inline. CarrierQuoted keeps
+            # its mocked=true flag, which the UI reads to show a
+            # MOCKED · CARRIER pill.
+            lineage_rows = await c.fetch(
+                """
+                SELECT event_id, ts, type, payload, actor
+                  FROM events
+                 WHERE tenant_id = $1::uuid
+                   AND payload->>'envelope_id' = $2
+                   AND type = ANY($3::text[])
+                 ORDER BY seq ASC
+                """,
+                session.tenant_id, envelope_id,
+                ["SubmissionDrafted", "CarrierQuoted",
+                 "PlacementRerouted", "EndorsementQuoteReady"],
+            )
+            for r in lineage_rows:
+                evidence.append({
+                    "event_id": str(r["event_id"]),
+                    "ts": r["ts"].isoformat(timespec="microseconds"),
+                    "type": r["type"],
+                    "actor": _parse(r["actor"]),
+                    "payload": _parse(r["payload"]),
+                })
+
     # Confidence: 4 components + scalar from Confidence object embedded
     # in the AgentOutputProduced payload (never model-reported).
     conf_obj = (proposal.get("payload") or {}).get("confidence") or {}

@@ -4,6 +4,7 @@ import { Landing } from "./pages/Landing";
 import { ClientLayout } from "./shells/ClientLayout";
 import { ClientHome } from "./pages/ClientHome";
 import { ClientCover } from "./pages/ClientCover";
+import { ClientPendingQuote } from "./pages/ClientPendingQuote";
 import { ClientMoney } from "./pages/ClientMoney";
 import { ClientClaims, ClaimsNew } from "./pages/ClientClaims";
 import { ClientAsk } from "./pages/ClientAsk";
@@ -41,6 +42,7 @@ export function App() {
         <Route path="/c" element={<ClientLayout />}>
           <Route index element={<ClientHome />} />
           <Route path="cover" element={<ClientCover />} />
+          <Route path="cover/:policy_id/pending" element={<ClientPendingQuote />} />
           <Route path="money" element={<ClientMoney />} />
           <Route path="claims" element={<ClientClaims />} />
           <Route path="claims/new" element={<ClaimsNew />} />
