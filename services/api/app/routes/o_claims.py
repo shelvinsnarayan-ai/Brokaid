@@ -48,6 +48,71 @@ async def _load_claim(conn, tenant_id: str, claim_id: str) -> dict | None:
     return dict(row) if row else None
 
 
+@router.get("/{claim_id}")
+async def get_claim_operator(
+    claim_id: str, request: Request,
+    session: Session = Depends(require_operator_session),
+) -> dict[str, Any]:
+    """Operator view of one claim — full claim row + timeline.
+
+    Tenant-scoped through app.tenant_id GUC. No user_client_links
+    dependency (operator isn't linked to the client entity).
+    """
+    pool = request.app.state.pool
+    tenant_id = session.tenant_id
+    async with pool.acquire() as c:
+        async with c.transaction():
+            await c.execute("SELECT set_config('app.tenant_id', $1, true)", tenant_id)
+            claim = await c.fetchrow(
+                """
+                SELECT claim_id::text, claim_reference, claim_type, urgency,
+                       status, opened_at, resolved_at, description,
+                       policy_id::text, client_id::text
+                  FROM claims
+                 WHERE tenant_id=$1::uuid AND claim_id=$2::uuid
+                """,
+                tenant_id, claim_id,
+            )
+            if not claim:
+                raise HTTPException(status_code=404, detail="claim_not_found")
+            timeline_rows = await c.fetch(
+                """
+                SELECT seq, ts, kind, summary, mocked
+                  FROM proj_claim_status_updates
+                 WHERE tenant_id=$1::uuid AND claim_id=$2::uuid
+                 ORDER BY seq DESC
+                """,
+                tenant_id, claim_id,
+            )
+    return {
+        "claim": {
+            "claim_id": claim["claim_id"],
+            "claim_reference": claim["claim_reference"],
+            "claim_type": claim["claim_type"],
+            "urgency": claim["urgency"],
+            "status": claim["status"],
+            "opened_at": claim["opened_at"].isoformat(timespec="microseconds"),
+            "resolved_at": (
+                claim["resolved_at"].isoformat(timespec="microseconds")
+                if claim["resolved_at"] else None
+            ),
+            "description": claim["description"],
+            "policy_id": claim["policy_id"],
+            "client_id": claim["client_id"],
+        },
+        "timeline": [
+            {
+                "seq": r["seq"],
+                "ts": r["ts"].isoformat(timespec="microseconds"),
+                "kind": r["kind"],
+                "summary": r["summary"],
+                "mocked": r["mocked"],
+            }
+            for r in timeline_rows
+        ],
+    }
+
+
 @router.post("/{claim_id}/status-update")
 async def status_update(
     claim_id: str, request: Request,

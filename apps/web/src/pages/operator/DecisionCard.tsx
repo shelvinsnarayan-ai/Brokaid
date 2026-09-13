@@ -10,6 +10,7 @@ import { KEvidence } from "../../components/ledger/KEvidence";
 import { KKbd } from "../../components/ledger/KKbd";
 import { KNumber } from "../../components/ledger/KNumber";
 import { useOperatorStore } from "../../state/operatorStore";
+import "../../styles/phase13.css";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -77,6 +78,8 @@ export function DecisionCard() {
 
   const { card, proposal, evidence, confidence, mocked_capabilities } = data;
   const isTrust = card.class_key === "trust_money";
+  const isClaim = card.class_key === "claim_admin";
+  const claimId = isClaim ? (proposal.payload?.claim_id as string | undefined) : undefined;
   const isCompliance = session?.session.active_role === "compliance";
 
   return (
@@ -93,6 +96,22 @@ export function DecisionCard() {
         ))}
         {isTrust && <KChip variant="warn" testId="dcard-two-person">two-person rule</KChip>}
       </div>
+
+      {isClaim && claimId ? (
+        <div className="dcard-claim-cta" data-testid="dcard-open-claim-composer-wrap">
+          <a
+            href={`/o/claims/${claimId}`}
+            className="k-btn k-btn--primary"
+            data-testid="dcard-open-claim-composer"
+          >
+            Open claim composer →
+          </a>
+          <span className="dcard-claim-cta__hint">
+            Full FNOL text, MOCKED · INSURER timeline, and the
+            coverage-language-guarded status update composer.
+          </span>
+        </div>
+      ) : null}
 
       <div className="dcard-grid">
         <div className="dcard-col" data-testid="dcard-proposal">

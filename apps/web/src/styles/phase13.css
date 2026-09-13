@@ -141,3 +141,14 @@
   padding: 10px 12px; border-radius: 6px;
   background: rgba(46, 125, 90, 0.1); color: #2E7D5A; font-size: 14px; font-weight: 600;
 }
+
+/* Decision-card CTA to the claim composer (operator side) */
+.dcard-claim-cta {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 14px; margin: 0 0 12px 0;
+  border: 1px solid var(--copper, #BF7A3E); border-radius: 4px;
+  background: rgba(191, 122, 62, 0.06);
+}
+.dcard-claim-cta__hint {
+  color: var(--slate, #5A5C60); font-size: 12px; line-height: 1.4;
+}

@@ -70,15 +70,7 @@ export function OperatorClaim() {
 
   const reload = async () => {
     if (!claim_id) return;
-    // Use the client view for read (both routes are RLS-tenant safe for
-    // an operator role because operator sessions bind app.tenant_id).
-    // But phase-13 didn't add an operator claim-detail endpoint, so we
-    // reuse GET /api/c/claims/:id which the operator's user_client_links
-    // may not have — instead call a lightweight query via events. For
-    // this demo scene we take the client route because seed_all wires
-    // the operator against the same tenant and the browser can still
-    // display timeline via the client route.
-    const r = await fetch(`${API}/api/c/claims/${claim_id}`, {
+    const r = await fetch(`${API}/api/o/claims/${claim_id}`, {
       credentials: "include",
     });
     if (r.ok) setDetail(await r.json());
