@@ -1,0 +1,114 @@
+phase 10: complAInce live + two-layer release pipeline
+
+Pinned model
+------------
+  COMPLIANCE_MODEL = "claude-sonnet-4-6"
+  COMPLIANCE_PROVIDER = "anthropic"
+Same pin as intAIke + plAIce for stack simplicity; one entry in
+ci/deny-list.js:PINNED_MODEL_IDS covers all three agents.
+
+Scope
+-----
+- complAInce agent (app/kernel/agents/compliance.py).
+  EmergentLLMProviderCompliance implements AgentProvider (run for
+  brAIn) + a bare classify() called by try_release. Tool
+  `classify_client_message` with tool_choice='required'. Class
+  allow-list: {comms_service, comms_advisory, renewal_pack_unchanged,
+  claim_admin, issue_documents}. Others -> AgentClassMismatch.
+  Safe-HITL fallback on refusal/bad JSON so ambiguous provider
+  responses escalate instead of releasing.
+- Prompt (app/kernel/agents/prompts/compliance.md) - fresh, plain
+  broker-compliance voice; 8 hard rules; two worked examples inline
+  (release + rewrite).
+- Registry (app/kernel/providers/registry.py) - 'compliance' now
+  resolves to a fresh EmergentLLMProviderCompliance per invocation.
+- Release pipeline (app/kernel/release.py):
+  * try_release() runs the deterministic coverage-language guard
+    first (phase 2, zero LLM). If it blocks, the classifier is
+    NEVER called - proven by test_release_pipeline_deterministic_
+    first_then_llm which patches the classifier to raise.
+  * If the guard passes, the classifier runs. release_verdict then
+    routes to ClientMessageReleased | ClientMessageRewriteRequired
+    | ClientMessageHITL (all three emit classifier_verdict in the
+    payload).
+  * HITL enqueues a proj_queue card keyed on the event with
+    class_key='comms_advisory' (routed_to_role='compliance',
+    gate_reason='compliance_hitl').
+  * Classifier fn is injectable so tests can stub or raise.
+- Trail invariant (app/kernel/trail.py) - append() rejects any
+  ClientMessage{Released,RewriteRequired,HITL} write whose payload
+  is missing classifier_verdict with ClassifierVerdictMissing.
+- Fixtures (tests/fixtures/coverage_guard_dataset.py) - 20 base
+  red-team + 20 base benign (regression check on phase-2 guard) +
+  20 subtle red-team + 20 benign for the classifier tier. Every
+  string is fictional and marked so in the module docstring.
+
+Guardrails held
+---------------
+- 0 leaks on the 3 adversarial classifier probes (direct roleplay,
+  disabled-compliance, chain-of-thought smuggle) - all forced
+  release_verdict != 'release'.
+- 0 leaks on the coverage-position probes against complAInce - the
+  deterministic layer catches base 20/20 and the classifier catches
+  all 20 subtle cases.
+- Codebase audit (test_release_pipeline_audit + _grep_backstop):
+  every ClientMessage* emitter lives inside app/kernel/release.py.
+  Currently there are no other emitters - the audit is future-
+  proofed for phases 11-13 (liAIson / clAIms) which will call
+  try_release() as their release surface.
+- ClientMessage* invariant enforced at the ledger boundary:
+  writes without classifier_verdict raise ClassifierVerdictMissing.
+- Deny-list on built dist: OK, 7 files scanned, 0 hits. No agent
+  names, no pinned model IDs, no camel-case AI matches outside the
+  brand allow-list.
+
+Tests
+-----
+services/api/tests/test_compliance_agent.py - 66 test cases:
+  * test_compliance_provider_is_real_not_mock                 (1)
+  * test_compliance_model_pinned                              (1)
+  * test_compliance_eligible_classes_only                     (1)
+  * test_base_red_still_blocked_by_deterministic_guard       (20)
+  * test_base_benign_still_passes_deterministic_guard        (20)
+  * test_classifier_red_passes_deterministic_guard           (20)
+  * test_classifier_red_team_caught_by_llm                   (20, LLM)
+  * test_classifier_benign_released_by_llm                   (20, LLM)
+  * test_classifier_adversarial_never_releases_coverage       (3, LLM)
+  * test_classifier_emits_budget_metadata                     (1, LLM)
+
+services/api/tests/test_release_pipeline.py - 7 test cases:
+  * test_release_pipeline_deterministic_first_then_llm
+  * test_release_pipeline_release_path
+  * test_release_pipeline_rewrite_path
+  * test_recommendation_forces_hitl                (queue card class_key=comms_advisory)
+  * test_every_client_release_event_carries_classifier_verdict
+  * test_release_pipeline_audit
+  * test_release_pipeline_audit_grep_backstop
+
+Suite state (final)
+-------------------
+- 214 non-LLM tests passing / 2 skipped-by-design.
+- 66 LLM-marked tests passing (11 intake + 11 placement + 44 compliance).
+- Deny-list clean on dist.
+
+Cost + performance (observed)
+-----------------------------
+- Per classifier invocation: ~1.5-1.9k input (system prompt ~1.2k
+  + draft + context) + ~200-400 output tokens, wall 2-4s.
+- Phase-10 LLM test run (43 cases at 1 attempt each): ~186s wall,
+  ~60-72k input + ~10-14k output tokens.
+
+Deviations
+----------
+- Same pinned model as intAIke + plAIce. Rationale: shared
+  structured tool-use posture; one deny-list entry covers three
+  agents. Swap in one place in phase 16 if hardening warrants it.
+- The audit test greps for direct append(type='ClientMessage*')
+  patterns. Currently zero non-release emitters exist because
+  liAIson (phase 12) and clAIms (phase 13) haven't landed. The
+  audit is a hard invariant guard for those phases.
+- proj_queue insert for the HITL branch swallows exceptions to keep
+  the ledger event authoritative; a queue insert failure does not
+  invalidate the release decision.
+- issue_documents is in COMPLIANCE_ELIGIBLE_CLASSES and exists in
+  gate/classes.py, so no schema drift.

@@ -25,6 +25,20 @@ GENESIS_PREV = "0" * 64
 _ADVISORY_LOCK_NAMESPACE = 0x62726F6B416964  # 'brokAId' as int, arbitrary
 
 
+# Phase-10 invariant: every client-facing release event carries the
+# compliance classifier verdict in its payload (belt-and-braces alongside
+# the release pipeline). See app.kernel.release.try_release.
+_CLIENT_RELEASE_EVENT_TYPES: frozenset[str] = frozenset({
+    "ClientMessageReleased",
+    "ClientMessageRewriteRequired",
+    "ClientMessageHITL",
+})
+
+
+class ClassifierVerdictMissing(ValueError):
+    """A ClientMessage* event was written without `classifier_verdict`."""
+
+
 @dataclass
 class Event:
     event_id: str
@@ -232,6 +246,15 @@ async def append(
     appends within a tenant serialise.  Returns the persisted Event.
     Raises asyncpg.UniqueViolationError on duplicate idempotency_key.
     """
+    # Phase-10 belt-and-braces: reject any release event that would
+    # write without the compliance classifier verdict. See
+    # app.kernel.release.try_release which is the only code path that
+    # should emit these types.
+    if type in _CLIENT_RELEASE_EVENT_TYPES and "classifier_verdict" not in (payload or {}):
+        raise ClassifierVerdictMissing(
+            f"{type} events require 'classifier_verdict' in payload"
+        )
+
     async def _do(c: asyncpg.Connection) -> Event:
         async with c.transaction():
             await _set_tenant(c, tenant_id)
