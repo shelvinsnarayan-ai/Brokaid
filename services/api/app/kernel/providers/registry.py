@@ -1,8 +1,9 @@
 """Agent → Provider registry.
 
 Phase 3: every agent name resolves to a fresh MockProvider instance.
-The stub is registered under an explicit name so the seam is testable
-without polluting the default agent map.
+Phase 8: `intake` now resolves to the live EmergentLLMProviderIntake
+(claude-sonnet-4-6). Every other agent stays on MockProvider until
+its phase lands.
 """
 from __future__ import annotations
 
@@ -10,6 +11,7 @@ from typing import Callable
 
 from app.kernel.providers.anthropic_stub import AnthropicProviderStub
 from app.kernel.providers.base import AgentProvider
+from app.kernel.providers.emergent import EmergentLLMProviderIntake
 from app.kernel.providers.mock import MockProvider
 
 
@@ -23,11 +25,13 @@ def _mock_factory(agent_name: str) -> ProviderFactory:
     return _make
 
 
+def _intake_factory() -> AgentProvider:
+    return EmergentLLMProviderIntake()
+
+
 AGENT_PROVIDERS: dict[str, ProviderFactory] = {
-    # Placeholder set of agent names — phases 4+ will replace each with
-    # its real provider. In phase 3 every one is a MockProvider.
     "mock": _mock_factory("mock"),
-    "intake": _mock_factory("intake"),
+    "intake": _intake_factory,           # phase 8 — LIVE
     "placement": _mock_factory("placement"),
     "claims": _mock_factory("claims"),
     "compliance": _mock_factory("compliance"),
@@ -50,5 +54,4 @@ def resolve(agent_name: str) -> AgentProvider:
     if agent_name not in AGENT_PROVIDERS:
         raise KeyError(f"unknown agent: {agent_name}")
     factory = AGENT_PROVIDERS[agent_name]
-    # Factory can be a class (AnthropicProviderStub) or a callable.
     return factory()

@@ -18,6 +18,7 @@ from app.kernel import compliance, queue
 from app.kernel.trail import append
 from app.kernel.two_person import record_approval
 from app.middleware.session import require_operator_session
+from app.routes._scrub import scrub
 
 
 router = APIRouter(prefix="/api/o/queue")
@@ -146,8 +147,8 @@ async def get_card(
 
     return {
         "card": card,
-        "proposal": proposal,
-        "evidence": evidence,
+        "proposal": scrub(proposal),
+        "evidence": scrub(evidence),
         "confidence": {
             "components": {
                 "schema_validity": float(components.get("schema_validity", 0.0)),

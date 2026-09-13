@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.auth.sessions import Session
 from app.middleware.session import require_operator_session
+from app.routes._scrub import scrub
 
 
 router = APIRouter(prefix="/api/o")
@@ -132,8 +133,8 @@ async def client_timeline(
                 "seq": int(r["seq"]),
                 "ts": r["ts"].isoformat(timespec="microseconds"),
                 "type": r["type"],
-                "actor": _parse(r["actor"]),
-                "payload": _parse(r["payload"]),
+                "actor": scrub(_parse(r["actor"])),
+                "payload": scrub(_parse(r["payload"])),
             }
             for r in rows
         ],

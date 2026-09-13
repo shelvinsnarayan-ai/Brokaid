@@ -49,6 +49,14 @@ const CLOSED_SET = [
   "certs",
 ];
 
+// Pinned model IDs — never leak to client- or operator-visible bundles.
+// Kept in sync with app/kernel/agents/intake.py::INTAKE_MODEL and any
+// future agent module. The check is separate from the agent-name sweep
+// so a model-id leak fails the CI with a clear message.
+const PINNED_MODEL_IDS = [
+  "claude-sonnet-4-6",
+];
+
 // Case-sensitive: matches camel-case `AI` between lowercase letters.
 const GENERIC = /[a-z]+AI[a-z]+/;
 const DEV_MARKER = "/*! brokaid:dev-only */";
@@ -86,6 +94,19 @@ function scanFile(file) {
         file,
         pattern: name,
         snippet: contents.slice(Math.max(0, m.index - 40), m.index + 40),
+      });
+    }
+  }
+
+  for (const modelId of PINNED_MODEL_IDS) {
+    // Fixed-string search — model IDs contain hyphens which would need
+    // escaping in a regex anyway.
+    const idx = contents.indexOf(modelId);
+    if (idx >= 0) {
+      findings.push({
+        file,
+        pattern: `pinned-model-id:${modelId}`,
+        snippet: contents.slice(Math.max(0, idx - 40), idx + modelId.length + 40),
       });
     }
   }

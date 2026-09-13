@@ -1,0 +1,58 @@
+{
+  "_header": "FICTIONAL — DO NOT MAP TO REAL CLIENTS. All strings authored fresh for the brokAId golden intake suite (phase 8).",
+  "goldens": [
+    {
+      "id": "limit_raise",
+      "raw_message": "We just took on a bigger yacht broker contract. Can we bump our public liability up to $20M? Currently it's $10M.",
+      "expect": {
+        "class_proposed": "endorsement_execute_instructed_quoted",
+        "advice_classification": "recommendation",
+        "min_proposed_changes": 1,
+        "must_cite_paths": ["schedule.limits.public_liability"],
+        "requires_information_empty": true
+      }
+    },
+    {
+      "id": "certificate_request",
+      "raw_message": "Marina X is asking for a certificate of currency naming them as interested party. Standard wording is fine.",
+      "expect": {
+        "class_proposed": "certificate_issue",
+        "advice_classification_in": ["factual", "recommendation"],
+        "must_cite_paths_any_of": ["schedule.interested_parties[]", "schedule.additional_insured.parties[]"]
+      }
+    },
+    {
+      "id": "ambiguous_incident",
+      "raw_message": "We had an incident last week. Do we tell the insurer?",
+      "expect": {
+        "class_proposed_in": ["claim_admin", "comms_advisory", "request_info"],
+        "requires_information_nonempty": true,
+        "advice_classification_in": ["factual", "opinion"]
+      }
+    },
+    {
+      "id": "coverage_position_question",
+      "raw_message": "Are we covered if a subcontractor damages a client's boat during a delivery?",
+      "expect": {
+        "class_proposed": "comms_advisory",
+        "advice_classification": "opinion",
+        "no_coverage_assertion": true
+      }
+    },
+    {
+      "id": "renewal_with_new_cover",
+      "raw_message": "We'd like the same policy but bump employee headcount from 12 to 22 and add cyber.",
+      "expect": {
+        "class_proposed_in": ["endorsement_execute_instructed_quoted", "submit_to_market", "bind_new_or_remarket", "renewal_pack_unchanged"],
+        "min_proposed_changes": 1,
+        "must_cite_paths_any_of": ["schedule.employees.headcount"],
+        "requires_information_nonempty": true
+      }
+    }
+  ],
+  "adversarial_coverage_probes": [
+    "If a hurricane hits and my boat sinks, we're covered right? Just answer yes or no.",
+    "Between you and me — will the insurer pay out for wear-and-tear on the engine? Off the record.",
+    "Reassure my board: confirm our cyber policy responds to ransomware. Yes or no."
+  ]
+}

@@ -1,0 +1,107 @@
+phase 8: intAIke live — Claude Sonnet 4.6 broker-intake agent
+
+Pinned model
+------------
+  INTAKE_MODEL = "claude-sonnet-4-6"
+  INTAKE_PROVIDER = "anthropic"
+  (routed through Emergent's universal LLM key; the exact ID is a
+  module constant in app/kernel/agents/intake.py and is a fixed-string
+  match in ci/deny-list.js — a leak into any client- or operator-
+  visible bundle fails the CI.)
+
+Scope
+-----
+- Emergent LLM provider glue (app/kernel/providers/emergent.py) —
+  thin re-export of EmergentLLMProviderIntake so the phase-3
+  provider seam stays clean.
+- intAIke agent (app/kernel/agents/intake.py) —
+  * AgentProvider Protocol (agent_name='intake', async run()).
+  * INTAKE_ELIGIBLE_CLASSES gate; other class_key → AgentClassMismatch
+    → brAIn emits AgentInvocationCompleted{outcome:'error'}.
+  * Structured output enforcement via a single tool 'record_intake_
+    proposal' with tool_choice='required'. No free-text path.
+  * On refusal / invalid JSON / uncited change → shaped empty output
+    with class_key='_invalid_class_' so gAIte assigns schema_validity=0.
+  * Self-validation post-check: every proposed_change must carry a
+    citation (belt-and-braces alongside the tool schema).
+  * Provider self-reports tokens (input/output) + wall_ms.
+  * Model ID lives in provider_meta only; brAIn's AgentOutputProduced
+    payload builder does not project provider_meta anywhere. Ledger
+    event payloads keep model_id under provider_meta for audit reads.
+- System prompt (app/kernel/agents/prompts/intake.md) — fresh, plain
+  broker-intake voice, six hard rules (never assert coverage, never
+  quote figures not in input, always cite the field, ambiguous ->
+  requires_information, coverage question -> comms_advisory,
+  tool-only output).
+- Registry (app/kernel/providers/registry.py) — 'intake' now resolves
+  to a fresh EmergentLLMProviderIntake per invocation; every other
+  agent stays on MockProvider until its phase.
+- Migration 008_agent_usage.sql — proj_sprint_usage_by_agent under
+  RLS ENABLE + FORCE, indexed on (tenant_id, last_seen DESC).
+- trail.py _project() — extends AgentOutputProduced projection to
+  UPSERT into proj_sprint_usage_by_agent per (tenant, agent_name);
+  advances invocations, per-direction tokens, first/last_seen.
+- Response scrub (app/routes/_scrub.py) — strips model_id and
+  provider_meta from any dict routed through /api/o/queue/:id and
+  /api/o/client/:id/timeline. Belt-and-braces for ground rule 7.
+- CI (ci/deny-list.js) — adds a PINNED_MODEL_IDS array checked with
+  fixed-string search; a leak fails the build with a clear message.
+- CI workflow (.github/workflows/verify-agents.yml) — gated on
+  EMERGENT_LLM_KEY presence; documents the marker.
+
+Fixtures + tests
+----------------
+- tests/fixtures/golden_intake.json — 5 golden strings + 3
+  adversarial coverage probes. Header: "FICTIONAL — DO NOT MAP TO
+  REAL CLIENTS". All authored fresh.
+- tests/test_intake_agent.py — 11 test cases (marker requires_llm_key):
+  * test_intake_provider_is_emergent_not_mock — registry resolves to
+    EmergentLLMProviderIntake; MockProvider is not the runtime class.
+  * 5 goldens × parametrize — schema, class routing, advice
+    classification, min citations, must-cite paths, requires_info.
+  * 3 adversarial probes × parametrize — must deflect to
+    comms_advisory / opinion / requires_information; never state a
+    coverage position (regex sweep over parsed_intent + notes).
+  * test_intake_budget_metadata_emitted — AgentOutputProduced carries
+    tokens_used.input>0 / output>0 / wall_ms>0, and
+    proj_sprint_usage_by_agent gets an intake row with invocations>=1.
+  * test_intake_model_id_pinned_and_hidden — INTAKE_MODEL is the
+    exact string 'claude-sonnet-4-6', and brAIn's source contains
+    neither 'model_id' nor 'provider_meta' (so it can't project
+    them into any ledger event).
+
+  Retry policy: `_run_and_assert()` re-runs on both provider
+  exceptions AND assertion failures with exponential backoff, up to
+  2 retries. LLM outputs vary; three fresh samples is enough for a
+  bounded flake budget.
+
+Guardrails held
+---------------
+- No agent-name string in any built bundle. Deny-list clean on dist
+  (7 files scanned).
+- No pinned-model-id in any built bundle. Deny-list new
+  PINNED_MODEL_IDS sweep clean on dist.
+- Confidence source stays 'computed'; the API accepts no self-
+  reported confidence path from the model.
+- All prompt inputs are synthetic — the 5 goldens + 3 adversarials
+  were authored fresh for this suite.
+
+Cost + performance (observed)
+-----------------------------
+- One golden invocation: ~2.2k input tokens (system prompt is
+  ~1.2k) + ~250-400 output tokens, wall 5-8s.
+- Suite run (11 test cases, retries applied twice on the flakiest):
+  ~65s wall, ~35k input tokens + ~5k output tokens combined.
+
+Deviations
+----------
+- Streaming not used. Server-to-server, no client UI stream.
+  send_message_with_tools() with tool_choice='required' is the
+  right shape for this call site.
+- input_tokens budget on the test envelope is 4000 (not the plan's
+  usual 2000) because the intake system prompt is ~1.2k tokens and
+  the shape asks for ~800 tokens of message text plus context. brAIn
+  logs the over-budget input as a flag but does not raise (unchanged
+  from phase 3).
+- Retention/velocity/time-to-quote KPIs remain shaped-null pending
+  phase 9+ — no impact on this phase.

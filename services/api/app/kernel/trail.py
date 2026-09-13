@@ -136,7 +136,9 @@ async def _project(conn: asyncpg.Connection, ev: Event) -> None:
         )
     elif t == "AgentOutputProduced":
         tokens = p.get("tokens_used") or {}
-        delta = int(tokens.get("input", 0)) + int(tokens.get("output", 0))
+        input_tok = int(tokens.get("input", 0))
+        output_tok = int(tokens.get("output", 0))
+        delta = input_tok + output_tok
         await conn.execute(
             """
             INSERT INTO proj_sprint_usage
@@ -150,6 +152,25 @@ async def _project(conn: asyncpg.Connection, ev: Event) -> None:
             """,
             ev.tenant_id, delta, ev.event_id,
         )
+        agent_name = p.get("agent_name")
+        if agent_name and delta > 0:
+            await conn.execute(
+                """
+                INSERT INTO proj_sprint_usage_by_agent
+                  (tenant_id, agent_name,
+                   tokens_used_input, tokens_used_output,
+                   invocations, first_seen, last_seen)
+                VALUES ($1::uuid, $2, $3, $4, 1, NOW(), NOW())
+                ON CONFLICT (tenant_id, agent_name) DO UPDATE SET
+                  tokens_used_input =
+                    proj_sprint_usage_by_agent.tokens_used_input + EXCLUDED.tokens_used_input,
+                  tokens_used_output =
+                    proj_sprint_usage_by_agent.tokens_used_output + EXCLUDED.tokens_used_output,
+                  invocations = proj_sprint_usage_by_agent.invocations + 1,
+                  last_seen = EXCLUDED.last_seen
+                """,
+                ev.tenant_id, agent_name, input_tok, output_tok,
+            )
     elif t == "SprintCapAlert":
         await conn.execute(
             """

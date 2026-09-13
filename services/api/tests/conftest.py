@@ -75,6 +75,7 @@ async def pool(_test_db_url) -> asyncpg.Pool:
         # Phase 5 adds clients/policies. TRUNCATE cascades via tenants FK.
         await c.execute(
             "TRUNCATE TABLE proj_queue, proj_kpi_daily, "
+            "proj_sprint_usage_by_agent, "
             "policies, clients, "
             "sessions, magic_link_tokens, user_client_links, "
             "user_brokerage_roles, brokerages, users, "

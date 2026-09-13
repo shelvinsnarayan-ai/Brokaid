@@ -15,6 +15,7 @@ class Settings(BaseModel):
     auth_dev_mode: bool
     environment: str
     resend_api_key: str | None = None
+    emergent_llm_key: str | None = None
     sprint_cap_tokens: int | None = None
     sprint_cap_tier_thresholds: list[int] = [50, 80, 100]
 
@@ -32,6 +33,7 @@ class Settings(BaseModel):
             auth_dev_mode=os.environ.get("AUTH_DEV_MODE", "false").lower() == "true",
             environment=os.environ.get("ENVIRONMENT", "development"),
             resend_api_key=(os.environ.get("RESEND_API_KEY") or None),
+            emergent_llm_key=(os.environ.get("EMERGENT_LLM_KEY") or None),
             sprint_cap_tokens=cap,
         )
 
