@@ -25,19 +25,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 
 from app.auth.sessions import Session
-from app.kernel.rbac import ALL_OPERATOR_ROLES
 from app.middleware.session import require_operator_session
 
 
 router = APIRouter(prefix="/api/o/shadow-mode")
-
-
-def _require_operator_kind(session: Session) -> None:
-    """Belt-and-braces: `require_operator_session` only checks MFA. A
-    dev-impersonated client session is MFA-verified too, so we bounce
-    non-operator roles explicitly here."""
-    if session.active_role not in ALL_OPERATOR_ROLES:
-        raise HTTPException(status_code=403, detail="operator_only")
 
 
 CLASS_TO_AGENT: dict[str, str] = {
@@ -191,7 +182,6 @@ async def summary(
     window: Literal["7d", "30d", "all"] = Query("30d"),
     session: Session = Depends(require_operator_session),
 ) -> dict:
-    _require_operator_kind(session)
     rows = await _summary_rows(request.app.state.pool, session.tenant_id, window)
     return {"window": window, "rows": rows}
 
@@ -208,7 +198,6 @@ async def decisions(
     """Paired-decision drill-through. Pairs Approval events with their
     upstream AgentOutputProduced (matched by payload.envelope_id).
     """
-    _require_operator_kind(session)
     if _agent_for(class_key) != agent:
         raise HTTPException(
             status_code=404, detail="agent_class_pair_unknown",
@@ -298,7 +287,6 @@ async def export(
     window: Literal["7d", "30d", "all"] = Query("30d"),
     session: Session = Depends(require_operator_session),
 ) -> Response:
-    _require_operator_kind(session)
     rows = await _summary_rows(request.app.state.pool, session.tenant_id, window)
     if format == "json":
         return Response(

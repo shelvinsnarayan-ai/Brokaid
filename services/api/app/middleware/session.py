@@ -32,10 +32,16 @@ async def require_session(request: Request):
 
 
 async def require_operator_session(request: Request):
-    """Operator endpoints — MFA-verified session required."""
+    """Operator endpoints — MFA-verified session AND an operator-role
+    active_role required. Client dev-impersonated sessions can be
+    MFA-verified for demo simplicity, so we also gate on role kind."""
+    from app.kernel.rbac import ALL_OPERATOR_ROLES
+
     session = await require_session(request)
     if not session.mfa_verified:
         raise HTTPException(status_code=401, detail="mfa_required")
+    if session.active_role not in ALL_OPERATOR_ROLES:
+        raise HTTPException(status_code=403, detail="operator_only")
     return session
 
 

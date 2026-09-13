@@ -12,6 +12,7 @@ before touching events / proj_matters.
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -345,20 +346,39 @@ async def create_tenant(
     )
 
 
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
 async def read_events(
     pool: asyncpg.Pool,
-    tenant_slug: str,
+    tenant_ref: str,
     from_seq: int | None = None,
     to_seq: int | None = None,
 ) -> tuple[Tenant, list[Event]]:
+    """Load a tenant + its events.
+
+    `tenant_ref` may be either a slug (e.g. `burmac`) or a tenant_id UUID.
+    Phase 15 operator endpoints pass the UUID (from session.tenant_id);
+    the legacy `/api/trail/export?tenant=<slug>` path passes a slug.
+    """
     async with pool.acquire() as conn:
-        t = await conn.fetchrow(
-            "SELECT tenant_id, slug, display_name, genesis_hash "
-            "FROM tenants WHERE slug = $1",
-            tenant_slug,
-        )
+        if _UUID_RE.match(tenant_ref):
+            t = await conn.fetchrow(
+                "SELECT tenant_id, slug, display_name, genesis_hash "
+                "FROM tenants WHERE tenant_id = $1::uuid",
+                tenant_ref,
+            )
+        else:
+            t = await conn.fetchrow(
+                "SELECT tenant_id, slug, display_name, genesis_hash "
+                "FROM tenants WHERE slug = $1",
+                tenant_ref,
+            )
         if t is None:
-            raise LookupError(f"unknown tenant: {tenant_slug}")
+            raise LookupError(f"unknown tenant: {tenant_ref}")
         tenant = Tenant(
             tenant_id=str(t["tenant_id"]), slug=t["slug"],
             display_name=t["display_name"], genesis_hash=t["genesis_hash"],

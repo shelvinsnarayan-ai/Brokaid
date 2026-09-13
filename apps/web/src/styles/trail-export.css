@@ -1,0 +1,40 @@
+/* Phase 15 — trAIl export view styling. Ledger palette. */
+.te-lede { color: var(--slate, #5A5C60); font-size: 14px; margin: 0 0 16px 0; }
+.te-lede code {
+  background: #17191F; color: #E8E2D6; padding: 1px 4px; border-radius: 3px;
+  font-family: "DM Mono", ui-monospace, monospace; font-size: 13px;
+}
+.te-controls {
+  display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;
+  padding: 16px; background: rgba(232,226,214,0.03);
+  border: 1px solid #232833; border-radius: 4px;
+}
+.te-field { display: flex; flex-direction: column; gap: 4px; }
+.te-field > span {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--slate); font-weight: 700;
+}
+.te-field select, .te-field input {
+  background: #0D111A; color: #E8E2D6; border: 1px solid #232833;
+  padding: 8px 10px; font-family: "Instrument Sans"; font-size: 13px;
+  min-width: 200px;
+}
+.te-actions { display: flex; gap: 8px; margin-left: auto; }
+.te-preview {
+  margin-top: 24px; padding: 20px; background: rgba(232,226,214,0.03);
+  border: 1px solid #232833; border-radius: 4px;
+}
+.te-count {
+  font-family: "DM Mono"; font-size: 40px; color: var(--copper, #BF7A3E);
+  font-weight: 600;
+}
+.te-count-label { color: var(--slate); font-size: 14px; margin-left: 8px; }
+.te-num { text-align: right; font-family: "DM Mono"; }
+.te-verified {
+  margin-top: 20px; padding: 12px 16px; border-left: 3px solid #2E7D5A;
+  color: #E8E2D6; font-size: 13px; line-height: 1.6;
+}
+.te-verified code {
+  background: #17191F; padding: 1px 4px; border-radius: 3px;
+  font-family: "DM Mono"; font-size: 12px; margin: 0 2px;
+}

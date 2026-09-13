@@ -8,10 +8,12 @@ import { KKbd } from "../components/ledger/KKbd";
 import { useOperatorStore } from "../state/operatorStore";
 
 const NAV = [
-  { to: "/o",         label: "Overview",    kbd: "g o" },
-  { to: "/o/queue",   label: "Queue",       kbd: "g q" },
-  { to: "/o/brief",   label: "Daily Brief", kbd: "g b" },
-  { to: "/o/clients", label: "Clients",     kbd: "g c" },
+  { to: "/o",             label: "Overview",     kbd: "g o" },
+  { to: "/o/queue",       label: "Queue",        kbd: "g q" },
+  { to: "/o/brief",       label: "Daily Brief",  kbd: "g b" },
+  { to: "/o/clients",     label: "Clients",      kbd: "g c" },
+  { to: "/o/shadow-mode", label: "Shadow Mode",  kbd: "g s" },
+  { to: "/o/export",      label: "Export",       kbd: "g e" },
 ];
 
 export function OperatorControlLayout() {
@@ -42,6 +44,7 @@ export function OperatorControlLayout() {
       if (gPrefix) {
         const map: Record<string, string> = {
           o: "/o", q: "/o/queue", b: "/o/brief", c: "/o/clients",
+          s: "/o/shadow-mode", e: "/o/export",
         };
         const dest = map[e.key.toLowerCase()];
         if (dest) { e.preventDefault(); navigate(dest); }
@@ -123,6 +126,8 @@ export function OperatorControlLayout() {
               ["g q", "Go to Queue"],
               ["g b", "Go to Daily Brief"],
               ["g c", "Go to Clients"],
+              ["g s", "Go to Shadow Mode"],
+              ["g e", "Go to Export"],
               ["j / k", "Move selection down / up (Queue)"],
               ["Enter", "Open selected row"],
               ["a", "Approve selected"],

@@ -1,0 +1,14 @@
+$ node --version
+v24.19.0
+
+$ node verify.js export.json
+OK — 109 events verified, tenant burmac, root 36b02db465eb482c485b6be0dda3e8cfd4561e729cf98e31447513786f60d4aa
+
+$ echo "exit code: $?"
+exit code: 0
+
+# Tamper one event and re-run
+$ node verify.js export_tampered.json
+FAIL — event #3 (event_id=f4a76676-f0ab-4a04-a486-c0b429bcbd8a): payload_jcs mismatch (canonicalisation non-deterministic or payload tampered)
+
+exit code: 0

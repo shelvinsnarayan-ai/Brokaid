@@ -27,7 +27,9 @@ import { OperatorMatters } from "./pages/OperatorMatters";
 import { OperatorPolicies } from "./pages/OperatorPolicies";
 import { OperatorClaim } from "./pages/operator/OperatorClaim";
 import { ShadowMode, ShadowModeDrill } from "./pages/operator/ShadowMode";
+import { TrailExport } from "./pages/operator/TrailExport";
 import "./styles/shadow-mode.css";
+import "./styles/trail-export.css";
 import { ClientLogin } from "./pages/ClientLogin";
 import { OperatorLogin } from "./pages/OperatorLogin";
 import { OperatorEnrol } from "./pages/OperatorEnrol";
@@ -92,6 +94,7 @@ export function App() {
           <Route path="claims/:claim_id" element={<OperatorClaim />} />
           <Route path="shadow-mode" element={<ShadowMode />} />
           <Route path="shadow-mode/:agent/:class_key" element={<ShadowModeDrill />} />
+          <Route path="export" element={<TrailExport />} />
         </Route>
 
         {__AUTH_DEV_MODE__ ? (

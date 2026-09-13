@@ -116,8 +116,8 @@ function main() {
     );
     process.exit(0);
   } else {
-    console.error(
-      `FAIL — event seq=${result.seq} event_id=${result.event_id}: ${result.reason}`
+    console.log(
+      `FAIL — event #${result.seq} (event_id=${result.event_id}): ${result.reason}`
     );
     process.exit(1);
   }
