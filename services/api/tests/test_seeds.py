@@ -15,6 +15,7 @@ async def test_seed_all_is_idempotent(pool):
     assert r1["tenant_id"] == r2["tenant_id"]
     assert r1["client_id"] == r2["client_id"]
     assert r1["policy_ids"] == r2["policy_ids"]
+    assert r1["vulnerable_client_id"] == r2["vulnerable_client_id"]
 
     async with pool.acquire() as c:
         async with c.transaction():
@@ -24,16 +25,19 @@ async def test_seed_all_is_idempotent(pool):
             n_clients = await c.fetchval("SELECT COUNT(*) FROM clients")
             n_policies = await c.fetchval("SELECT COUNT(*) FROM policies")
         n_brokerages = await c.fetchval("SELECT COUNT(*) FROM brokerages")
-    assert n_clients == 1
-    assert n_policies == 2
+    # Two client entities: Harbour Marine + Kelp Shipping (phase-11 vulnerable).
+    assert n_clients == 2
+    # Three policies: Managed + Tracked for Harbour, Managed for Kelp.
+    assert n_policies == 3
     assert n_brokerages == 1
 
     _, events = await read_events(pool, "burmac")
-    # Each seed emits a single ledger event of its type after two runs.
-    for etype in ("LicenseeCreated", "BrokerageCreated",
-                  "ClientEntityCreated"):
+    # LicenseeCreated + BrokerageCreated remain unique; ClientEntityCreated
+    # doubles because phase-11 seeds a second entity.
+    for etype in ("LicenseeCreated", "BrokerageCreated"):
         assert len([e for e in events if e.type == etype]) == 1, etype
-    assert len([e for e in events if e.type == "PolicyCreated"]) == 2
+    assert len([e for e in events if e.type == "ClientEntityCreated"]) == 2
+    assert len([e for e in events if e.type == "PolicyCreated"]) == 3
 
 
 async def test_operator_policies_returns_both_with_chips(app_client):
@@ -52,7 +56,8 @@ async def test_operator_policies_returns_both_with_chips(app_client):
     assert r.status_code == 200
     body = r.json()
     statuses = sorted(p["status"] for p in body["policies"])
-    assert statuses == ["managed", "tracked"]
+    # Phase 11 adds a third policy (Kelp Shipping, vulnerable-flag beat).
+    assert statuses == ["managed", "managed", "tracked"]
     for p in body["policies"]:
         assert p["mocked_insurer"] is True
         assert p["premium"]["currency"] == "AUD"

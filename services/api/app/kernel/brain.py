@@ -109,7 +109,7 @@ class Brain:
                 "class_key": envelope.class_key,
                 "budget": envelope.budget.model_dump(),
             },
-            idempotency_key=f"aginv:start:{envelope_id}",
+            idempotency_key=f"aginv:start:{envelope_id}:{agent_name}",
         )
 
         # b. Sprint cap check --------------------------------------------
@@ -220,7 +220,7 @@ class Brain:
                 },
                 "flags": {"input_tokens_overrun": input_overrun},
             },
-            idempotency_key=f"aginv:output:{envelope_id}",
+            idempotency_key=f"aginv:output:{envelope_id}:{agent_name}",
         )
 
         # i. Sprint cap alerts -------------------------------------------
@@ -277,7 +277,7 @@ class Brain:
                 "agent_name": agent_name,
                 "outcome": outcome,
             },
-            idempotency_key=f"aginv:done:{envelope_id}",
+            idempotency_key=f"aginv:done:{envelope_id}:{agent_name}",
         )
 
     async def _emit_breach(

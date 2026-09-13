@@ -10,6 +10,7 @@ from app.seeds import (
     seed_policy_managed,
     seed_policy_tracked,
     seed_users,
+    seed_vulnerable,
 )
 
 
@@ -27,10 +28,17 @@ async def seed_all(pool: asyncpg.Pool) -> dict:
     hist = await seed_historical.seed_historical_decisions(pool, tenant_id)
     cards = await seed_historical.seed_queue_cards(pool, tenant_id, client_id)
 
+    # Phase 11 — vulnerable client + Managed policy for the vulnerable-flag beat.
+    vuln = await seed_vulnerable.seed(pool, tenant_id)
+
     return {
         **users_result,
         "client_id": client_id,
-        "policy_ids": {"managed": managed_id, "tracked": tracked_id},
+        "policy_ids": {
+            "managed": managed_id, "tracked": tracked_id,
+            "vulnerable": vuln["policy_id"],
+        },
+        "vulnerable_client_id": vuln["client_id"],
         "historical": hist,
         "queue_cards": cards,
     }

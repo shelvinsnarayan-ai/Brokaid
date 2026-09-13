@@ -138,6 +138,11 @@ def create_app(
     from app.routes.c_pending_quote import router as c_pending_quote_router
     app.include_router(o_placement_router)
     app.include_router(c_pending_quote_router)
+    # Phase 11 additions — reference scene + public verifier.
+    from app.routes.c_scene import router as c_scene_router
+    from app.routes.verifier import router as verifier_router
+    app.include_router(c_scene_router)
+    app.include_router(verifier_router)
 
     # Dev-only impersonation route — mounted only under AUTH_DEV_MODE.
     if settings.auth_dev_mode:

@@ -74,7 +74,7 @@ async def pool(_test_db_url) -> asyncpg.Pool:
         # named explicitly. Everything else cascades via tenants.
         # Phase 5 adds clients/policies. TRUNCATE cascades via tenants FK.
         await c.execute(
-            "TRUNCATE TABLE proj_queue, proj_kpi_daily, "
+            "TRUNCATE TABLE verifier_tokens, proj_queue, proj_kpi_daily, "
             "proj_sprint_usage_by_agent, "
             "policies, clients, "
             "sessions, magic_link_tokens, user_client_links, "
@@ -125,3 +125,23 @@ async def seeded(pool):
     """Seed users + brokerage + client links; return the seed result dict."""
     from app.seeds.seed_users import seed
     return await seed(pool)
+
+
+
+@pytest_asyncio.fixture
+async def scene_seeded(pool):
+    """Full seed for the phase-11 reference scene: users + org + clients +
+    policies + historical + vulnerable client. Returns the seed_all shape
+    plus a convenience `principal_id`.
+    """
+    from app.seeds.seed_all import seed_all
+    result = await seed_all(pool)
+    for op in result.get("operators", []):
+        if op.get("role") == "principal":
+            result["principal_id"] = op["user_id"]
+            break
+    for cl in result.get("clients", []):
+        if cl.get("role") in ("client_owner", "owner") or "owner" in cl.get("role", ""):
+            result["client_user_id"] = cl["user_id"]
+            break
+    return result
