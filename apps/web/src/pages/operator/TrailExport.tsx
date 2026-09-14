@@ -4,7 +4,7 @@
  * Client selector + date range → preview count → download zip bundle.
  * The downloaded zip verifies offline (Node 18+, `canonicalize` npm).
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const API = (import.meta as any).env.VITE_API_BASE || "";
 
@@ -26,6 +26,15 @@ export function TrailExport() {
   const [preview, setPreview] = useState<PreviewShape | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Phase 16 — move focus to Download after a successful preview so
+  // keyboard flow lands on the natural next action. Not autoFocus on
+  // mount (would hijack initial page focus).
+  const downloadRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (preview && downloadRef.current) {
+      downloadRef.current.focus();
+    }
+  }, [preview]);
 
   useEffect(() => {
     fetch(`${API}/api/o/clients`, { credentials: "include" })
@@ -159,6 +168,7 @@ export function TrailExport() {
             {busy ? "Counting…" : "Preview event count"}
           </button>
           <button
+            ref={downloadRef}
             className="sm-btn sm-btn--active"
             onClick={download}
             disabled={!preview}

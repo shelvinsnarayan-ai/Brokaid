@@ -31,7 +31,7 @@
   gap: 12px;
 }
 .brokaid-claim-card__ref { font-family: "DM Mono", ui-monospace, monospace; font-weight: 600; }
-.brokaid-claim-card__type { color: #5A5C60; text-transform: capitalize; font-size: 14px; }
+.brokaid-claim-card__type { color: var(--slate-strong); text-transform: capitalize; font-size: 14px; }
 .brokaid-claim-card__status {
   padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.04em;
@@ -42,7 +42,7 @@
 .brokaid-claim-card__status--resolved { background: #2E7D5A; color: #fff; }
 .brokaid-claim-card__status--declined { background: #C94A3D; color: #fff; }
 .brokaid-claim-card__preview { color: #0B3B4B; font-size: 14px; margin: 8px 0; }
-.brokaid-claim-card__ts { color: #5A5C60; font-size: 12px; margin: 0; }
+.brokaid-claim-card__ts { color: var(--slate-strong); font-size: 12px; margin: 0; }
 
 /* Urgency pills */
 .brokaid-urgency {
@@ -64,7 +64,7 @@
 /* FNOL form */
 .brokaid-fnol { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
 .brokaid-field { display: flex; flex-direction: column; gap: 6px; }
-.brokaid-field > span { font-size: 14px; color: #5A5C60; font-weight: 600; }
+.brokaid-field > span { font-size: 14px; color: var(--slate-strong); font-weight: 600; }
 .brokaid-field input,
 .brokaid-field textarea {
   border: 1px solid #E8E2D6; border-radius: 8px; padding: 10px 12px;
@@ -72,14 +72,14 @@
 }
 .brokaid-field textarea { min-height: 120px; resize: vertical; }
 .brokaid-fnol__actions { display: flex; gap: 12px; }
-.brokaid-fnol__mocked-note { font-size: 13px; color: #5A5C60; }
+.brokaid-fnol__mocked-note { font-size: 13px; color: var(--slate-strong); }
 .brokaid-error { color: #C94A3D; font-size: 14px; }
-.brokaid-empty-caption { color: #5A5C60; margin-top: 16px; }
+.brokaid-empty-caption { color: var(--slate-strong); margin-top: 16px; }
 
 /* Claim detail */
 .brokaid-claim-detail__pills { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
 .brokaid-claim-detail__body { margin: 16px 0; }
-.brokaid-claim-detail__opened { color: #5A5C60; font-size: 13px; margin: 0 0 8px 0; }
+.brokaid-claim-detail__opened { color: var(--slate-strong); font-size: 13px; margin: 0 0 8px 0; }
 .brokaid-claim-detail__desc {
   background: #fff; border-left: 3px solid #1F8A9E; padding: 12px 16px;
   margin: 0; color: #0B3B4B; font-size: 15px; border-radius: 4px;
@@ -91,7 +91,7 @@
   border-left: 2px solid #E8E2D6; padding: 10px 14px; margin-bottom: 12px;
   background: #fff; border-radius: 0 8px 8px 0;
 }
-.brokaid-claim-timeline__meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #5A5C60; }
+.brokaid-claim-timeline__meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--slate-strong); }
 .brokaid-claim-timeline__kind { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #0B3B4B; }
 .brokaid-claim-timeline__ts { margin-left: auto; }
 .brokaid-claim-timeline__body { margin: 6px 0 0 0; color: #0B3B4B; }
@@ -99,7 +99,7 @@
 /* Notifications */
 .brokaid-notif-list { list-style: none; padding: 0; margin: 16px 0 0 0; display: flex; flex-direction: column; gap: 12px; }
 .brokaid-notif { background: #fff; border: 1px solid #E8E2D6; border-radius: 12px; padding: 16px; }
-.brokaid-notif__row { display: flex; justify-content: space-between; font-size: 12px; color: #5A5C60; }
+.brokaid-notif__row { display: flex; justify-content: space-between; font-size: 12px; color: var(--slate-strong); }
 .brokaid-notif__kind { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
 .brokaid-notif__subject { margin: 6px 0 8px 0; font-size: 16px; color: #0B3B4B; }
 .brokaid-notif__body { white-space: pre-wrap; font-family: inherit; font-size: 14px; color: #0B3B4B; margin: 0; }
@@ -111,7 +111,7 @@
   border-radius: 6px; padding: 10px 12px; font-family: "DM Mono", ui-monospace, monospace;
   font-size: 14px; resize: vertical;
 }
-.brokaid-status-composer__hint { font-size: 12px; color: #5A5C60; margin: 0; }
+.brokaid-status-composer__hint { font-size: 12px; color: var(--slate-strong); margin: 0; }
 
 .brokaid-guard-block {
   border: 2px solid #C94A3D; border-radius: 8px; padding: 12px 16px;

@@ -25,6 +25,11 @@ describe("Ledger palette contrast", () => {
   it("Slate on Bone ≥ 5.2", () => {
     expect(within(contrast(LEDGER.slate, LEDGER.bone), 5.2)).toBe(true);
   });
+  it("SlateStrong on Bone ≥ 7.0 (AA body ≥ 4.5) — phase 16", () => {
+    // New token used for secondary body copy on the 5 axe-flagged surfaces.
+    // Must clear AA body (4.5) and preferably AAA (7.0) for muted labels.
+    expect(within(contrast(LEDGER.slateStrong, LEDGER.bone), 7.0)).toBe(true);
+  });
 });
 
 describe("Harbour palette contrast", () => {
@@ -33,6 +38,11 @@ describe("Harbour palette contrast", () => {
   });
   it("Sea on Sand ≥ 3.5", () => {
     expect(within(contrast(HARBOUR.sea, HARBOUR.sand), 3.5)).toBe(true);
+  });
+  it("SeaStrong on Sand ≥ 4.5 (AA body) — phase 16", () => {
+    // New token used for secondary body copy on client surfaces so
+    // axe stops flagging color-contrast on /c and /c/cover.
+    expect(within(contrast(HARBOUR.seaStrong, HARBOUR.sand), 4.5)).toBe(true);
   });
   it("Coral on Sand within 2.8–3.0 (decorative only)", () => {
     expect(within(contrast(HARBOUR.coral, HARBOUR.sand), 2.8, 3.0)).toBe(true);

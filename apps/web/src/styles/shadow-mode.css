@@ -71,7 +71,7 @@
 .sm-decision--edit    { color: #BF7A3E; }
 
 .sm-error { color: #C94A3D; }
-.sm-legend { margin-top: 20px; font-size: 12px; color: var(--slate); }
+.sm-legend { margin-top: 20px; font-size: 12px; color: var(--slate-strong); }
 
 .sm-modal {
   position: fixed; inset: 0; background: rgba(0,0,0,0.6);
@@ -87,4 +87,4 @@
   font-family: "DM Mono", ui-monospace, monospace; overflow: auto;
   border-radius: 3px; white-space: pre-wrap;
 }
-.sm-modal__hint { font-size: 11px; color: var(--slate); font-style: italic; }
+.sm-modal__hint { font-size: 11px; color: var(--slate-strong); font-style: italic; }

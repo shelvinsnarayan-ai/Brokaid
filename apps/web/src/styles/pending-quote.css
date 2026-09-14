@@ -53,7 +53,7 @@
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--sea);
+  color: var(--sea-strong);
   margin: 0 0 4px;
 }
 .brokaid-quote-card__stat-value {

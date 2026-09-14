@@ -34,7 +34,7 @@ async function impersonate(page, email) {
   }, email);
 }
 
-async function tabUntil(page, targetTestId, maxTabs = 40) {
+async function tabUntil(page, targetTestId, maxTabs = 80) {
   for (let i = 0; i < maxTabs; i++) {
     const focused = await page.evaluate(
       () => document.activeElement?.getAttribute("data-testid") || null,
@@ -57,21 +57,35 @@ async function test_operator_export(page) {
   await page.waitForTimeout(1200);
   await page.locator("body").click({ position: { x: 5, y: 5 } });
   await page.keyboard.press("Tab"); // enter the tab cycle
-  // Verify each interactive element is reachable.
+  // Verify each interactive element is reachable. Note: `te-download`
+  // is intentionally omitted here — it's `disabled={!preview}` on
+  // mount and disabled buttons are outside the browser's default tab
+  // order. Reachability of Download is proved by the focus-after-
+  // preview assertion further down.
   const expected = [
     "te-chip-7d", "te-chip-30d", "te-chip-90d",
-    "te-client", "te-from", "te-to", "te-preview", "te-download",
+    "te-client", "te-from", "te-to", "te-preview",
   ];
   for (const t of expected) {
     await tabUntil(page, t);
   }
 
-  // Enter on Preview → preview panel appears.
+  // Enter on Preview → preview panel appears AND focus moves to Download.
   await page.locator('[data-testid="te-preview"]').focus();
   await page.keyboard.press("Enter");
   await page.waitForSelector('[data-testid="te-preview-panel"]', {
     timeout: 8000,
   });
+  // Phase 16 belt-and-braces: after a successful preview, focus should
+  // land on Download so the natural next action is a single Enter away.
+  await page.waitForTimeout(300);
+  const focusedAfterPreview = await page.evaluate(
+    () => document.activeElement?.getAttribute("data-testid") || null,
+  );
+  await assert(
+    focusedAfterPreview === "te-download",
+    `After Enter on Preview, focus must land on te-download; got ${focusedAfterPreview}`,
+  );
 
   // Esc on a focused date input clears focus off the date input.
   await page.locator('[data-testid="te-from"]').focus();

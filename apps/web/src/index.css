@@ -147,7 +147,7 @@ button {
 .brokaid-landing__route-note {
   font-family: var(--font-ui);
   font-size: 13px;
-  color: var(--slate);
+  color: var(--slate-strong);
 }
 
 .brokaid-landing__foot {
@@ -159,7 +159,7 @@ button {
   padding-top: 32px;
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--slate);
+  color: var(--slate-strong);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -274,7 +274,7 @@ button {
 .brokaid-dev-login__hint {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--slate);
+  color: var(--slate-strong);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -316,7 +316,7 @@ button {
 .brokaid-shell__card-note {
   font-family: var(--font-ui);
   font-size: 13px;
-  color: var(--slate);
+  color: var(--slate-strong);
 }
 
 /* --- Matters (operator projection screen) --------------------- */
@@ -435,7 +435,7 @@ button {
 
 .brokaid-matters__empty {
   text-align: center;
-  color: var(--slate);
+  color: var(--slate-strong);
   padding: 24px !important;
   font-family: var(--font-mono);
   font-size: 12px;

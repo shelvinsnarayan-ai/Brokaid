@@ -11,6 +11,7 @@ export const LEDGER = {
   bone: "#E8E2D6",
   copper: "#BF7A3E",
   slate: "#5A5C60",
+  slateStrong: "#45474B",
   verify: "#2E7D5A",
   alert: "#C94A3D",
 } as const;
@@ -18,6 +19,7 @@ export const LEDGER = {
 export const HARBOUR = {
   harbour: "#0B3B4B",
   sea: "#1F8A9E",
+  seaStrong: "#146E80",
   sand: "#F4EFE6",
   coral: "#E8623A",
   verify: "#2E7D5A",

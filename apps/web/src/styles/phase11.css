@@ -14,7 +14,7 @@
 .brokaid-request-form__label {
   font-family: var(--font-ui);
   font-size: 13px;
-  color: var(--slate);
+  color: var(--slate-strong);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -166,7 +166,7 @@
 .brokaid-verify__label {
   font-family: var(--font-ui);
   font-size: 12px;
-  color: var(--slate);
+  color: var(--slate-strong);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   margin: 0 0 4px;
@@ -193,6 +193,6 @@
 .brokaid-verify__footnote {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--slate);
+  color: var(--slate-strong);
   margin: 0;
 }
