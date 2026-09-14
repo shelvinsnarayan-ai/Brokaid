@@ -46,7 +46,22 @@ async function scan(context, targetPath, label) {
   page.setDefaultTimeout(15000);
   const url = `${BASE}${targetPath}`;
   await page.goto(url, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(1500);
+  // Wait for a page-specific hydration marker before scanning so axe
+  // doesn't see a half-mounted DOM.
+  const marker = {
+    "/o/queue": '[data-testid="queue-table"]',
+    "/o/export": '[data-testid="te-chip-7d"]',
+    "/o/clients": '[data-testid="operator-clients-list"]',
+    "/c": '[data-testid="home-ask-cta"]',
+    "/c/cover": 'body',
+  }[targetPath] || 'body';
+  try {
+    await page.waitForSelector(marker, { timeout: 10000 });
+  } catch { /* still scan */ }
+  try {
+    await page.waitForLoadState("networkidle", { timeout: 8000 });
+  } catch { /* soft */ }
+  await page.waitForTimeout(2500);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();

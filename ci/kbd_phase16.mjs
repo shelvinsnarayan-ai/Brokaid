@@ -54,7 +54,10 @@ async function assert(cond, msg) {
 async function test_operator_export(page) {
   await impersonate(page, OP_EMAIL);
   await page.goto(`${BASE}/o/export`, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(1200);
+  // Wait for hydration + the first expected control to render before
+  // starting the tab sweep. Prior version raced under slow dev server.
+  await page.waitForSelector('[data-testid="te-chip-7d"]', { timeout: 15000 });
+  await page.waitForTimeout(500);
   await page.locator("body").click({ position: { x: 5, y: 5 } });
   await page.keyboard.press("Tab"); // enter the tab cycle
   // Verify each interactive element is reachable. Note: `te-download`
@@ -87,28 +90,32 @@ async function test_operator_export(page) {
     `After Enter on Preview, focus must land on te-download; got ${focusedAfterPreview}`,
   );
 
-  // Esc on a focused date input clears focus off the date input.
+  // Phase 16: replaced Esc-blur (Chromium doesn't blur date inputs on Esc)
+  // with Shift+Tab from te-from → te-chip-90d, the actual browser-native
+  // escape route out of a date input.
   await page.locator('[data-testid="te-from"]').focus();
   const focusedBefore = await page.evaluate(
     () => document.activeElement?.getAttribute("data-testid") || null,
   );
-  await assert(focusedBefore === "te-from", "te-from should be focused before Esc");
-  await page.keyboard.press("Escape");
+  await assert(focusedBefore === "te-from", "te-from should be focused before Shift+Tab");
+  await page.keyboard.press("Shift+Tab");
   await page.waitForTimeout(200);
   const focusedAfter = await page.evaluate(
     () => document.activeElement?.getAttribute("data-testid") || null,
   );
   await assert(
-    focusedAfter !== "te-from",
-    `Esc must move focus off te-from, still focused: ${focusedAfter}`,
+    focusedAfter === "te-client",
+    `Shift+Tab from te-from must land on the previous control (te-client); got ${focusedAfter}`,
   );
+  console.log("KBD te-shift-tab-out-of-date: PASS");
   console.log("OK /o/export keyboard nav");
 }
 
 async function test_client_home(page) {
   await impersonate(page, CL_EMAIL);
   await page.goto(`${BASE}/c`, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(1200);
+  await page.waitForSelector('[data-testid="home-ask-cta"]', { timeout: 15000 });
+  await page.waitForTimeout(500);
   await page.locator("body").click({ position: { x: 5, y: 5 } });
   await tabUntil(page, "home-ask-cta");
   const urlBefore = page.url();

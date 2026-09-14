@@ -9,6 +9,7 @@
 export const LEDGER = {
   ink: "#0D111A",
   bone: "#E8E2D6",
+  boneMuted: "#A0A3A7",
   copper: "#BF7A3E",
   slate: "#5A5C60",
   slateStrong: "#45474B",

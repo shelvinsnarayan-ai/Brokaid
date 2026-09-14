@@ -1,2 +1,3 @@
-FAIL /o/export: ASSERT: Esc must move focus off te-from, still focused: te-from
+KBD te-shift-tab-out-of-date: PASS
+OK /o/export keyboard nav
 OK /c home CTA keyboard nav

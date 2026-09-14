@@ -132,7 +132,7 @@ export function Queue() {
           style={{ width: 240 }}
           data-testid="queue-filter"
         />
-        <span style={{ color: "var(--slate)", fontSize: 12 }}>
+        <span style={{ color: "var(--bone-muted)", fontSize: 12 }}>
           <KKbd>j</KKbd>/<KKbd>k</KKbd> move · <KKbd>Enter</KKbd> open · <KKbd>a</KKbd> approve · <KKbd>r</KKbd> reject
         </span>
       </div>
@@ -166,7 +166,7 @@ export function Queue() {
                 <td><KChip variant={c.sla_state}>{c.sla_state}</KChip></td>
                 <td>{c.class_key}</td>
                 <td>{c.client_display ?? "—"}</td>
-                <td style={{ color: "var(--slate)", fontSize: 12 }}>{c.gate_reason ?? "—"}</td>
+                <td style={{ color: "var(--bone-muted)", fontSize: 12 }}>{c.gate_reason ?? "—"}</td>
                 <td className="k-num"><KNumber value={c.confidence} format="raw" /></td>
                 <td className="k-num" data-testid={`queue-countdown-${i}`}>{countdown(c.sla_deadline, now)}</td>
                 <td>{c.routed_to_role ?? "—"}</td>

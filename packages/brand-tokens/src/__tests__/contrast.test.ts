@@ -30,6 +30,12 @@ describe("Ledger palette contrast", () => {
     // Must clear AA body (4.5) and preferably AAA (7.0) for muted labels.
     expect(within(contrast(LEDGER.slateStrong, LEDGER.bone), 7.0)).toBe(true);
   });
+  it("BoneMuted on Ink ≥ 7.0 — phase 16", () => {
+    // New token used for secondary text on the DARK Ledger surface
+    // (topbar, rail kbd hints, page eyebrow, export lede). AAA on
+    // muted labels; AA body body-copy is comfortably covered.
+    expect(within(contrast(LEDGER.boneMuted, LEDGER.ink), 7.0)).toBe(true);
+  });
 });
 
 describe("Harbour palette contrast", () => {

@@ -2,140 +2,20 @@
   {
     "label": "operator-queue",
     "url": "https://festive-bassi-9.preview.emergentagent.com/o/queue",
-    "violations": [
-      {
-        "id": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=playwright",
-        "nodes": 25,
-        "tags": [
-          "cat.color",
-          "wcag2aa",
-          "wcag143",
-          "TTv5",
-          "TT13.c",
-          "EN-301-549",
-          "EN-9.1.4.3",
-          "ACT",
-          "RGAAv4",
-          "RGAA-3.2.1"
-        ]
-      }
-    ],
-    "blocking": [
-      {
-        "id": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=playwright",
-        "nodes": 25,
-        "tags": [
-          "cat.color",
-          "wcag2aa",
-          "wcag143",
-          "TTv5",
-          "TT13.c",
-          "EN-301-549",
-          "EN-9.1.4.3",
-          "ACT",
-          "RGAAv4",
-          "RGAA-3.2.1"
-        ]
-      }
-    ]
+    "violations": [],
+    "blocking": []
   },
   {
     "label": "operator-export",
     "url": "https://festive-bassi-9.preview.emergentagent.com/o/export",
-    "violations": [
-      {
-        "id": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=playwright",
-        "nodes": 13,
-        "tags": [
-          "cat.color",
-          "wcag2aa",
-          "wcag143",
-          "TTv5",
-          "TT13.c",
-          "EN-301-549",
-          "EN-9.1.4.3",
-          "ACT",
-          "RGAAv4",
-          "RGAA-3.2.1"
-        ]
-      }
-    ],
-    "blocking": [
-      {
-        "id": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=playwright",
-        "nodes": 13,
-        "tags": [
-          "cat.color",
-          "wcag2aa",
-          "wcag143",
-          "TTv5",
-          "TT13.c",
-          "EN-301-549",
-          "EN-9.1.4.3",
-          "ACT",
-          "RGAAv4",
-          "RGAA-3.2.1"
-        ]
-      }
-    ]
+    "violations": [],
+    "blocking": []
   },
   {
     "label": "operator-client-360-1",
     "url": "https://festive-bassi-9.preview.emergentagent.com/o/clients",
-    "violations": [
-      {
-        "id": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=playwright",
-        "nodes": 14,
-        "tags": [
-          "cat.color",
-          "wcag2aa",
-          "wcag143",
-          "TTv5",
-          "TT13.c",
-          "EN-301-549",
-          "EN-9.1.4.3",
-          "ACT",
-          "RGAAv4",
-          "RGAA-3.2.1"
-        ]
-      }
-    ],
-    "blocking": [
-      {
-        "id": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=playwright",
-        "nodes": 14,
-        "tags": [
-          "cat.color",
-          "wcag2aa",
-          "wcag143",
-          "TTv5",
-          "TT13.c",
-          "EN-301-549",
-          "EN-9.1.4.3",
-          "ACT",
-          "RGAAv4",
-          "RGAA-3.2.1"
-        ]
-      }
-    ]
+    "violations": [],
+    "blocking": []
   },
   {
     "label": "client-home",
@@ -146,7 +26,7 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=playwright",
-        "nodes": 11,
+        "nodes": 2,
         "tags": [
           "cat.color",
           "wcag2aa",
@@ -167,7 +47,7 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=playwright",
-        "nodes": 11,
+        "nodes": 2,
         "tags": [
           "cat.color",
           "wcag2aa",
@@ -192,7 +72,7 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=playwright",
-        "nodes": 11,
+        "nodes": 2,
         "tags": [
           "cat.color",
           "wcag2aa",
@@ -213,7 +93,7 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=playwright",
-        "nodes": 11,
+        "nodes": 2,
         "tags": [
           "cat.color",
           "wcag2aa",

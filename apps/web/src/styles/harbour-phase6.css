@@ -56,7 +56,7 @@
   gap: 2px;
   padding: 10px 4px;
   min-height: 60px;
-  color: color-mix(in oklab, var(--harbour) 70%, transparent);
+  color: color-mix(in oklab, var(--harbour) 88%, transparent);
   font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 500;
@@ -66,9 +66,9 @@
 }
 
 .brokaid-tabbar__item.is-active {
-  color: var(--sea);
-  border-top-color: var(--sea);
-  background: color-mix(in oklab, var(--sea) 6%, transparent);
+  color: var(--harbour);
+  border-top-color: var(--sea-strong);
+  background: color-mix(in oklab, var(--sea-strong) 6%, transparent);
 }
 
 .brokaid-tabbar__glyph {
@@ -106,7 +106,7 @@
     border-left: 2px solid transparent;
   }
   .brokaid-tabbar__item.is-active {
-    border-left-color: var(--sea);
+    border-left-color: var(--sea-strong);
     border-top-color: transparent;
   }
 }
@@ -123,7 +123,7 @@
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--sea);
+  color: var(--sea-strong);
   margin: 0;
   display: inline-flex;
   align-items: center;
@@ -180,11 +180,11 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--slate);
+  color: var(--slate-strong);
 }
-.brokaid-policy-card--managed .brokaid-policy-card__micro { color: var(--sea); }
+.brokaid-policy-card--managed .brokaid-policy-card__micro { color: var(--sea-strong); }
 .brokaid-policy-card__grid { display: grid; gap: 8px; margin: 0; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
-.brokaid-policy-card__grid dt { font-size: 11px; color: var(--slate); text-transform: uppercase; letter-spacing: 0.08em; margin: 0; }
+.brokaid-policy-card__grid dt { font-size: 11px; color: var(--slate-strong); text-transform: uppercase; letter-spacing: 0.08em; margin: 0; }
 .brokaid-policy-card__grid dd { font-size: 15px; margin: 0; color: var(--harbour); font-weight: 500; }
 
 /* --- Chips ---------------------------------------------------------- */
@@ -199,8 +199,8 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.brokaid-chip--managed  { background: var(--sea); color: #FFFFFF; }
-.brokaid-chip--tracked  { background: transparent; color: var(--slate); border: 1px solid var(--slate); }
+.brokaid-chip--managed  { background: var(--sea-strong); color: #FFFFFF; }
+.brokaid-chip--tracked  { background: transparent; color: var(--slate-strong); border: 1px solid var(--slate-strong); }
 .brokaid-chip--pending  { background: transparent; color: var(--copper, #BF7A3E); border: 1px solid var(--copper, #BF7A3E); }
 .brokaid-chip--lapsed   { background: transparent; color: var(--alert); border: 1px solid var(--alert); }
 .brokaid-chip--muted    { background: color-mix(in oklab, var(--harbour) 6%, transparent); color: var(--harbour); }
@@ -313,7 +313,7 @@
 .brokaid-ask { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
 .brokaid-ask__msg { background: #FFFFFF; padding: 14px 16px; border-radius: 16px; }
 .brokaid-ask__msg--broker { border-left: 3px solid var(--sea); }
-.brokaid-ask__meta { font-size: 11px; color: var(--slate); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.brokaid-ask__meta { font-size: 11px; color: var(--slate-strong); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
 .brokaid-ask__body { font-size: 15px; color: var(--harbour); }
 
 .brokaid-ask__form {
@@ -330,8 +330,8 @@
 .brokaid-profile__block { background: #FFFFFF; border-radius: 16px; padding: 20px; display: grid; gap: 10px; }
 .brokaid-profile__h2 { font-family: var(--font-ui); font-size: 14px; font-weight: 600; margin: 0; color: var(--harbour); display: flex; align-items: center; gap: 8px; }
 .brokaid-profile__row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 14px; }
-.brokaid-profile__row span:first-child { color: var(--slate); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
-.brokaid-mini { font-family: var(--font-mono); font-size: 10px; padding: 2px 8px; background: color-mix(in oklab, var(--slate) 15%, transparent); color: var(--slate); border-radius: 999px; letter-spacing: 0.08em; }
+.brokaid-profile__row span:first-child { color: var(--slate-strong); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+.brokaid-mini { font-family: var(--font-mono); font-size: 10px; padding: 2px 8px; background: color-mix(in oklab, var(--slate-strong) 15%, transparent); color: var(--slate-strong); border-radius: 999px; letter-spacing: 0.08em; }
 
 /* --- Disclosure ---------------------------------------------------- */
 .brokaid-disclosure {
@@ -347,7 +347,7 @@
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--slate);
+  color: var(--slate-strong);
 }
 
 /* --- Amount -------------------------------------------------------- */
@@ -358,7 +358,7 @@
 
 /* --- Forms (client login page) ------------------------------------ */
 .brokaid-form { display: grid; gap: 12px; max-width: 380px; }
-.brokaid-form__label { display: grid; gap: 4px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--slate); }
+.brokaid-form__label { display: grid; gap: 4px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--slate-strong); }
 .brokaid-form__label input {
   padding: 12px 14px;
   border-radius: 8px;
