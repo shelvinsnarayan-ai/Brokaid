@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -169,9 +170,24 @@ class EmergentLLMProviderIntake:
         )
 
         start = time.monotonic()
-        response = await chat.send_message_with_tools(
-            UserMessage(text=_user_message_text(envelope))
-        )
+        # Phase 18 hotpin equivalent — narrow-scoped warning suppression
+        # for LiteLLM's `PydanticSerializationUnexpectedValue` serializer
+        # noise. Upstream tracked in BerriAI/litellm#11759 (no released
+        # fix). A real version pin would require rolling pydantic below
+        # 2.9, but google-genai's floor is `pydantic>=2.12.5`, so a
+        # downgrade would break the dep graph (MAJOR-effect per phase-18
+        # STOP gate). This filter lives inside the single LLM call and
+        # only silences the specific serializer warning; drop as soon as
+        # LiteLLM ships a repair of the tagged-union serializer path.
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*PydanticSerializationUnexpectedValue.*",
+                module=r"litellm.*",
+            )
+            response = await chat.send_message_with_tools(
+                UserMessage(text=_user_message_text(envelope))
+            )
         wall_ms = int((time.monotonic() - start) * 1000)
 
         tool_calls = getattr(response, "tool_calls", None) or []
