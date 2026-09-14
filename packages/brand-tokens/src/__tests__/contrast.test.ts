@@ -50,6 +50,11 @@ describe("Harbour palette contrast", () => {
     // axe stops flagging color-contrast on /c and /c/cover.
     expect(within(contrast(HARBOUR.seaStrong, HARBOUR.sand), 4.5)).toBe(true);
   });
+  it("Harbour on Sand ≥ 10.0 — MockedBadge client body (phase 16)", () => {
+    // The MockedBadge client variant renders body text at
+    // harbour on sand; coral survives as a decorative outline glyph.
+    expect(within(contrast(HARBOUR.harbour, HARBOUR.sand), 10.0)).toBe(true);
+  });
   it("Coral on Sand within 2.8–3.0 (decorative only)", () => {
     expect(within(contrast(HARBOUR.coral, HARBOUR.sand), 2.8, 3.0)).toBe(true);
   });
