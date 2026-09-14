@@ -2,6 +2,14 @@
 
 Uses a scratch database `brokaid_test` on the local dev Postgres.
 Fresh migrations per session; each test isolates via TRUNCATE.
+
+Phase 18 addition — `pytest_collection_modifyitems` transforms every
+test carrying the `requires_llm_key` marker into a conditional skip
+when `BROKAID_LLM_LIVE_TESTS != "true"`. This keeps the default
+`pytest` invocation free of live-LLM non-determinism (a hard
+requirement for demo-day CI) without silently xfailing or marking
+individual tests flaky. Run `BROKAID_LLM_LIVE_TESTS=true pytest` to
+opt in.
 """
 from __future__ import annotations
 
@@ -15,6 +23,24 @@ import pytest_asyncio
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip every LLM-live golden test unless BROKAID_LLM_LIVE_TESTS=true.
+
+    Applies on top of the existing `requires_llm_key` marker; the pre-
+    Phase-18 EMERGENT_LLM_KEY skipif inside each test file still fires
+    when the key is missing.
+    """
+    if os.environ.get("BROKAID_LLM_LIVE_TESTS", "").lower() == "true":
+        return
+    skip = pytest.mark.skip(
+        reason="LLM-live goldens gated by BROKAID_LLM_LIVE_TESTS=true "
+               "(phase 18 — LLM non-determinism keeps demo CI green)."
+    )
+    for item in items:
+        if "requires_llm_key" in item.keywords:
+            item.add_marker(skip)
 
 TEST_DB = "brokaid_test"
 ADMIN_DSN_TEMPLATE = "postgresql://{user}:{password}@{host}:{port}/postgres"
