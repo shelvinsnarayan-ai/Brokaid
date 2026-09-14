@@ -67,7 +67,19 @@ llm_only = [
         not os.environ.get("EMERGENT_LLM_KEY"),
         reason="phase 12 liaison LLM tests require EMERGENT_LLM_KEY",
     ),
+    pytest.mark.skipif(
+        os.environ.get("BROKAID_LLM_LIVE_TESTS") != "true",
+        reason="phase 18 gate — LLM-live goldens off by default (opt in with "
+        "BROKAID_LLM_LIVE_TESTS=true; belt-and-braces alongside the "
+        "conftest.pytest_collection_modifyitems skip).",
+    ),
 ]
+
+_LLM_LIVE_GATE = pytest.mark.skipif(
+    os.environ.get("BROKAID_LLM_LIVE_TESTS") != "true",
+    reason="phase 18 gate — LLM-live goldens off by default (opt in with "
+    "BROKAID_LLM_LIVE_TESTS=true).",
+)
 
 
 async def _draft_with_retry(
