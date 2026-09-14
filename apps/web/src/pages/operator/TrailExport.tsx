@@ -39,11 +39,15 @@ export function TrailExport() {
   if (dateFrom) qs.set("from", dateFrom);
   if (dateTo) qs.set("to", dateTo);
 
-  const runPreview = async () => {
+  const runPreviewWith = async (from: string, to: string, cid: string) => {
     setBusy(true);
     setErr(null);
     try {
-      const r = await fetch(`${API}/api/trail/export/preview?${qs}`, {
+      const q = new URLSearchParams();
+      if (cid) q.set("client_id", cid);
+      if (from) q.set("from", from);
+      if (to) q.set("to", to);
+      const r = await fetch(`${API}/api/trail/export/preview?${q}`, {
         credentials: "include",
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -54,6 +58,21 @@ export function TrailExport() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const runPreview = () => runPreviewWith(dateFrom, dateTo, clientId);
+
+  const setRangeDays = (days: number) => {
+    const now = new Date();
+    const then = new Date(now.getTime() - days * 24 * 3600 * 1000);
+    const iso = (d: Date) =>
+      `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+    const from = iso(then);
+    const to = iso(now);
+    setDateFrom(from);
+    setDateTo(to);
+    // Explicit-click model — same pathway as the Preview button.
+    runPreviewWith(from, to, clientId);
   };
 
   const download = () => {
@@ -71,6 +90,32 @@ export function TrailExport() {
       </p>
 
       <div className="te-controls">
+        <div className="te-chip-row" role="group" aria-label="Range presets">
+          <button
+            type="button"
+            className="te-chip"
+            onClick={() => setRangeDays(7)}
+            data-testid="te-chip-7d"
+          >
+            Last 7 days
+          </button>
+          <button
+            type="button"
+            className="te-chip"
+            onClick={() => setRangeDays(30)}
+            data-testid="te-chip-30d"
+          >
+            Last 30 days
+          </button>
+          <button
+            type="button"
+            className="te-chip"
+            onClick={() => setRangeDays(90)}
+            data-testid="te-chip-90d"
+          >
+            Last 90 days
+          </button>
+        </div>
         <label className="te-field">
           <span>Client</span>
           <select

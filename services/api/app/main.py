@@ -141,8 +141,10 @@ def create_app(
     # Phase 11 additions — reference scene + public verifier.
     from app.routes.c_scene import router as c_scene_router
     from app.routes.verifier import router as verifier_router
+    from app.routes.c_cert import router as c_cert_router
     app.include_router(c_scene_router)
     app.include_router(verifier_router)
+    app.include_router(c_cert_router)
     # Phase 12 addition — client Ask channel (liAIson).
     from app.routes.c_ask import router as c_ask_router
     app.include_router(c_ask_router)

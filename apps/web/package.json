@@ -1,8 +1,22 @@
 {
-  "name": "brokaid-frontend-shim",
+  "name": "@brokaid/web",
   "private": true,
   "version": "0.0.1",
   "scripts": {
-    "start": "cd /app/apps/web && node /app/node_modules/vite/bin/vite.js --host 0.0.0.0 --port 3000"
+    "start": "vite --host 0.0.0.0 --port 3000",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.10"
   }
 }

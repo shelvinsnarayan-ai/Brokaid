@@ -45,72 +45,92 @@ CLIENTS = [
 
 
 async def _ensure_tenant(pool: asyncpg.Pool) -> str:
+    """Idempotent + concurrent-safe. Falls back to create_tenant when
+    no row exists yet; concurrent racers converge on the winner's row.
+    """
     async with pool.acquire() as c:
-        row = await c.fetchrow("SELECT tenant_id FROM tenants WHERE slug = $1", TENANT_SLUG)
+        row = await c.fetchrow(
+            "SELECT tenant_id FROM tenants WHERE slug = $1", TENANT_SLUG,
+        )
     if row:
         return str(row["tenant_id"])
-    tenant, _ = await create_tenant(pool, TENANT_SLUG, TENANT_NAME)
-    return tenant.tenant_id
+    try:
+        tenant, _ = await create_tenant(pool, TENANT_SLUG, TENANT_NAME)
+        return tenant.tenant_id
+    except asyncpg.UniqueViolationError:
+        # Lost the race — read the winner.
+        async with pool.acquire() as c:
+            row = await c.fetchrow(
+                "SELECT tenant_id FROM tenants WHERE slug = $1", TENANT_SLUG,
+            )
+        assert row is not None
+        return str(row["tenant_id"])
 
 
 async def _ensure_brokerage(pool: asyncpg.Pool, tenant_id: str) -> str:
     async with pool.acquire() as c:
-        row = await c.fetchrow(
-            "SELECT brokerage_id FROM brokerages WHERE slug = $1", BROKERAGE_SLUG
-        )
-        if row:
-            return str(row["brokerage_id"])
-        brokerage_id = str(uuid.uuid4())
-        await c.execute(
-            "INSERT INTO brokerages (brokerage_id, tenant_id, slug, display_name, licensee) "
-            "VALUES ($1::uuid, $2::uuid, $3, $4, $5)",
-            brokerage_id, tenant_id, BROKERAGE_SLUG, BROKERAGE_NAME, LICENSEE,
-        )
-    return brokerage_id
+        async with c.transaction():
+            # Idempotent upsert keyed on slug. Prior implementation had a
+            # SELECT+INSERT race that surfaced as an FK violation on
+            # `user_brokerage_roles.brokerage_id` when tests running in
+            # ordering combined a TRUNCATE-CASCADE wipe with a re-seed
+            # under a fresh connection. See test_seed_users_idempotent.py.
+            row = await c.fetchrow(
+                "INSERT INTO brokerages "
+                "  (brokerage_id, tenant_id, slug, display_name, licensee) "
+                "VALUES ($1::uuid, $2::uuid, $3, $4, $5) "
+                "ON CONFLICT (slug) DO UPDATE "
+                "  SET display_name = EXCLUDED.display_name "
+                "RETURNING brokerage_id",
+                str(uuid.uuid4()), tenant_id, BROKERAGE_SLUG,
+                BROKERAGE_NAME, LICENSEE,
+            )
+    return str(row["brokerage_id"])
 
 
 async def _ensure_operator(pool: asyncpg.Pool, brokerage_id: str, spec: dict) -> str:
     async with pool.acquire() as c:
-        row = await c.fetchrow("SELECT user_id FROM users WHERE email = $1", spec["email"])
-        if row:
-            user_id = str(row["user_id"])
-        else:
-            user_id = str(uuid.uuid4())
-            await c.execute(
+        async with c.transaction():
+            # Idempotent + race-safe: upsert on the email unique index.
+            row = await c.fetchrow(
                 "INSERT INTO users (user_id, email, display_name, kind, password_hash) "
-                "VALUES ($1::uuid, $2, $3, 'operator', $4)",
-                user_id, spec["email"], spec["display_name"],
+                "VALUES ($1::uuid, $2, $3, 'operator', $4) "
+                "ON CONFLICT (email) DO UPDATE "
+                "  SET display_name = EXCLUDED.display_name "
+                "RETURNING user_id",
+                str(uuid.uuid4()), spec["email"], spec["display_name"],
                 passwords.hash_password(DEV_PASSWORD),
             )
-        # Role — idempotent via PK.
-        await c.execute(
-            "INSERT INTO user_brokerage_roles (user_id, brokerage_id, role) "
-            "VALUES ($1::uuid, $2::uuid, $3) ON CONFLICT DO NOTHING",
-            user_id, brokerage_id, spec["role"],
-        )
+            user_id = str(row["user_id"])
+            # Role — idempotent via PK (user_id, brokerage_id, role).
+            await c.execute(
+                "INSERT INTO user_brokerage_roles (user_id, brokerage_id, role) "
+                "VALUES ($1::uuid, $2::uuid, $3) ON CONFLICT DO NOTHING",
+                user_id, brokerage_id, spec["role"],
+            )
     return user_id
 
 
 async def _ensure_client(pool: asyncpg.Pool, tenant_id: str, spec: dict) -> str:
     async with pool.acquire() as c:
-        row = await c.fetchrow("SELECT user_id FROM users WHERE email = $1", spec["email"])
-        if row:
-            user_id = str(row["user_id"])
-        else:
-            user_id = str(uuid.uuid4())
-            await c.execute(
+        async with c.transaction():
+            row = await c.fetchrow(
                 "INSERT INTO users (user_id, email, display_name, kind) "
-                "VALUES ($1::uuid, $2, $3, 'client')",
-                user_id, spec["email"], spec["display_name"],
+                "VALUES ($1::uuid, $2, $3, 'client') "
+                "ON CONFLICT (email) DO UPDATE "
+                "  SET display_name = EXCLUDED.display_name "
+                "RETURNING user_id",
+                str(uuid.uuid4()), spec["email"], spec["display_name"],
             )
-        await c.execute(
-            """
-            INSERT INTO user_client_links (user_id, tenant_id, client_id, role)
-            VALUES ($1::uuid, $2::uuid, $3::uuid, $4)
-            ON CONFLICT DO NOTHING
-            """,
-            user_id, tenant_id, str(FICTIONAL_CLIENT_ID), spec["role"],
-        )
+            user_id = str(row["user_id"])
+            await c.execute(
+                """
+                INSERT INTO user_client_links (user_id, tenant_id, client_id, role)
+                VALUES ($1::uuid, $2::uuid, $3::uuid, $4)
+                ON CONFLICT DO NOTHING
+                """,
+                user_id, tenant_id, str(FICTIONAL_CLIENT_ID), spec["role"],
+            )
     return user_id
 
 

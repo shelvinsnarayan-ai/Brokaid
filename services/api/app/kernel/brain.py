@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from dataclasses import dataclass
 from typing import Callable
 
@@ -27,6 +28,44 @@ from app.kernel.providers.base import AgentProvider
 from app.kernel.trail import append
 
 logger = logging.getLogger("brokaid.brain")
+
+
+# Phase 16 — transient-error retry policy. Default cap is 2 attempts
+# (i.e. 1 retry). BROKAID_ACCEPTANCE_MODE=true caps at 1 attempt
+# (no retry). Never retry on 4xx, contract violations, or gAIte blocks.
+_TRANSIENT_EXC_TYPES: tuple[type[BaseException], ...] = (
+    asyncio.TimeoutError,
+    ConnectionError,
+    ConnectionResetError,
+    OSError,
+)
+
+
+def _retry_cap_from_env() -> int:
+    if os.environ.get("BROKAID_ACCEPTANCE_MODE", "").lower() == "true":
+        return 1
+    raw = os.environ.get("BROKAID_INVOKE_MAX_ATTEMPTS", "2")
+    try:
+        n = int(raw)
+    except ValueError:
+        n = 2
+    return max(1, n)
+
+
+def _is_transient(exc: BaseException) -> bool:
+    if isinstance(exc, _TRANSIENT_EXC_TYPES):
+        return True
+    # httpx / SDK style: any exception whose class name suggests a
+    # transient network / 5xx condition is retried.
+    name = type(exc).__name__.lower()
+    if "timeout" in name or "connect" in name:
+        return True
+    # Look for HTTP status codes attached to the exception.
+    status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
+    if isinstance(status, int) and 500 <= status < 600:
+        return True
+    return False
+
 
 
 ProviderResolver = Callable[[str], AgentProvider]
@@ -128,33 +167,60 @@ class Brain:
         # c. Resolve provider --------------------------------------------
         provider = self.resolver(agent_name)
 
-        # d + e. Run with wall_ms enforcement ----------------------------
+        # d + e. Run with wall_ms enforcement + transient-error retry -
         wall_s = envelope.budget.max_wall_ms / 1000.0
-        try:
-            output: OutputContract = await asyncio.wait_for(
-                provider.run(envelope), timeout=wall_s
-            )
-        except asyncio.TimeoutError:
-            await self._emit_breach(
-                tenant_id, envelope_id, agent_name, "wall_ms",
-                {"budget_ms": envelope.budget.max_wall_ms},
-            )
-            await self._emit_completed(
-                tenant_id, envelope_id, agent_name, "breach"
-            )
-            raise
-        except NotImplementedError:
-            # Provider seam intentionally not wired (AnthropicProviderStub
-            # in phase 3). Emit error outcome and re-raise.
-            await self._emit_completed(
-                tenant_id, envelope_id, agent_name, "error"
-            )
-            raise
-        except Exception:
-            await self._emit_completed(
-                tenant_id, envelope_id, agent_name, "error"
-            )
-            raise
+        max_attempts = _retry_cap_from_env()
+        attempt = 0
+        last_exc: BaseException | None = None
+        output: OutputContract | None = None
+        while attempt < max_attempts:
+            attempt += 1
+            try:
+                output = await asyncio.wait_for(
+                    provider.run(envelope), timeout=wall_s
+                )
+                break
+            except asyncio.TimeoutError as e:
+                last_exc = e
+                if attempt >= max_attempts:
+                    await self._emit_breach(
+                        tenant_id, envelope_id, agent_name, "wall_ms",
+                        {"budget_ms": envelope.budget.max_wall_ms,
+                         "attempts": attempt},
+                    )
+                    await self._emit_completed(
+                        tenant_id, envelope_id, agent_name, "breach",
+                        attempts=attempt,
+                    )
+                    raise
+                logger.info(
+                    "brain: transient timeout on attempt %d/%d for agent=%s",
+                    attempt, max_attempts, agent_name,
+                )
+                continue
+            except NotImplementedError:
+                await self._emit_completed(
+                    tenant_id, envelope_id, agent_name, "error",
+                    attempts=attempt,
+                )
+                raise
+            except Exception as e:
+                last_exc = e
+                if not _is_transient(e) or attempt >= max_attempts:
+                    await self._emit_completed(
+                        tenant_id, envelope_id, agent_name, "error",
+                        attempts=attempt,
+                    )
+                    raise
+                logger.info(
+                    "brain: transient error %s on attempt %d/%d for agent=%s",
+                    type(e).__name__, attempt, max_attempts, agent_name,
+                )
+                continue
+
+        assert output is not None, (
+            "brain: retry loop exited without output — should be unreachable"
+        )
 
         # f. Post-check output tokens ------------------------------------
         input_overrun = (
@@ -169,7 +235,8 @@ class Brain:
                 },
             )
             await self._emit_completed(
-                tenant_id, envelope_id, agent_name, "breach"
+                tenant_id, envelope_id, agent_name, "breach",
+                attempts=attempt,
             )
             raise PerInvocationBudgetBreached(
                 f"output tokens {output.tokens_used.output} > "
@@ -244,7 +311,8 @@ class Brain:
 
         # j. AgentInvocationCompleted ------------------------------------
         await self._emit_completed(
-            tenant_id, envelope_id, agent_name, "ok"
+            tenant_id, envelope_id, agent_name, "ok",
+            attempts=attempt,
         )
 
         return output
@@ -267,7 +335,8 @@ class Brain:
         return int(row["tokens_used"]), int(row["last_alert_pct"])
 
     async def _emit_completed(
-        self, tenant_id: str, envelope_id: str, agent_name: str, outcome: str
+        self, tenant_id: str, envelope_id: str, agent_name: str, outcome: str,
+        *, attempts: int = 1,
     ) -> None:
         await append(
             self.pool, tenant_id, "AgentInvocationCompleted",
@@ -276,6 +345,11 @@ class Brain:
                 "envelope_id": envelope_id,
                 "agent_name": agent_name,
                 "outcome": outcome,
+                "attempt_count": attempts,
+                "acceptance_mode": (
+                    os.environ.get("BROKAID_ACCEPTANCE_MODE", "").lower()
+                    == "true"
+                ),
             },
             idempotency_key=f"aginv:done:{envelope_id}:{agent_name}",
         )

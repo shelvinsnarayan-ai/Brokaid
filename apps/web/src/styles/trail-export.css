@@ -38,3 +38,19 @@
   background: #17191F; padding: 1px 4px; border-radius: 3px;
   font-family: "DM Mono"; font-size: 12px; margin: 0 2px;
 }
+.te-chip-row {
+  display: flex; gap: 8px; flex-basis: 100%; margin-bottom: 4px;
+}
+.te-chip {
+  background: transparent; color: var(--copper, #BF7A3E);
+  border: 1px solid #BF7A3E; padding: 6px 12px; border-radius: 999px;
+  font-family: "Instrument Sans"; font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer;
+  transition: background-color 120ms, color 120ms;
+}
+.te-chip:hover {
+  background: #BF7A3E; color: #0D111A;
+}
+.te-chip:focus-visible {
+  outline: 2px solid #E8E2D6; outline-offset: 2px;
+}

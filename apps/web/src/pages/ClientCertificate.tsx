@@ -34,34 +34,35 @@ type Cert = {
  *  as a monospaced code + a large-print link. Phase 16 hardening can
  *  swap in a real SVG QR encoder.
  */
-function VerifierBlock({ url }: { url: string }) {
+function VerifierBlock({
+  url, certificateId,
+}: {
+  url: string;
+  certificateId: string | null;
+}) {
   const [copied, setCopied] = useState(false);
+  const qrSrc = certificateId
+    ? `${API}/api/c/certificate/${certificateId}/qr.png`
+    : "";
   return (
     <div className="brokaid-cert__verifier" data-testid="cert-verifier-block">
       <p className="brokaid-quote-card__stat-label">Public verifier</p>
       <div
         className="brokaid-cert__qr"
         data-testid="cert-qr"
-        aria-label="QR code placeholder for the verifier link"
+        aria-label="QR code for the verifier link"
       >
-        {/* Purely decorative pattern; a real QR encoder lands in phase 16. */}
-        <svg width="140" height="140" viewBox="0 0 21 21" role="img">
-          <rect width="21" height="21" fill="#F4EFE6" />
-          {Array.from({ length: 210 }).map((_, i) => {
-            const x = i % 21, y = Math.floor(i / 21);
-            // deterministic pseudo-random pattern seeded from the url.
-            const seed = url.charCodeAt(i % url.length) + x * 7 + y * 13;
-            if (seed % 3 === 0)
-              return (
-                <rect
-                  key={i}
-                  x={x} y={y} width="1" height="1"
-                  fill="#0B3B4B"
-                />
-              );
-            return null;
-          })}
-        </svg>
+        {qrSrc ? (
+          <img
+            src={qrSrc}
+            width={140}
+            height={140}
+            alt="Certificate QR"
+            data-testid="cert-qr-img"
+          />
+        ) : (
+          <p className="brokaid-quote-card__summary">QR pending…</p>
+        )}
       </div>
       <p
         className="brokaid-cert__url"
@@ -195,7 +196,7 @@ export function ClientCertificate() {
           </div>
         )}
 
-        <VerifierBlock url={verifierUrl} />
+        <VerifierBlock url={verifierUrl} certificateId={cert.certificate_id} />
 
         <div className="brokaid-quote-card__actions">
           <button

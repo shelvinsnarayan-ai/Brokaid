@@ -25,6 +25,11 @@ import asyncpg
 
 from app.kernel.agents.compliance import EmergentLLMProviderCompliance
 from app.kernel.gate.coverage_guard import check as coverage_check
+from app.kernel.guard_rewrites import (
+    cache_llm_result as _cache_llm_result,
+    first_block_kind as _first_block_kind,
+    prescan_lookup as _prescan_lookup,
+)
 from app.kernel.queue import enqueue as queue_enqueue
 from app.kernel.trail import Event, append
 
@@ -117,7 +122,59 @@ async def try_release(
             reason=guard["reason"],
         )
 
-    # 2. LLM classifier.
+    # 2. Deterministic guard-rewrite cache — bypasses the LLM when we
+    #    can recognise the block reason from a canned pre-scan phrase.
+    #    See `app/kernel/guard_rewrites.py` for key derivation.
+    prescan = _prescan_lookup(
+        draft=draft,
+        jurisdiction=context.get("jurisdiction_code"),
+        product_class=context.get("product_class"),
+    )
+    if prescan is not None:
+        synth_verdict = {
+            "advice_classification": "opinion",
+            "classification_rationale": "deterministic pre-scan cache hit",
+            "risks_flagged": prescan["risks_flagged"],
+            "recommended_rewrite": prescan["recommended_rewrite"],
+            "release_verdict": "rewrite",
+            "_tokens_used": {"input": 0, "output": 0},
+            "_wall_ms": 0,
+            "_source": prescan["source"],
+            "_cache_key": prescan["cache_key"],
+        }
+        idem_seed_c = envelope_id or str(uuid.uuid4())
+        common_payload_c: dict[str, Any] = {
+            "draft": draft,
+            "author_agent": author_agent,
+            "classification": "opinion",
+            "classifier_rationale": "deterministic pre-scan cache hit",
+            "risks_flagged": prescan["risks_flagged"],
+            "mocked_channels_used": list(mocked_channels_used or []),
+            "classifier_verdict": synth_verdict,
+            "matter_id": matter_id,
+            "client_id": client_id,
+            "envelope_id": envelope_id,
+            "guard_rewrite_source": prescan["source"],
+            "block_reason_code": prescan["cache_key"]["block_reason_code"],
+        }
+        ev_c = await append(
+            pool, tenant_id, "ClientMessageRewriteRequired",
+            actor={"kind": "system", "id": "release", "name": "release"},
+            payload={
+                **common_payload_c,
+                "recommended_rewrite": prescan["recommended_rewrite"],
+            },
+            idempotency_key=f"clientmsg:rewrite:{idem_seed_c}",
+        )
+        return ReleaseResult(
+            released=False,
+            verdict="rewrite",
+            event=ev_c,
+            classifier_verdict=synth_verdict,
+            recommended_rewrite=prescan["recommended_rewrite"],
+        )
+
+    # 3. LLM classifier.
     verdict = await classifier_fn(
         draft=draft, context=context, author_agent=author_agent,
     )
@@ -165,12 +222,23 @@ async def try_release(
         )
 
     if v_kind == "rewrite":
+        # Cache the LLM's rewrite under (first_block_kind, juris, product_class)
+        # so a subsequent identical block hits the runtime cache and skips
+        # the classifier call.
+        _cache_llm_result(
+            block_reason_code=_first_block_kind(risks),
+            jurisdiction=context.get("jurisdiction_code"),
+            product_class=context.get("product_class"),
+            rewrite=verdict.get("recommended_rewrite"),
+        )
         ev = await append(
             pool, tenant_id, "ClientMessageRewriteRequired",
             actor=actor,
             payload={
                 **common_payload,
                 "recommended_rewrite": verdict.get("recommended_rewrite"),
+                "guard_rewrite_source": "llm",
+                "block_reason_code": _first_block_kind(risks),
             },
             idempotency_key=f"clientmsg:rewrite:{idem_seed}",
         )
