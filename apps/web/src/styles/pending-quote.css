@@ -67,7 +67,12 @@
   font-family: var(--font-display-harbour);
   font-weight: 700;
   font-size: 20px;
-  color: var(--coral);
+  /* Phase-18 axe fix: swapped from var(--coral) — coral (#E8623A)
+     on sand (#F4EFE6) = 2.94, below the WCAG AA large-text 3.0
+     threshold. Harbour on sand = 10.53. Emphasis is preserved via
+     weight (700) + display font + size; coral stays decorative
+     everywhere else per the phase-0 lock. */
+  color: var(--harbour);
 }
 .brokaid-quote-card__terms {
   margin: 8px 0 12px;
