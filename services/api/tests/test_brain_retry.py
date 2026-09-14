@@ -147,3 +147,101 @@ async def test_non_transient_failure_is_not_retried(pool):
     evs = await _events_for(pool, "retry-nt")
     completed = [e for e in evs if e.type == "AgentInvocationCompleted"][0]
     assert completed.payload["attempt_count"] == 1
+
+
+
+class _Fake5xxError(Exception):
+    """Mimics a provider SDK exception with an attached HTTP 5xx status.
+    _is_transient(...) inspects `status_code` — this covers the
+    "insurer/LLM SDK returned 502 once" fault-injection path.
+    """
+    def __init__(self, status: int = 502):
+        super().__init__(f"upstream {status}")
+        self.status_code = status
+
+
+class _FiveXXThenSuccess:
+    agent_name = "flaky-5xx"
+
+    def __init__(self, fail_times: int = 1, status: int = 502):
+        self._left = fail_times
+        self._status = status
+        self.calls = 0
+
+    async def run(self, envelope):
+        self.calls += 1
+        if self._left > 0:
+            self._left -= 1
+            raise _Fake5xxError(self._status)
+        from app.kernel.contracts.models import OutputContract, TokenCount
+        return OutputContract(
+            envelope_id=envelope.envelope_id,
+            class_key=envelope.class_key,
+            decision="propose",
+            payload={"ok_after_5xx": True},
+            citations=[],
+            notes="ok",
+            tokens_used=TokenCount(input=5, output=5),
+            wall_ms=1,
+            provider_meta={"mocked": True, "model_id": "fake"},
+        )
+
+
+async def test_default_env_5xx_transient_retried_and_succeeds(pool):
+    """Fault-injection: single 502 on first attempt.
+    Default env → retry succeeds, attempt_count=2 on the ledger.
+    """
+    tenant, _ = await create_tenant(pool, "retry-5xx-ok", "Retry 5xx OK")
+    prov = _FiveXXThenSuccess(fail_times=1, status=502)
+    brain = Brain(pool, resolver=_resolver(prov))
+    out = await brain.invoke(_envelope(tenant.tenant_id), "flaky-5xx")
+    assert out.payload == {"ok_after_5xx": True}
+    assert prov.calls == 2
+    evs = await _events_for(pool, "retry-5xx-ok")
+    completed = [e for e in evs if e.type == "AgentInvocationCompleted"][0]
+    assert completed.payload["outcome"] == "ok"
+    assert completed.payload["attempt_count"] == 2
+    assert completed.payload["acceptance_mode"] is False
+
+
+async def test_acceptance_mode_5xx_transient_not_retried(pool, monkeypatch):
+    """Fault-injection: single 502 with BROKAID_ACCEPTANCE_MODE=true.
+    Cap=1 → no retry, attempt_count=1 on the ledger, outcome=error.
+    """
+    monkeypatch.setenv("BROKAID_ACCEPTANCE_MODE", "true")
+    tenant, _ = await create_tenant(pool, "retry-5xx-acc", "Retry 5xx Acc")
+    prov = _FiveXXThenSuccess(fail_times=1, status=502)
+    brain = Brain(pool, resolver=_resolver(prov))
+    with pytest.raises(_Fake5xxError):
+        await brain.invoke(_envelope(tenant.tenant_id), "flaky-5xx")
+    assert prov.calls == 1
+    evs = await _events_for(pool, "retry-5xx-acc")
+    completed = [e for e in evs if e.type == "AgentInvocationCompleted"][0]
+    assert completed.payload["outcome"] == "error"
+    assert completed.payload["attempt_count"] == 1
+    assert completed.payload["acceptance_mode"] is True
+
+
+async def test_4xx_never_retried(pool):
+    """A 4xx-style provider exception must NOT be treated as transient
+    regardless of acceptance mode.
+    """
+    class _Fake4xx(Exception):
+        def __init__(self):
+            super().__init__("400 bad request")
+            self.status_code = 400
+    class _Prov:
+        agent_name = "flaky-4xx"
+        def __init__(self): self.calls = 0
+        async def run(self, envelope):
+            self.calls += 1
+            raise _Fake4xx()
+    tenant, _ = await create_tenant(pool, "retry-4xx", "Retry 4xx")
+    prov = _Prov()
+    brain = Brain(pool, resolver=_resolver(prov))
+    with pytest.raises(_Fake4xx):
+        await brain.invoke(_envelope(tenant.tenant_id), "flaky-4xx")
+    assert prov.calls == 1  # ONE call, no retry
+    evs = await _events_for(pool, "retry-4xx")
+    completed = [e for e in evs if e.type == "AgentInvocationCompleted"][0]
+    assert completed.payload["attempt_count"] == 1

@@ -85,6 +85,20 @@ def create_app(
                 logger.info("dev seeds applied")
             except Exception as e:
                 logger.warning("dev seed failed (non-fatal): %r", e)
+
+        # Phase 16 — optional CI seed gate. NEVER run on default boot;
+        # only when BROKAID_SEED_CI=true is explicitly set (or from the
+        # `python -m app.seeds.ci_deterministic` CLI entrypoint).
+        if os.environ.get("BROKAID_SEED_CI", "").lower() == "true":
+            try:
+                from app.seeds.ci_deterministic import seed_ci_deterministic
+                out = await seed_ci_deterministic(app.state.pool)
+                logger.info(
+                    "CI deterministic seed applied: %s",
+                    [t["slug"] for t in out.get("tenants", [])],
+                )
+            except Exception as e:
+                logger.warning("CI seed failed (non-fatal): %r", e)
         try:
             yield
         finally:
