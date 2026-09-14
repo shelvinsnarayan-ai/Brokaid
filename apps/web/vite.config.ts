@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import type { Plugin } from "vite";
+import { execSync } from "node:child_process";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
@@ -29,6 +30,34 @@ function productionDevAuthGuard(): Plugin {
       }
     },
   };
+}
+
+function readBuildIdentity(): { sha: string; signed: "G" | "N" | "?" } {
+  // Phase 17 — bake the current git SHA (7-char) and signature status
+  // into the client bundle so the operator shell can render a
+  // "build 51150d3 · G" credibility indicator. Falls back to "unknown"
+  // when git is unavailable so the build never fails on a source-only
+  // checkout. NEVER read from a runtime API — build-time only.
+  const sha = ((): string => {
+    try {
+      return execSync("git rev-parse --short=7 HEAD", {
+        cwd: process.cwd(), stdio: ["ignore", "pipe", "ignore"],
+      }).toString().trim() || "unknown";
+    } catch { return "unknown"; }
+  })();
+  const signed = ((): "G" | "N" | "?" => {
+    try {
+      // %G? = 'G' good, 'B' bad, 'U' good-untrusted, 'X' expired,
+      //       'Y' expired-key, 'R' revoked, 'E' cannot check, 'N' no signature.
+      const out = execSync("git log -1 --pretty=%G?", {
+        cwd: process.cwd(), stdio: ["ignore", "pipe", "ignore"],
+      }).toString().trim();
+      if (out === "G") return "G";
+      if (out === "N" || out === "") return "N";
+      return "?";
+    } catch { return "?"; }
+  })();
+  return { sha, signed };
 }
 
 function devOnlyChunkMarker(): Plugin {
@@ -86,6 +115,8 @@ export default defineConfig(({ mode }) => {
     ],
     define: {
       __AUTH_DEV_MODE__: JSON.stringify(authDev),
+      __BROKAID_BUILD_SHA__: JSON.stringify(readBuildIdentity().sha),
+      __BROKAID_BUILD_SIGNED__: JSON.stringify(readBuildIdentity().signed),
     },
     server: {
       host: "0.0.0.0",

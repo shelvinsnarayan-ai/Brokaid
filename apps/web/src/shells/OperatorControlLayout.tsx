@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { KKbd } from "../components/ledger/KKbd";
+import { BuildIndicator } from "../components/ledger/BuildIndicator";
 import { useOperatorStore } from "../state/operatorStore";
 
 const NAV = [
@@ -148,6 +149,8 @@ export function OperatorControlLayout() {
           {t.message}
         </div>
       ))}
+
+      <BuildIndicator />
     </div>
   );
 }

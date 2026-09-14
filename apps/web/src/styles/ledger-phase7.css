@@ -469,6 +469,51 @@
 .k-toast--verify { border-color: var(--verify); color: #8fd0b3 }
 .k-toast--alert  { border-color: var(--alert); color: #f4b0a7 }
 
+/* Phase 17 — verified-build indicator. Bottom-right footer pill.
+   Bone-muted on Ink for readable low visual weight; monospace digits;
+   not focusable; announced to AT via aria-label on the root. Rendered
+   ONLY on the operator shell — the client shell must never include
+   this pill. All three text spans use `--bone-muted` (contrast against
+   Ink ~= 5.4:1, AA-safe for the 10px text). */
+.ledger-build-indicator {
+  position: fixed;
+  right: 12px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  background: rgba(13, 17, 26, 0.85);
+  border: 1px solid rgba(232, 226, 214, 0.14);
+  color: var(--bone-muted, #a8a49b);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  z-index: 5;
+  pointer-events: none;
+  user-select: none;
+}
+.ledger-build-indicator__label {
+  color: var(--bone-muted, #a8a49b);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.ledger-build-indicator__sha {
+  color: var(--bone, #e8e2d6);
+  font-variant-numeric: tabular-nums;
+}
+.ledger-build-indicator__sep {
+  color: var(--bone-muted, #a8a49b);
+}
+.ledger-build-indicator__sig {
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.ledger-build-indicator__sig--g { color: #8fd0b3 }
+.ledger-build-indicator__sig--n { color: #f4b0a7 }
+
 /* Meta boxes on KPI detail */
 .k-meta-grid {
   display: grid;

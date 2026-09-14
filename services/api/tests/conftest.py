@@ -64,9 +64,22 @@ async def _test_db_url() -> str:
 
 @pytest_asyncio.fixture
 async def pool(_test_db_url) -> asyncpg.Pool:
-    pool = await asyncpg.create_pool(dsn=_test_db_url, min_size=1, max_size=5)
+    # Phase 17 hotfix: force a single physical connection for the test
+    # pool. The `seed_users.seed()` helper acquires the pool three
+    # separate times (`_ensure_tenant`, `_ensure_brokerage`,
+    # `_ensure_operator`), and under the full-suite run order a
+    # committed brokerage row occasionally failed to surface to the
+    # subsequent `_ensure_operator` acquire, producing a spurious
+    # user_brokerage_roles → brokerages FK violation. Serialising on
+    # one connection is a strict test-fixture-only change; production
+    # boot uses whatever pool sizing app/db.init_pool() picks.
+    pool = await asyncpg.create_pool(dsn=_test_db_url, min_size=1, max_size=1)
     # Wipe events + projections + tenants before each test.
     async with pool.acquire() as c:
+        # DISCARD ALL clears any lingering prepared-statement cache,
+        # session-level `SET`s, and advisory locks left by a previous
+        # test. Cheap and idempotent.
+        await c.execute("DISCARD ALL")
         await c.execute("ALTER TABLE proj_matters NO FORCE ROW LEVEL SECURITY")
         await c.execute("ALTER TABLE events NO FORCE ROW LEVEL SECURITY")
         # Phase 4 adds users/brokerages/roles/sessions/magic_link_tokens/
@@ -83,6 +96,13 @@ async def pool(_test_db_url) -> asyncpg.Pool:
             "user_brokerage_roles, brokerages, users, "
             "proj_matters, events, tenants "
             "RESTART IDENTITY CASCADE"
+        )
+        # Post-condition: TRUNCATE actually zeroed the tables the seed
+        # touches. If this ever fires it's a schema drift bug.
+        n_brokerages = await c.fetchval("SELECT COUNT(*) FROM brokerages")
+        n_tenants = await c.fetchval("SELECT COUNT(*) FROM tenants")
+        assert n_brokerages == 0 and n_tenants == 0, (
+            f"TRUNCATE left rows: brokerages={n_brokerages} tenants={n_tenants}"
         )
         await c.execute("ALTER TABLE events FORCE ROW LEVEL SECURITY")
         await c.execute("ALTER TABLE proj_matters FORCE ROW LEVEL SECURITY")
