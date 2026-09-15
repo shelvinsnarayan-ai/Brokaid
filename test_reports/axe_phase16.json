@@ -1,31 +1,37 @@
 [
   {
     "label": "operator-queue",
-    "url": "https://festive-bassi-9.preview.emergentagent.com/o/queue",
+    "url": "http://localhost:3000/o/queue",
     "violations": [],
     "blocking": []
   },
   {
     "label": "operator-export",
-    "url": "https://festive-bassi-9.preview.emergentagent.com/o/export",
+    "url": "http://localhost:3000/o/export",
     "violations": [],
     "blocking": []
   },
   {
     "label": "operator-client-360-1",
-    "url": "https://festive-bassi-9.preview.emergentagent.com/o/clients",
+    "url": "http://localhost:3000/o/clients",
+    "violations": [],
+    "blocking": []
+  },
+  {
+    "label": "operator-chase",
+    "url": "http://localhost:3000/o/chase",
     "violations": [],
     "blocking": []
   },
   {
     "label": "client-home",
-    "url": "https://festive-bassi-9.preview.emergentagent.com/c",
+    "url": "http://localhost:3000/c",
     "violations": [],
     "blocking": []
   },
   {
     "label": "client-pending-quote",
-    "url": "https://festive-bassi-9.preview.emergentagent.com/c/cover",
+    "url": "http://localhost:3000/c/cover",
     "violations": [],
     "blocking": []
   }
