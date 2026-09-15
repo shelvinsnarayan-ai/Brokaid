@@ -52,6 +52,7 @@ async function scan(context, targetPath, label) {
     "/o/queue": '[data-testid="queue-table"]',
     "/o/export": '[data-testid="te-chip-7d"]',
     "/o/clients": '[data-testid="operator-clients-list"]',
+    "/o/chase": '[data-testid="operator-chase-root"]',
     "/c": '[data-testid="home-ask-cta"]',
     "/c/cover": 'body',
   }[targetPath] || 'body';
@@ -82,6 +83,7 @@ const TARGETS = [
   { label: "operator-queue", path: "/o/queue", persona: "operator" },
   { label: "operator-export", path: "/o/export", persona: "operator" },
   { label: "operator-client-360-1", path: "/o/clients", persona: "operator" },
+  { label: "operator-chase", path: "/o/chase", persona: "operator" },
   { label: "client-home", path: "/c", persona: "client" },
   {
     label: "client-pending-quote",

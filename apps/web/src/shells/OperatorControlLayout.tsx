@@ -15,6 +15,7 @@ const NAV = [
   { to: "/o/clients",     label: "Clients",      kbd: "g c" },
   { to: "/o/shadow-mode", label: "Shadow Mode",  kbd: "g s" },
   { to: "/o/export",      label: "Export",       kbd: "g e" },
+  { to: "/o/chase",       label: "Chase",        kbd: "g h" },
 ];
 
 export function OperatorControlLayout() {
@@ -45,7 +46,7 @@ export function OperatorControlLayout() {
       if (gPrefix) {
         const map: Record<string, string> = {
           o: "/o", q: "/o/queue", b: "/o/brief", c: "/o/clients",
-          s: "/o/shadow-mode", e: "/o/export",
+          s: "/o/shadow-mode", e: "/o/export", h: "/o/chase",
         };
         const dest = map[e.key.toLowerCase()];
         if (dest) { e.preventDefault(); navigate(dest); }
@@ -129,6 +130,7 @@ export function OperatorControlLayout() {
               ["g c", "Go to Clients"],
               ["g s", "Go to Shadow Mode"],
               ["g e", "Go to Export"],
+              ["g h", "Go to Chase (preview)"],
               ["j / k", "Move selection down / up (Queue)"],
               ["Enter", "Open selected row"],
               ["a", "Approve selected"],

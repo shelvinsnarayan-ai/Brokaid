@@ -129,6 +129,31 @@ async function test_client_home(page) {
   console.log("OK /c home CTA keyboard nav");
 }
 
+async function test_operator_chase(page) {
+  await impersonate(page, OP_EMAIL);
+  await page.goto(`${BASE}/o/chase`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-testid="operator-chase-root"]', {
+    timeout: 15000,
+  });
+  await page.waitForTimeout(300);
+  // Rail entry must be reachable from a body-focused tab cycle.
+  await page.locator("body").click({ position: { x: 5, y: 5 } });
+  await tabUntil(page, "rail-link-chase");
+  // Each of the 5 chase cards must be present in DOM under the grid.
+  const gridExists = await page.evaluate(() => {
+    return !!document.querySelector('[data-testid="chase-category-grid"]');
+  });
+  await assert(gridExists, "chase-category-grid must render");
+  for (const c of ["money", "information", "instruction", "insurer", "signature"]) {
+    const cardExists = await page.evaluate(
+      (k) => !!document.querySelector(`[data-testid="chase-card-${k}"]`),
+      c,
+    );
+    await assert(cardExists, `chase-card-${c} must render`);
+  }
+  console.log("OK /o/chase renders + rail entry tab-reachable");
+}
+
 async function main() {
   const browser = await chromium.launch();
   const ctx = await browser.newContext();
@@ -144,6 +169,12 @@ async function main() {
     await test_client_home(await ctx.newPage());
   } catch (e) {
     console.error("FAIL /c home:", e.message);
+    ok = false;
+  }
+  try {
+    await test_operator_chase(await ctx.newPage());
+  } catch (e) {
+    console.error("FAIL /o/chase:", e.message);
     ok = false;
   }
   await browser.close();

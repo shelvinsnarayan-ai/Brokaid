@@ -45,13 +45,27 @@ async def verify_tenant(pool: asyncpg.Pool, slug: str) -> bool:
         row = await conn.fetchrow(
             "SELECT tenant_id FROM tenants WHERE slug = $1", slug
         )
-        if row is None:
-            logger.error("unknown tenant: %s", slug)
-            return False
-        tenant_id = str(row["tenant_id"])
+    if row is None:
+        logger.error("unknown tenant: %s", slug)
+        return False
+    tenant_id = str(row["tenant_id"])
 
-        # advisory lock to serialise with appends
-        await conn.execute(
+    # Phase-18: keep the advisory lock on a DEDICATED physical
+    # connection outside the pool so `read_events(pool, ...)` and
+    # `append(pool, ...)` below don't contend for a second pool slot.
+    # Previously this function held one `pool.acquire()` across a
+    # `read_events(pool, ...)` call that itself did `pool.acquire()` —
+    # fine under the production pool (max_size=5), a hard deadlock
+    # under the phase-17 test pool (`conftest.pool` pinned to
+    # max_size=1 for TRUNCATE-CASCADE FK ordering). Using
+    # `asyncpg.connect(*pool._connect_args, **pool._connect_kwargs)`
+    # opens a fresh session with the same DSN so the advisory lock
+    # semantics are identical.
+    lock_conn = await asyncpg.connect(
+        *pool._connect_args, **pool._connect_kwargs
+    )
+    try:
+        await lock_conn.execute(
             "SELECT pg_advisory_lock(hashtextextended($1, 0))", tenant_id
         )
         try:
@@ -94,9 +108,11 @@ async def verify_tenant(pool: asyncpg.Pool, slug: str) -> bool:
             )
             return result.ok
         finally:
-            await conn.execute(
+            await lock_conn.execute(
                 "SELECT pg_advisory_unlock(hashtextextended($1, 0))", tenant_id
             )
+    finally:
+        await lock_conn.close()
 
 
 async def _main() -> int:

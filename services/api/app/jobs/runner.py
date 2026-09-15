@@ -103,9 +103,27 @@ async def run_job(pool: asyncpg.Pool, name: str) -> int:
     ops_tenant_id = await _ensure_ops_tenant(pool)
     run_id = str(uuid.uuid4())
 
-    # Grab a dedicated connection for the advisory lock so it survives
-    # while the callable does its work on other pool connections.
-    lock_conn = await pool.acquire()
+    # Grab a DEDICATED physical connection for the advisory lock so it
+    # survives while the callable + Started/Completed appends run
+    # concurrently on the shared pool.
+    #
+    # Phase-18: previously we did `pool.acquire()` and threaded the
+    # returned pool-owned conn through `append(..., conn=lock_conn)`.
+    # That worked in production (default pool max_size=5) but deadlocked
+    # every concurrency test under `conftest.pool` (pinned to
+    # min=max=1 to serialise TRUNCATE-CASCADE FK ordering) because
+    # `pool.acquire()` for the second run couldn't return until the
+    # first run finished. Switching to `asyncpg.connect(...)` with the
+    # pool's own connect args opens a fresh physical connection outside
+    # the pool — same DB, same credentials, same session-scoped
+    # advisory-lock semantics — and closes it in the finally block.
+    # `pool._connect_args` / `pool._connect_kwargs` are pool internals
+    # but their shape has been stable across asyncpg 0.28→0.30. If
+    # asyncpg ever drops them we swap to passing the DSN through
+    # `run_job(pool, name, *, dsn=...)` — see PRD Known Test Debt.
+    lock_conn = await asyncpg.connect(
+        *pool._connect_args, **pool._connect_kwargs
+    )
     try:
         got = await lock_conn.fetchval(
             "SELECT pg_try_advisory_lock($1)", job.advisory_lock_key
@@ -128,6 +146,7 @@ async def run_job(pool: asyncpg.Pool, name: str) -> int:
                 "max_runtime_sec": job.max_runtime_sec,
             },
             idempotency_key=f"job:{name}:{run_id}:started",
+            conn=lock_conn,
         )
 
         error: str | None = None
@@ -153,6 +172,7 @@ async def run_job(pool: asyncpg.Pool, name: str) -> int:
             actor=RUNNER_ACTOR,
             payload=completed_payload,
             idempotency_key=f"job:{name}:{run_id}:completed",
+            conn=lock_conn,
         )
         return 0 if ok else 1
     finally:
@@ -161,7 +181,7 @@ async def run_job(pool: asyncpg.Pool, name: str) -> int:
                 "SELECT pg_advisory_unlock($1)", job.advisory_lock_key
             )
         finally:
-            await pool.release(lock_conn)
+            await lock_conn.close()
 
 
 # --- default job registrations ------------------------------------------

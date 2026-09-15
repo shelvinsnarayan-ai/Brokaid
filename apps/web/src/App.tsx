@@ -28,8 +28,10 @@ import { OperatorPolicies } from "./pages/OperatorPolicies";
 import { OperatorClaim } from "./pages/operator/OperatorClaim";
 import { ShadowMode, ShadowModeDrill } from "./pages/operator/ShadowMode";
 import { TrailExport } from "./pages/operator/TrailExport";
+import { ChaseLadder } from "./pages/operator/ChaseLadder";
 import "./styles/shadow-mode.css";
 import "./styles/trail-export.css";
+import "./styles/chase-ladder.css";
 import { ClientLogin } from "./pages/ClientLogin";
 import { OperatorLogin } from "./pages/OperatorLogin";
 import { OperatorEnrol } from "./pages/OperatorEnrol";
@@ -95,6 +97,7 @@ export function App() {
           <Route path="shadow-mode" element={<ShadowMode />} />
           <Route path="shadow-mode/:agent/:class_key" element={<ShadowModeDrill />} />
           <Route path="export" element={<TrailExport />} />
+          <Route path="chase" element={<ChaseLadder />} />
         </Route>
 
         {__AUTH_DEV_MODE__ ? (

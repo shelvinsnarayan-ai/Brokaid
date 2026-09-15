@@ -46,7 +46,27 @@ Half-page. Bullets only. Pin this beside the runbook.
 - Fetch fails with **HTTP 403**. React app shows a "not authorised" fallback (no crash).
 - Then in Tab B (operator, `principal@burmac.example`) navigate to `/o/export` → 200 + full page.
 - Same URL, same host, different role → different outcome. Point at the network panel.
-- Bonus: log in as `auditor@burmac.example` and attempt operator login → 403 `no_login_capable_role`. Data-only roles cannot even authenticate.
+
+## RBAC-negative moment · auditor cannot log in (add a screenshot)
+
+Data-only roles cannot even authenticate. Exact click-path for the demo, in this order:
+
+1. From an operator tab with DevTools **Network** open, clear the filter, keep only `Fetch/XHR`.
+2. Paste into DevTools **Console** (do NOT navigate the URL bar):
+   ```js
+   fetch("/api/auth/dev/impersonate", {
+     method: "POST",
+     headers: {"Content-Type": "application/json"},
+     body: JSON.stringify({email: "auditor@burmac.example"}),
+   }).then(r => r.json().then(b => console.log(r.status, b)));
+   ```
+3. Point at the **403** row in the Network panel. Click it → **Response** tab. Body reads:
+   ```json
+   {"detail": "no_login_capable_role"}
+   ```
+4. Screenshot at `docs/demo_screenshots/rbac-negative-auditor.png` captures this exact 403 + response body.
+
+Locked by `services/api/tests/test_rbac_auditor_impersonate.py::test_auditor_impersonate_returns_403` — the test hits the same endpoint with the same email and asserts `status == 403` + `body == {"detail": "no_login_capable_role"}`. Regression-guarded by the static assertion that `"auditor" in DATA_ONLY_ROLES and "auditor" not in LOGIN_CAPABLE_ROLES` in the same file.
 
 ## Retry telemetry (scene 2 or scene 5)
 
