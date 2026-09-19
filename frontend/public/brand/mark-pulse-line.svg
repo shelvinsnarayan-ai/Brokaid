@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="brokAId pulse line">
+  <rect x="5.5" y="5.5" width="109" height="109" rx="25" fill="none" stroke="#0B3B4B" stroke-width="5"/>
+  <path d="M22 60 H43 L51 39 L62 81 L70 60 H78" fill="none" stroke="#0B3B4B"
+        stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="90" cy="60" r="7" fill="#E8623A"/>
+</svg>

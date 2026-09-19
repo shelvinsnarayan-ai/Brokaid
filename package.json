@@ -1,0 +1,31 @@
+{
+  "name": "brokaid",
+  "private": true,
+  "version": "0.0.1",
+  "description": "brokAId — agentic OS for insurance brokers (Synaion Pty Ltd)",
+  "workspaces": [
+    "frontend",
+    "packages/*",
+    "ci"
+  ],
+  "scripts": {
+    "build": "yarn workspace @brokaid/web build",
+    "start": "yarn workspace @brokaid/web start",
+    "test": "yarn workspaces run test --if-present",
+    "typecheck": "yarn workspaces run typecheck --if-present",
+    "deny-list": "node ci/deny-list.js frontend/dist"
+  },
+  "packageManager": "yarn@1.22.22",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "canonicalize": "^5.0.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "playwright": "^1.63.0",
+    "vite-plugin-pwa": "^1.3.0"
+  }
+}

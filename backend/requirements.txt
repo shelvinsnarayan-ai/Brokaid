@@ -1,0 +1,28 @@
+# brokAId backend requirements — R5c-4a: Postgres runtime deleted.
+#
+# Emergent deploy target: Mongo-primary. No PG dependency.
+
+# -- runtime --
+fastapi>=0.115.0,<0.116
+uvicorn[standard]>=0.30.6,<0.31
+python-dotenv>=1.0.1
+pydantic>=2.9.2,<3
+pydantic-settings>=2.5.2,<3
+httpx>=0.27.2,<0.29
+starlette>=0.38.6
+
+# -- MongoDB (primary as of R5c-2b) --
+motor>=3.6.0,<4
+pymongo>=4.9.0,<5
+
+# -- Auth / JCS canonicalisation --
+argon2-cffi>=23.1.0
+PyJWT>=2.9.0
+pyotp>=2.9.0
+rfc8785>=0.1.4
+
+# -- LLM proxy --
+emergentintegrations
+
+# -- misc --
+python-multipart>=0.0.9

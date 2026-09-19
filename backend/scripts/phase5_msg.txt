@@ -1,0 +1,94 @@
+phase 5: seed data + jurisdiction packs + policies + Program View
+
+Zero LLM calls. All entities fictional and marked as such in
+docs/SEEDS_ARE_FICTIONAL.md. Every disclosure string carries the
+literal <FICTIONAL_PLACEHOLDER> marker; a test enforces the invariant.
+
+Migration 006 (services/api/migrations/006_policies_and_clients.sql):
+- clients (client_id PK, tenant_id FK, display_name, industry,
+  domicile, jurisdiction_code CHECK IN ('AU','SG')) under RLS
+  ENABLE+FORCE with the tenant-isolation policy.
+- policies (policy_id PK, tenant_id FK, client_id, status CHECK IN
+  ('managed','tracked','pending','lapsed'), product, insurer_display,
+  inception, expiry, premium_amount NUMERIC(12,2), premium_currency,
+  schedule JSONB, imported_from) + partial index
+  (tenant_id, client_id) + RLS ENABLE+FORCE.
+- ALTER TABLE sessions ADD COLUMN client_prefs JSONB NOT NULL DEFAULT
+  '{}'::jsonb for the dev-mode jurisdiction preview preference.
+
+Jurisdiction packs (services/api/app/kernel/jurisdiction.py +
+packages/kernel/jurisdiction/{AU,SG}.json):
+- AU (default): AUD, PayTo, en-AU, ASIC.
+- SG (v0):      SGD, PayNow, en-SG, MAS.
+- disclosure_strings: privacy_notice, fsg, pds, duty_of_disclosure.
+  Every value is prefixed <FICTIONAL_PLACEHOLDER>.
+
+Routes:
+- GET /api/jurisdictions (list) + /{code} — public.
+- GET /api/o/policies — operator, MFA-verified. Returns every policy
+  in the tenant with Managed/Tracked chip data and a MOCKED insurer
+  flag (mocked_insurer: true).
+- GET /api/c/policies — client-scoped by session.client_id. Wraps
+  the response with the active jurisdiction pack, preview_mode,
+  actual_jurisdiction.
+- POST /api/c/preferences {jurisdiction} — writes into
+  sessions.client_prefs.jurisdiction. Rejects with 403
+  preview_only_in_dev_mode outside AUTH_DEV_MODE.
+
+Seed chain (services/api/app/seeds/seed_all.py):
+1. seed_users (phase 4, unchanged).
+2. seed_org — Fictional Licensee Pty Ltd. Emits LicenseeCreated +
+   BrokerageCreated ledger events under BurMac.
+3. seed_client — Harbour Marine Services Pty Ltd
+   (00000000-0000-4000-8000-000000000001), Sydney AU, marine_services.
+   Emits ClientEntityCreated. Sets app.tenant_id GUC in-transaction
+   before the RLS-protected INSERT.
+4. seed_policy_managed — Marine Liability, Fictional Carrier A,
+   AUD $10M / $20M agg, premium $8,500. PolicyCreated event.
+5. seed_policy_tracked — Cyber, Fictional Carrier B,
+   imported_from='manual_entry_burmac', AUD $2M, premium $2,200.
+   PolicyCreated event.
+
+All seeds idempotent via ON CONFLICT DO NOTHING (rows) and
+deterministic seed:<entity>:<id> idempotency keys (events).
+
+Frontend:
+- /o/policies — table with Managed/Tracked chips + MOCKED carrier
+  badge, premium in the pack currency.
+- /c home rebuilt with policy cards. Dev-only jurisdiction switcher
+  in the header flips currency, rail label (PayTo↔PayNow), and the
+  privacy-notice disclosure text. Preview banner surfaces when
+  preview differs from the client's actual jurisdiction.
+- App.tsx adds /o/policies route; OperatorShell adds a card linking
+  to it.
+
+Tests — 130 passed, 2 intentional skips in 18.2s. Phase-5 additions
+(10/10 passing):
+- tests/test_seeds.py — 3/3
+  * test_seed_all_is_idempotent (runs seed twice; 1 client, 2 policies,
+    1 brokerage; each Licensee/Brokerage/ClientEntityCreated appears
+    exactly once; PolicyCreated appears exactly twice).
+  * test_operator_policies_returns_both_with_chips (managed+tracked
+    both present; mocked_insurer=true on every row).
+  * test_client_policies_scoped_to_linked_client (only the linked
+    client's policies; actual_jurisdiction='AU'; preview_mode=false).
+- tests/test_jurisdiction.py — 7/7
+  * test_jurisdictions_list_returns_au_and_sg
+  * test_au_pack_shape / test_sg_pack_shape
+  * test_every_disclosure_string_is_marked_placeholder
+  * test_unknown_jurisdiction_404
+  * test_client_preview_flips_currency_and_flags_preview_mode
+    (AU baseline → set SG → preview_mode=true, currency=SGD,
+    rail_label=PayNow; clear → back to AUD).
+  * test_preview_endpoint_refused_when_dev_mode_off (403
+    preview_only_in_dev_mode).
+
+Phase-1..4 regressions: 120 unchanged.
+
+Frontend build + deny-list: yarn build clean, `node ci/deny-list.js
+dist` → OK, 6 files scanned, 0 matches.
+
+Zero-LLM-path grep: only anthropic_stub is mentioned in
+services/api/app + packages/. No httpx/requests/aiohttp imports.
+
+Signed-off-by: brokaid-build <build@synaion.com.au>

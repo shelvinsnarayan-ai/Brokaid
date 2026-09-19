@@ -1,0 +1,823 @@
+/* frontend base styles.
+ *
+ * Palette variables come from @brokaid/brand-tokens/tokens.css.
+ * This file only handles resets and structural rules that apply
+ * across both palettes.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+}
+
+::selection {
+  background: var(--copper);
+  color: var(--ink);
+}
+
+/* --- Dev auth banner ------------------------------------------- */
+.brokaid-dev-banner {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding: 8px 16px;
+  background: var(--alert);
+  color: #ffffff;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+/* --- Landing page (R7-Light-Landing: Harbour on Sand) ---------- */
+.brokaid-landing {
+  min-height: 100dvh;
+  background: var(--sand);
+  color: var(--harbour);
+  display: grid;
+  grid-template-rows: auto auto auto auto auto auto;
+  gap: clamp(48px, 8vh, 96px);
+  padding: 24px clamp(24px, 6vw, 96px) 48px;
+}
+
+/* Top nav strip -------------------------------------------------- */
+.brokaid-landing__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-block: 8px;
+}
+
+.brokaid-landing__nav-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+
+.brokaid-landing__nav-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brokaid-demo-pill {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffffff;
+  background: var(--sea-strong);
+  padding: 4px 8px;
+  border-radius: 12px;
+  cursor: default;
+}
+
+.brokaid-landing__nav-login {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--harbour);
+  text-decoration: none;
+  padding: 12px 16px;
+  min-height: 44px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 24%, transparent);
+  transition: border-color 180ms ease, background 180ms ease;
+}
+.brokaid-landing__nav-login:hover {
+  border-color: var(--sea-strong);
+  background: color-mix(in oklab, var(--sea-strong) 8%, transparent);
+}
+.brokaid-landing__nav-login:focus-visible {
+  outline: 3px solid var(--sea-strong);
+  outline-offset: 3px;
+}
+
+/* Hero ----------------------------------------------------------- */
+.brokaid-landing__hero {
+  display: grid;
+  gap: 28px;
+  max-width: 720px;
+  justify-items: start;
+}
+
+.brokaid-landing__title {
+  font-family: var(--font-display-harbour);
+  font-weight: 700;
+  font-size: clamp(40px, 8vw, 88px);
+  line-height: 1.05;
+  margin: 0;
+  color: var(--harbour);
+}
+.brokaid-landing__title em {
+  font-style: normal;
+  color: var(--coral);
+}
+
+.brokaid-landing__lede {
+  font-family: var(--font-ui);
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--slate-strong);
+  max-width: 56ch;
+  margin: 0;
+}
+
+.brokaid-landing__cta {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--sea-strong);
+  color: #ffffff;
+  padding: 14px 22px;
+  min-height: 44px;
+  border-radius: 999px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 180ms ease, transform 180ms ease;
+}
+.brokaid-landing__cta:hover {
+  background: color-mix(in oklab, var(--sea-strong) 85%, #000000);
+  transform: translateY(-1px);
+}
+.brokaid-landing__cta:focus-visible {
+  outline: 3px solid var(--harbour);
+  outline-offset: 3px;
+}
+
+/* Sections (What / How / Try) ----------------------------------- */
+.brokaid-landing__section {
+  display: grid;
+  gap: 20px;
+  max-width: 960px;
+}
+
+.brokaid-landing__h2 {
+  font-family: var(--font-display-harbour);
+  font-weight: 700;
+  font-size: clamp(28px, 4vw, 36px);
+  line-height: 1.15;
+  margin: 0;
+  color: var(--harbour);
+}
+
+.brokaid-landing__prose {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--slate-strong);
+  max-width: 62ch;
+  margin: 0;
+}
+
+/* Scene cards (2×2 desktop, stacked mobile) ---------------------- */
+.brokaid-landing__scenes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 720px) {
+  .brokaid-landing__scenes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.brokaid-landing__scene {
+  padding: 22px 24px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 18%, transparent);
+  border-radius: 4px;
+  background: color-mix(in oklab, #ffffff 55%, transparent);
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+/* mono 12px number — must clear AA body (4.5) at this size. Sea-strong
+ * on Sand is 5.13:1. Coral cannot be used here — coral-body.test.ts
+ * enforces `color: var(--coral)` at font-size < 20px is a violation. */
+.brokaid-landing__scene-n {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--sea-strong);
+}
+
+.brokaid-landing__scene-title {
+  font-family: var(--font-display-harbour);
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.25;
+  margin: 0;
+  color: var(--harbour);
+}
+
+.brokaid-landing__scene-body {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--slate-strong);
+  margin: 0;
+}
+
+.brokaid-landing__scene-hint {
+  margin: 4px 0 0;
+}
+
+.brokaid-landing__kbd {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--sea-strong);
+  background: color-mix(in oklab, var(--sea-strong) 10%, transparent);
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+
+/* Persona picker (3-up desktop, stacked mobile) ----------------- */
+.brokaid-landing__personas {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 720px) {
+  .brokaid-landing__personas {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.brokaid-landing__persona-wrap {
+  display: grid;
+}
+
+.brokaid-landing__persona {
+  display: grid;
+  gap: 6px;
+  padding: 22px 24px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 22%, transparent);
+  border-radius: 4px;
+  background: color-mix(in oklab, #ffffff 55%, transparent);
+  color: var(--harbour);
+  text-decoration: none;
+  min-height: 44px;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+.brokaid-landing__persona:hover {
+  border-color: var(--sea-strong);
+  background: color-mix(in oklab, var(--sea-strong) 8%, #ffffff);
+  transform: translateY(-1px);
+}
+.brokaid-landing__persona:focus-visible {
+  outline: 3px solid var(--sea-strong);
+  outline-offset: 3px;
+}
+
+/* mono 12px seat label — sea-strong for the same reason as scene-n */
+.brokaid-landing__persona-seat {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--sea-strong);
+}
+
+.brokaid-landing__persona-name {
+  font-family: var(--font-display-harbour);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--harbour);
+}
+
+.brokaid-landing__persona-body {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--slate-strong);
+}
+
+/* Footer -------------------------------------------------------- */
+.brokaid-landing__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding-top: 32px;
+  border-top: 1px solid color-mix(in oklab, var(--harbour) 15%, transparent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--slate-strong);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.brokaid-landing__foot-link {
+  color: var(--sea-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.brokaid-landing__foot-link:hover {
+  color: var(--harbour);
+}
+.brokaid-landing__foot-link:focus-visible {
+  outline: 3px solid var(--sea-strong);
+  outline-offset: 3px;
+}
+
+/* --- Login / persona-picker (R7-Light-Login: Harbour on Sand) - */
+.brokaid-login {
+  min-height: 100dvh;
+  background: var(--sand);
+  color: var(--harbour);
+  display: grid;
+  grid-template-rows: auto auto auto auto auto auto;
+  gap: clamp(32px, 6vh, 64px);
+  padding: 24px clamp(24px, 6vw, 96px) 48px;
+}
+
+.brokaid-login__hero {
+  display: grid;
+  gap: 20px;
+  max-width: 720px;
+  justify-items: start;
+}
+
+.brokaid-login__title {
+  font-size: clamp(36px, 6vw, 64px);
+}
+
+.brokaid-login__personas {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+  max-width: 1080px;
+}
+@media (min-width: 720px) {
+  .brokaid-login__personas {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.brokaid-login__persona {
+  display: grid;
+  gap: 8px;
+  padding: 24px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 22%, transparent);
+  border-radius: 4px;
+  background: color-mix(in oklab, #ffffff 55%, transparent);
+  color: var(--harbour);
+  text-decoration: none;
+  min-height: 44px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+.brokaid-login__persona:hover:not(:disabled) {
+  border-color: var(--sea-strong);
+  background: color-mix(in oklab, var(--sea-strong) 8%, #ffffff);
+  transform: translateY(-1px);
+}
+.brokaid-login__persona:focus-visible {
+  outline: 3px solid var(--sea-strong);
+  outline-offset: 3px;
+}
+.brokaid-login__persona.is-preselect {
+  border-color: var(--sea-strong);
+  background: color-mix(in oklab, var(--sea-strong) 10%, transparent);
+}
+.brokaid-login__persona.is-busy {
+  opacity: 0.7;
+}
+.brokaid-login__persona:disabled {
+  cursor: default;
+}
+
+.brokaid-login__persona-cta {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--sea-strong);
+  padding: 10px 14px;
+  min-height: 44px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+}
+/* focus ring on the CTA sub-region sits on a Sea background —
+ * use Harbour so it reads against Sea rather than blending. */
+.brokaid-login__persona:focus-visible .brokaid-login__persona-cta {
+  outline: none;
+}
+
+.brokaid-login__error {
+  padding: 16px 20px;
+  border: 1px solid var(--alert);
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--alert) 10%, var(--sand));
+  font-family: var(--font-ui);
+  font-size: 15px;
+  color: var(--harbour);
+  max-width: 720px;
+}
+
+.brokaid-login__secondary {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.brokaid-login__existing {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--sea-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 4px;
+}
+.brokaid-login__existing:hover {
+  color: var(--harbour);
+}
+.brokaid-login__existing:focus-visible {
+  outline: 3px solid var(--sea-strong);
+  outline-offset: 3px;
+}
+
+/* --- Shells ---------------------------------------------------- */
+.brokaid-shell {
+  min-height: 100dvh;
+  padding: clamp(24px, 5vw, 64px);
+  display: grid;
+  gap: 24px;
+  align-content: start;
+}
+
+.brokaid-shell__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 16px;
+  opacity: 0.9;
+}
+
+.brokaid-shell__crumb {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.brokaid-shell__title {
+  font-size: clamp(28px, 5vw, 44px);
+  margin: 0;
+}
+
+.brokaid-shell__note {
+  font-size: 14px;
+  max-width: 60ch;
+  opacity: 0.8;
+}
+
+.brokaid-shell__back {
+  align-self: start;
+  display: inline-flex;
+  padding: 10px 18px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  min-height: 44px;
+  align-items: center;
+  transition: background 160ms ease;
+}
+
+.surface-ledger .brokaid-shell__back:hover {
+  background: color-mix(in oklab, var(--bone) 12%, transparent);
+}
+
+.surface-harbour .brokaid-shell__back:hover {
+  background: color-mix(in oklab, var(--harbour) 8%, transparent);
+}
+
+/* --- Dev login ------------------------------------------------- */
+.brokaid-dev-login {
+  min-height: 100dvh;
+  padding: 48px;
+  display: grid;
+  place-items: center;
+  background: var(--ink);
+  color: var(--bone);
+}
+
+.brokaid-dev-login__card {
+  width: min(420px, 100%);
+  padding: 32px;
+  border: 1px solid var(--copper);
+  display: grid;
+  gap: 16px;
+}
+
+.brokaid-dev-login__title {
+  font-family: var(--font-display-ledger);
+  font-weight: 300;
+  font-size: 28px;
+  margin: 0;
+}
+
+.brokaid-dev-login__roles {
+  display: grid;
+  gap: 10px;
+}
+
+.brokaid-dev-login__role {
+  padding: 12px 16px;
+  background: transparent;
+  color: var(--bone);
+  border: 1px solid var(--slate);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  text-align: left;
+  letter-spacing: 0.04em;
+}
+
+.brokaid-dev-login__role:hover {
+  border-color: var(--copper);
+  color: var(--copper);
+}
+
+.brokaid-dev-login__hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--slate-strong);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* --- Operator shell grid / cards ------------------------------- */
+.brokaid-shell__grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin-top: 8px;
+}
+
+.brokaid-shell__card {
+  display: block;
+  padding: 20px 22px;
+  border: 1px solid color-mix(in oklab, var(--bone) 22%, transparent);
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.brokaid-shell__card:hover {
+  border-color: var(--copper);
+  background: color-mix(in oklab, var(--copper) 8%, transparent);
+}
+
+.brokaid-shell__card-tag {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--copper);
+  letter-spacing: 0.12em;
+}
+
+.brokaid-shell__card-title {
+  font-family: var(--font-display-ledger);
+  font-weight: 400;
+  font-size: 22px;
+  margin: 6px 0 4px;
+}
+
+.brokaid-shell__card-note {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--slate-strong);
+}
+
+/* --- Matters (operator projection screen) --------------------- */
+.brokaid-matters {
+  min-height: 100dvh;
+  padding: clamp(24px, 4vw, 48px);
+  display: grid;
+  gap: 20px;
+  align-content: start;
+}
+
+.brokaid-matters__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid color-mix(in oklab, var(--bone) 22%, transparent);
+  padding-bottom: 12px;
+}
+
+.brokaid-matters__tenant {
+  background: transparent;
+  color: var(--bone);
+  border: 1px solid var(--slate);
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  min-height: 32px;
+  min-width: 140px;
+}
+
+.brokaid-matters__tenant:focus {
+  outline: none;
+  border-color: var(--copper);
+  color: var(--copper);
+}
+
+.brokaid-matters__note {
+  font-size: 14px;
+  color: color-mix(in oklab, var(--bone) 78%, transparent);
+  max-width: 60ch;
+}
+
+.brokaid-matters__note kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid var(--slate);
+  border-radius: 3px;
+  margin: 0 2px;
+  color: var(--copper);
+}
+
+.brokaid-matters__error {
+  padding: 12px 16px;
+  border: 1px solid var(--alert);
+  color: var(--alert);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.brokaid-matters__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-ui);
+  font-size: 14px;
+}
+
+.brokaid-matters__table th {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--slate);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--copper);
+  font-weight: 500;
+}
+
+.brokaid-matters__table td {
+  padding: 12px;
+  border-bottom: 1px solid color-mix(in oklab, var(--bone) 12%, transparent);
+}
+
+.brokaid-matters__table tr {
+  cursor: pointer;
+}
+
+.brokaid-matters__table tr.is-selected td {
+  background: color-mix(in oklab, var(--copper) 12%, transparent);
+  border-color: var(--copper);
+}
+
+.brokaid-matters__table tr:hover td {
+  background: color-mix(in oklab, var(--bone) 5%, transparent);
+}
+
+.brokaid-matters__status {
+  display: inline-block;
+  padding: 3px 10px;
+  border: 1px solid var(--verify);
+  color: var(--verify);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 999px;
+}
+
+.brokaid-matters__mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: color-mix(in oklab, var(--bone) 70%, transparent);
+}
+
+.brokaid-matters__empty {
+  text-align: center;
+  color: var(--slate-strong);
+  padding: 24px !important;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.brokaid-matters__empty code {
+  color: var(--copper);
+}
+
+/* --- R7-Demo-Seed: client Home next-action card ---------------- */
+.brokaid-next-action {
+  display: grid;
+  gap: 8px;
+  padding: 20px 22px;
+  border: 1px solid var(--sea-strong);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--sea-strong) 8%, var(--sand));
+  color: var(--harbour);
+  text-decoration: none;
+  transition: transform 180ms ease, background 180ms ease;
+}
+.brokaid-next-action:hover {
+  transform: translateY(-1px);
+  background: color-mix(in oklab, var(--sea-strong) 14%, var(--sand));
+}
+.brokaid-next-action:focus-visible {
+  outline: 3px solid var(--sea-strong);
+  outline-offset: 3px;
+}
+.brokaid-next-action__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sea-strong);
+}
+.brokaid-next-action__body {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--harbour);
+}
+.brokaid-next-action__meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--slate-strong);
+  letter-spacing: 0.04em;
+}
+.brokaid-next-action__cta {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sea-strong);
+  margin-top: 4px;
+}

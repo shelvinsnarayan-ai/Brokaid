@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon-app.svg" />
+    <link rel="mask-icon" href="/brand/mark-pulse-mono-ink.svg" color="#0E2B34" />
+    <link rel="apple-touch-icon" href="/pwa/pwa-192.png" />
+    <!--
+      PWA manifest. Same-origin, so no `crossorigin` attribute — a
+      credentialed fetch would only muddy the browser console with
+      needless CORS chatter on the preview host.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0E2B34" />
+    <title>brokAId</title>
+
+    <!-- Open Graph / social -->
+    <meta property="og:title" content="brokAId" />
+    <meta property="og:description" content="Agentic OS for insurance brokers. By Synaion." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/brand/lockup-app-light.svg" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="brokAId" />
+    <meta name="twitter:description" content="Agentic OS for insurance brokers. By Synaion." />
+    <meta name="twitter:image" content="/brand/lockup-app-light.svg" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Jura:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

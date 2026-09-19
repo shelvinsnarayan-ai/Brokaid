@@ -1,0 +1,424 @@
+/* Phase 6 — Client-app (Harbour) design system additions.
+ *
+ * All primitives here run under `.surface-harbour`. Palette variables
+ * come from @brokaid/brand-tokens/tokens.css.
+ *
+ * Rules:
+ *   - 44px minimum tap target on every interactive element.
+ *   - Harbour on Sand text ratio for body (>= 10.5:1 per brand-tokens).
+ *   - Coral is decorative only; never used for body text (< 20px).
+ */
+
+/* --- Client layout ------------------------------------------------ */
+.brokaid-client-layout {
+  min-height: 100dvh;
+  min-height: 100vh;
+  background: var(--sand);
+  color: var(--harbour);
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+}
+
+/* --- Client brand header ------------------------------------------ */
+.brokaid-client-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: max(env(safe-area-inset-top), 10px) clamp(14px, 4vw, 24px) 10px;
+  background: var(--sand);
+  border-bottom: 1px solid color-mix(in oklab, var(--harbour) 12%, transparent);
+  grid-column: 1 / -1;
+}
+.brokaid-client-header__lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 4px 4px;
+  border-radius: 8px;
+  color: var(--harbour);
+  text-decoration: none;
+  outline-offset: 3px;
+}
+.brokaid-client-header__lockup:focus-visible {
+  outline: 3px solid var(--sea);
+}
+.brokaid-client-header__mark {
+  flex: 0 0 auto;
+}
+.brokaid-client-header__wordmark {
+  flex: 0 1 auto;
+  max-width: 60vw;
+}
+
+.brokaid-client-layout__main {
+  padding: clamp(20px, 4vw, 40px) clamp(16px, 5vw, 48px) 96px;
+  max-width: 780px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.brokaid-shell-boot {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: var(--sand);
+  color: var(--harbour);
+  font-family: var(--font-ui);
+}
+
+/* --- Tab bar ------------------------------------------------------ */
+.brokaid-tabbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0;
+  background: color-mix(in oklab, var(--sand) 88%, var(--harbour) 4%);
+  border-top: 1px solid color-mix(in oklab, var(--harbour) 12%, transparent);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.brokaid-tabbar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px 4px;
+  min-height: 60px;
+  color: color-mix(in oklab, var(--harbour) 88%, transparent);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border-top: 2px solid transparent;
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.brokaid-tabbar__item.is-active {
+  color: var(--harbour);
+  border-top-color: var(--sea-strong);
+  background: color-mix(in oklab, var(--sea-strong) 6%, transparent);
+}
+
+.brokaid-tabbar__glyph {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1;
+}
+
+@media (min-width: 768px) {
+  .brokaid-client-layout {
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .brokaid-client-header {
+    /* stays sticky at the top and spans both grid columns on desktop */
+    grid-row: 1;
+  }
+  .brokaid-tabbar {
+    position: sticky;
+    top: 0;
+    grid-template-columns: 1fr;
+    grid-auto-rows: min-content;
+    border-top: none;
+    border-right: 1px solid color-mix(in oklab, var(--harbour) 12%, transparent);
+    padding: 24px 8px;
+    min-height: 100dvh;
+    align-content: start;
+    order: -1;
+  }
+  .brokaid-tabbar__item {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 14px 20px;
+    min-height: 48px;
+    text-align: left;
+    font-size: 14px;
+    border-top: none;
+    border-left: 2px solid transparent;
+  }
+  .brokaid-tabbar__item.is-active {
+    border-left-color: var(--sea-strong);
+    border-top-color: transparent;
+  }
+}
+
+/* --- Tab content ---------------------------------------------------- */
+.brokaid-tab {
+  display: grid;
+  gap: 24px;
+  align-content: start;
+}
+.brokaid-tab__head { display: grid; gap: 4px; }
+.brokaid-tab__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sea-strong);
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.brokaid-tab__title {
+  font-family: var(--font-display-harbour, var(--font-display-ledger));
+  font-weight: 700;
+  font-size: clamp(28px, 6vw, 40px);
+  line-height: 1.2;
+  color: var(--harbour);
+  margin: 0;
+}
+.brokaid-tab__lede { font-size: 14px; color: color-mix(in oklab, var(--harbour) 82%, transparent); max-width: 60ch; }
+.brokaid-tab__note { font-size: 13px; color: color-mix(in oklab, var(--harbour) 70%, transparent); }
+
+/* --- Policy cards --------------------------------------------------- */
+.brokaid-cards { display: grid; gap: 16px; }
+@media (min-width: 640px) { .brokaid-cards { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); } }
+
+.brokaid-policy-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 8%, transparent);
+  box-shadow: 0 2px 12px rgba(11, 59, 75, 0.06);
+}
+.brokaid-policy-card--managed {
+  border-left: 4px solid var(--sea);
+}
+.brokaid-policy-card--tracked {
+  border: 1px dashed color-mix(in oklab, var(--slate) 60%, transparent);
+  background: color-mix(in oklab, var(--sand) 60%, #FFFFFF 40%);
+  box-shadow: none;
+}
+
+.brokaid-policy-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.brokaid-policy-card__title {
+  font-family: var(--font-display-harbour, var(--font-display-ledger));
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--harbour);
+  margin: 0;
+}
+.brokaid-policy-card__micro {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--slate-strong);
+}
+.brokaid-policy-card--managed .brokaid-policy-card__micro { color: var(--sea-strong); }
+.brokaid-policy-card__grid { display: grid; gap: 8px; margin: 0; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.brokaid-policy-card__grid dt { font-size: 11px; color: var(--slate-strong); text-transform: uppercase; letter-spacing: 0.08em; margin: 0; }
+.brokaid-policy-card__grid dd { font-size: 15px; margin: 0; color: var(--harbour); font-weight: 500; }
+
+/* --- Chips ---------------------------------------------------------- */
+.brokaid-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.brokaid-chip--managed  { background: var(--sea-strong); color: #FFFFFF; }
+.brokaid-chip--tracked  { background: transparent; color: var(--slate-strong); border: 1px solid var(--slate-strong); }
+.brokaid-chip--pending  { background: transparent; color: var(--copper, #BF7A3E); border: 1px solid var(--copper, #BF7A3E); }
+.brokaid-chip--lapsed   { background: transparent; color: var(--alert); border: 1px solid var(--alert); }
+.brokaid-chip--muted    { background: color-mix(in oklab, var(--harbour) 6%, transparent); color: var(--harbour); }
+
+/* --- Buttons -------------------------------------------------------- */
+.brokaid-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  min-height: 44px;
+  border-radius: 999px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 120ms ease;
+}
+.brokaid-btn:focus-visible { outline: 3px solid var(--sea); outline-offset: 2px; }
+.brokaid-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.brokaid-btn--primary { background: var(--sea-strong); color: #FFFFFF; }
+.brokaid-btn--primary:hover:not(:disabled) { background: color-mix(in oklab, var(--sea-strong) 85%, #000000); transform: translateY(-1px); }
+
+.brokaid-btn--secondary { background: transparent; color: var(--harbour); border-color: color-mix(in oklab, var(--harbour) 30%, transparent); }
+.brokaid-btn--secondary:hover:not(:disabled) { background: color-mix(in oklab, var(--harbour) 6%, transparent); }
+
+.brokaid-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 22px;
+  min-height: 44px;
+  background: var(--harbour);
+  color: var(--sand);
+  border-radius: 999px;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  align-self: start;
+}
+
+/* --- Empty state --------------------------------------------------- */
+.brokaid-empty {
+  padding: 24px;
+  border-radius: 16px;
+  background: #FFFFFF;
+  border: 1px solid color-mix(in oklab, var(--harbour) 8%, transparent);
+  display: grid;
+  gap: 8px;
+}
+.brokaid-empty__title { font-family: var(--font-ui); font-size: 16px; font-weight: 600; margin: 0; color: var(--harbour); }
+.brokaid-empty__body  { font-size: 14px; color: color-mix(in oklab, var(--harbour) 78%, transparent); margin: 0; max-width: 60ch; }
+.brokaid-empty__cta   { margin-top: 8px; }
+
+/* --- Preview banner ----------------------------------------------- */
+.brokaid-preview-banner {
+  padding: 10px 16px;
+  background: color-mix(in oklab, var(--coral, #E8623A) 12%, #FFFFFF);
+  color: var(--harbour);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  border-bottom: 1px solid color-mix(in oklab, var(--coral, #E8623A) 40%, transparent);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.brokaid-preview-banner__pill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--coral, #E8623A);
+  color: #FFFFFF;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+}
+
+/* --- Jurisdiction switch ------------------------------------------ */
+.brokaid-jurisdiction-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--harbour) 6%, transparent);
+}
+.brokaid-jurisdiction-switch button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--harbour);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.brokaid-jurisdiction-switch button.is-active { background: var(--sea-strong); color: #FFFFFF; }
+
+/* --- Cover schedule ------------------------------------------------ */
+.brokaid-cover-row { display: grid; gap: 8px; }
+.brokaid-cover-row__schedule { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 4px; }
+
+/* --- Ask ----------------------------------------------------------- */
+.brokaid-ask { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.brokaid-ask__msg { background: #FFFFFF; padding: 14px 16px; border-radius: 16px; }
+.brokaid-ask__msg--broker { border-left: 3px solid var(--sea); }
+.brokaid-ask__meta { font-size: 11px; color: var(--slate-strong); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.brokaid-ask__body { font-size: 15px; color: var(--harbour); }
+
+.brokaid-ask__form {
+  display: flex; gap: 8px;
+  background: #FFFFFF; padding: 8px; border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 12%, transparent);
+}
+.brokaid-ask__form input {
+  flex: 1; border: none; outline: none; font-family: var(--font-ui); font-size: 14px;
+  padding: 8px 12px; background: transparent; color: var(--harbour); min-height: 36px;
+}
+
+/* --- Profile ------------------------------------------------------- */
+.brokaid-profile__block { background: #FFFFFF; border-radius: 16px; padding: 20px; display: grid; gap: 10px; }
+.brokaid-profile__h2 { font-family: var(--font-ui); font-size: 14px; font-weight: 600; margin: 0; color: var(--harbour); display: flex; align-items: center; gap: 8px; }
+.brokaid-profile__row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 14px; }
+.brokaid-profile__row span:first-child { color: var(--slate-strong); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+.brokaid-mini { font-family: var(--font-mono); font-size: 10px; padding: 2px 8px; background: color-mix(in oklab, var(--slate-strong) 15%, transparent); color: var(--slate-strong); border-radius: 999px; letter-spacing: 0.08em; }
+
+/* --- Disclosure ---------------------------------------------------- */
+.brokaid-disclosure {
+  font-size: 12px;
+  line-height: 1.55;
+  color: color-mix(in oklab, var(--harbour) 72%, transparent);
+  padding: 16px;
+  border-top: 1px solid color-mix(in oklab, var(--harbour) 10%, transparent);
+}
+.brokaid-disclosure__reg {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--slate-strong);
+}
+
+/* --- Amount -------------------------------------------------------- */
+.brokaid-amount { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* --- Kitchen-sink -------------------------------------------------- */
+.brokaid-ks-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* --- Forms (client login page) ------------------------------------ */
+.brokaid-form { display: grid; gap: 12px; max-width: 380px; }
+.brokaid-form__label { display: grid; gap: 4px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--slate-strong); }
+.brokaid-form__label input {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 20%, transparent);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  min-height: 44px;
+  color: var(--harbour);
+  background: #FFFFFF;
+}
+.brokaid-form button { background: var(--sea-strong); color: #FFFFFF; border: none; padding: 12px 20px; min-height: 44px; border-radius: 999px; font-family: var(--font-ui); font-weight: 600; }
+.brokaid-form__msg { font-size: 13px; color: var(--verify); }
+.brokaid-form__err { font-size: 13px; color: var(--alert); }
+
+.brokaid-devbox { padding: 16px; margin-top: 16px; background: color-mix(in oklab, var(--coral, #E8623A) 8%, #FFFFFF); border-radius: 12px; display: grid; gap: 8px; font-size: 13px; color: var(--harbour); }
+.brokaid-devbox code { display: block; padding: 8px 12px; background: color-mix(in oklab, var(--harbour) 6%, transparent); border-radius: 6px; word-break: break-all; font-family: var(--font-mono); font-size: 11px; }
+.brokaid-devbox button { background: var(--sea-strong); color: #FFFFFF; border: none; padding: 10px 16px; border-radius: 999px; min-height: 44px; }
+
+/* Enrol screen */
+.brokaid-enrol__qr { background: #FFFFFF; padding: 20px; border-radius: 16px; max-width: 320px; }
+.brokaid-enrol__qr svg { width: 100%; height: auto; }
+.brokaid-enrol__uri code { font-family: var(--font-mono); font-size: 11px; }

@@ -1,0 +1,113 @@
+{
+  "$defs": {
+    "Citation": {
+      "additionalProperties": false,
+      "description": "A citation the agent attaches to a claim in its output.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "event",
+            "risk_schema"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "ref": {
+          "title": "Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "title": "Citation",
+      "type": "object"
+    },
+    "TokenCount": {
+      "additionalProperties": false,
+      "description": "Provider-reported token consumption, verified by brAIn.",
+      "properties": {
+        "input": {
+          "minimum": 0,
+          "title": "Input",
+          "type": "integer"
+        },
+        "output": {
+          "minimum": 0,
+          "title": "Output",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "input",
+        "output"
+      ],
+      "title": "TokenCount",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "What every agent returns.\n\nSCHEMA_VERIFICATION_PENDING: Field names based on plan v1.3.1;\nawaiting verbatim \u00a77.5-7.7 confirmation from spec owner.",
+  "properties": {
+    "citations": {
+      "items": {
+        "$ref": "#/$defs/Citation"
+      },
+      "title": "Citations",
+      "type": "array"
+    },
+    "class_key": {
+      "title": "Class Key",
+      "type": "string"
+    },
+    "decision": {
+      "title": "Decision",
+      "type": "string"
+    },
+    "envelope_id": {
+      "format": "uuid",
+      "title": "Envelope Id",
+      "type": "string"
+    },
+    "notes": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Notes"
+    },
+    "payload": {
+      "additionalProperties": true,
+      "title": "Payload",
+      "type": "object"
+    },
+    "provider_meta": {
+      "additionalProperties": true,
+      "title": "Provider Meta",
+      "type": "object"
+    },
+    "tokens_used": {
+      "$ref": "#/$defs/TokenCount"
+    },
+    "wall_ms": {
+      "minimum": 0,
+      "title": "Wall Ms",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "envelope_id",
+    "class_key",
+    "decision",
+    "tokens_used",
+    "wall_ms"
+  ],
+  "title": "OutputContract",
+  "type": "object"
+}

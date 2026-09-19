@@ -1,0 +1,95 @@
+name: Verify ledger chain
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 15 * * *" # 01:00 Sydney AEST daily
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: brokaid
+          POSTGRES_PASSWORD: brokaid_dev_local
+          POSTGRES_DB: brokaid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U brokaid"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: postgresql://brokaid:brokaid_dev_local@localhost:5432/brokaid
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Install Python deps
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install fastapi 'uvicorn[standard]' asyncpg pydantic python-dotenv rfc8785 pytest pytest-asyncio httpx
+
+      - name: Install Node deps
+        run: yarn install --frozen-lockfile
+
+      - name: Apply migrations
+        working-directory: backend
+        run: python -m app.migrate
+
+      - name: Run pytest (append-only, RLS, idempotency, verifier, concurrency)
+        working-directory: backend
+        run: pytest -v
+
+      - name: Seed a fixture tenant + events
+        working-directory: backend
+        run: python -m tests.seed_fixture
+
+      - name: Export tenant chain
+        working-directory: backend
+        run: |
+          python -m tests.export_fixture > /tmp/export-clean.json
+          python -m tests.export_fixture > /tmp/export-tamper.json
+
+      - name: Run offline verifier (must PASS)
+        run: node packages/kernel/verifier/verify.js /tmp/export-clean.json
+
+      - name: Tamper the export and re-run verifier (must FAIL)
+        run: |
+          python -c "
+          import json
+          d = json.load(open('/tmp/export-tamper.json'))
+          d['events'][3]['payload_jcs'] = '{\"tampered\":true}'
+          json.dump(d, open('/tmp/export-tamper.json','w'))
+          "
+          if node packages/kernel/verifier/verify.js /tmp/export-tamper.json; then
+            echo "verifier passed a tampered export — this is a chain-integrity failure"
+            exit 1
+          else
+            echo "verifier correctly rejected the tampered export"
+          fi
+
+      - name: Run chain-verify job standalone
+        working-directory: backend
+        run: python -m app.jobs.chain_verify

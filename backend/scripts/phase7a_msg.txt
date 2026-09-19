@@ -1,0 +1,72 @@
+phase 7A: Operator Control Tower — projections + KPIs + queue + APIs
+
+Scope (backend half of phase 7)
+-------------------------------
+- Migration 007 — proj_queue + proj_kpi_daily, both RLS ENABLE+FORCE.
+- app/kernel/queue.py — SLA_MINUTES map (H + money-touching 30min,
+  cert/structure 4h, claim_admin 8h, submit_to_market /
+  endorsement_execute 24h), enqueue()/resolve()/fetch_pending()/
+  fetch_card(), sla_state() (ok|warn|overdue).
+- app/kernel/kpis.py — twelve deterministic KPI computations from
+  ledger + policies + proj_class_unlock + proj_sprint_usage +
+  proj_active_blocks. Every KPI renders (real number, shaped-zero, or
+  shaped-null with not_yet_measurable=true and human-readable reason).
+  KPIs 3, 4, 6, 7, 12 declared not_yet_measurable pending later phases.
+- app/jobs/compute_kpis.py — bounded job through the phase-3 runner.
+  Advisory-locked ('kpics' 0x6B70696373), 60s max, per-tenant compute
+  + persist_daily. Emits KPIDailyComputed under brokaid-ops. Registered
+  with cron string */5 * * * * (informational).
+- app/routes/queue.py — GET /api/o/queue (sorted overdue-first-then-
+  sla-then-hitl_since, enriched with client+matter display), GET
+  /api/o/queue/:envelope_id (proposal + evidence + confidence 4+scalar
+  from computed field, source='computed'), POST approve/edit/reject/
+  block (trust_money → two_person.record_approval; block →
+  compliance-only via 403).
+- app/routes/kpi.py — GET /api/o/kpi/summary (12 in order 1..12; if
+  today's row missing, compute+persist on-demand), GET /api/o/kpi/:id/
+  events (drill for 5/8/10/11; 400 not_drillable_in_this_build
+  otherwise).
+- app/routes/daily_brief.py — projection-only. No narrative field.
+- app/routes/client_360.py — GET /api/o/clients, /client/:id,
+  /client/:id/timeline (paginated).
+- app/seeds/seed_historical.py — deterministic RNG (SEED_RNG=20261101);
+  seeds proj_class_unlock rows for 8 classes with 60-92% agreement (all
+  under 95% unlock threshold), emits 30 Approval events across
+  accounts-a/b/principal/compliance signers, and 5 pending queue cards
+  (2 overdue, 1 warn, 1 mid, 1 ok) with AgentOutputProduced proposals
+  carrying computed confidence components. Idempotent via SeedMarker.
+
+Guardrails held
+---------------
+- Zero LLM. All KPIs and queue logic are deterministic Postgres reads.
+- No agent-name strings anywhere in new code.
+- All new routes require MFA-verified operator session.
+- No cross-tenant reads — every query sets app.tenant_id GUC first.
+- Confidence.source='computed' on the Decision Card — the API does
+  not accept a self-reported number path.
+
+Tests (services/api/tests)
+--------------------------
+- test_kpi_summary.py    — 12 in order, shape, not-yet-measurable
+                           reasons on 3/4/6/7/12.
+- test_kpi_drill.py      — 5/8/10/11 return events; others 400.
+- test_queue.py          — 5 seeded cards, overdue-first sort,
+                           Decision Card shape (4 components + scalar,
+                           source='computed').
+- test_queue_actions.py  — approve resolves; edit + reject shaped;
+                           block requires compliance role.
+- test_daily_brief.py    — required numeric shape; no narrative/
+                           summary_sentence field; hitl_queue_size>=5.
+- test_client360.py      — client list + header + paginated timeline.
+
+Suite total: 144 passed, 2 skipped.
+
+Deviations
+----------
+- No dedicated projector listening to gAIte HITL events. Phase 8+
+  scenes will call queue.enqueue() directly; the historical seed uses
+  the same call. Rationale: keeps the projector deterministic and
+  testable now with no side effects.
+- compute_kpis registered in the runner but not scheduled by anything
+  in this environment. Runs on demand via `python -m app.jobs.run
+  compute_kpis` (documented in infra/jobs/README.md, unchanged).

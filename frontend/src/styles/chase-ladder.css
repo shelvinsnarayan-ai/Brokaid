@@ -1,0 +1,99 @@
+/* Phase-18 Chase Ladder — preview stub, Ledger palette.
+ *
+ * Two-column desktop grid → single column below 720px. All colours
+ * pull from existing brand tokens; no new tokens added.
+ */
+
+.ledger-chase {
+  max-width: 960px;
+  padding: 24px 0;
+}
+
+.ledger-chase__head {
+  margin: 0 0 24px;
+}
+
+.ledger-chase__title {
+  font-family: var(--font-display-ledger, "Jura", system-ui, sans-serif);
+  font-weight: 300;
+  font-size: 32px;
+  line-height: 1.2;
+  color: var(--bone);
+  margin: 4px 0 8px;
+}
+
+.ledger-chase__lede {
+  font-size: 14px;
+  color: color-mix(in oklab, var(--bone) 78%, transparent);
+  max-width: 60ch;
+  margin: 0;
+}
+
+.ledger-chase__grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 720px) {
+  .ledger-chase__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ledger-chase-card {
+  display: flex;
+  gap: 14px;
+  padding: 18px 18px 20px;
+  border-radius: 6px;
+  background: rgba(232, 226, 214, 0.04);
+  border: 1px solid rgba(232, 226, 214, 0.12);
+  min-height: 120px;
+}
+
+.ledger-chase-card__icon {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(191, 122, 62, 0.14);
+  color: var(--copper);
+}
+
+.ledger-chase-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ledger-chase-card__label {
+  font-family: var(--font-ui, "Instrument Sans", system-ui, sans-serif);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--bone);
+  margin: 0 0 4px;
+}
+
+.ledger-chase-card__summary {
+  font-size: 14px;
+  line-height: 1.5;
+  color: color-mix(in oklab, var(--bone) 76%, transparent);
+  margin: 0 0 12px;
+}
+
+.ledger-chase-card__pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(191, 122, 62, 0.22);
+  color: var(--bone);
+  font-family: var(--font-mono, "DM Mono", ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}

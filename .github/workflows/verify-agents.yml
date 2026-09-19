@@ -1,0 +1,27 @@
+name: verify-agents
+on: [push, pull_request]
+
+# Phase 8 — intAIke agent tests require a live Emergent LLM key.
+# Job is skipped when the env is unavailable; it must NOT block the
+# main CI pipeline. Documented in the workflow file so anyone
+# forking the repo knows what the marker means.
+
+jobs:
+  intake-goldens:
+    runs-on: ubuntu-latest
+    if: ${{ env.EMERGENT_LLM_KEY != '' }}
+    env:
+      EMERGENT_LLM_KEY: ${{ secrets.EMERGENT_LLM_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: install
+        run: |
+          pip install -r backend/requirements.txt
+          pip install emergentintegrations --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/
+      - name: run intAIke goldens
+        working-directory: backend
+        run: |
+          python -m pytest tests/test_intake_agent.py -q -m requires_llm_key

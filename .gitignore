@@ -1,0 +1,61 @@
+# Node / build artifacts
+node_modules/
+dist/
+build/
+.vite/
+*.log
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Local env — never commit real credentials
+.env
+.env.local
+.env.*.local
+.env.development
+backend/.env
+frontend/.env
+frontend/.env.development
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Secrets and keys
+*.pem
+*.key
+.netrc
+
+# Legacy template artifacts (kept out of tree during phase 0 migration)
+.legacy_mobile/
+
+# Local Postgres cluster (dev container). Real repo consumers stand up
+# their own Postgres via `infra/postgres/bootstrap.sh`.
+/.postgres_data/
+
+# Emergent build artefacts
+.emergent/
+memory/
+test_reports/
+.env.*
+*.env
+credentials.json
+.credentials
+
+
+# mobile/.env — this repo has no mobile surface, but Emergent's native
+# deploy pipeline reads env files from a fixed set of paths (frontend/,
+# backend/, mobile/) and errors on the missing file. Track the tiny
+# placeholder so the BUILD step's env-reader can hydrate cleanly. No
+# real secrets live here — see the file for context.
+!mobile/.env
+.emergent/cross_platform_fork_in_progress
+.emergent/mono_fork_setup_complete
+.emergent/.fork_pod_run_id

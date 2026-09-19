@@ -1,0 +1,72 @@
+/* brokAId brand tokens — CSS variables mirroring src/palettes.ts.
+ *
+ * Values are the v1.0 Identity Guide canon
+ * (see docs/brand/brokAId_Brand_Guide_v1.0.md, §3 Palettes).
+ *
+ * Import in app entry:
+ *   import "@brokaid/brand-tokens/tokens.css";
+ *
+ * Surface a palette by adding one of these classes to a subtree:
+ *   .surface-ledger  — operator (dark)
+ *   .surface-harbour — client (light)
+ */
+
+:root {
+  /* Ledger */
+  --ink: #12181c;
+  --bone: #f1eee7;
+  --bone-muted: #a0a3a7;
+  --copper: #b9752f;
+  --copper-light: #d9934a;
+  --slate: #5a5c60;
+  --slate-strong: #45474b;
+
+  /* Harbour */
+  --harbour: #0b3b4b;
+  --sea: #1f8a9e;
+  --sea-strong: #146e80;
+  --sand: #f4efe6;
+  --coral: #e8623a;
+
+  /* Utility (shared) */
+  --verify: #2e7d5a;
+  --alert: #c94a3d;
+
+  /* Type */
+  --font-display-harbour: "Outfit", system-ui, sans-serif;
+  --font-display-ledger: "Jura", system-ui, sans-serif;
+  --font-ui: "Instrument Sans", system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, monospace;
+
+  --tap-min: 44px;
+}
+
+.surface-ledger {
+  background: var(--ink);
+  color: var(--bone);
+  font-family: var(--font-ui);
+}
+
+.surface-ledger h1,
+.surface-ledger h2,
+.surface-ledger h3 {
+  font-family: var(--font-display-ledger);
+  font-weight: 300;
+  line-height: 1.2;
+  color: var(--bone);
+}
+
+.surface-harbour {
+  background: var(--sand);
+  color: var(--harbour);
+  font-family: var(--font-ui);
+}
+
+.surface-harbour h1,
+.surface-harbour h2,
+.surface-harbour h3 {
+  font-family: var(--font-display-harbour);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--harbour);
+}

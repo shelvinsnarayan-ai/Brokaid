@@ -1,0 +1,154 @@
+/* Phase 13 — claim scene UI. Harbour (client) + Ledger (operator). */
+
+/* Claims list */
+.brokaid-claims-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.brokaid-claim-card {
+  display: block;
+  background: #fff;
+  border: 1px solid #E8E2D6;
+  border-radius: 12px;
+  padding: 16px;
+  color: #0B3B4B;
+  text-decoration: none;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.brokaid-claim-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(11, 59, 75, 0.06);
+}
+.brokaid-claim-card__row-top,
+.brokaid-claim-card__row-mid {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.brokaid-claim-card__ref { font-family: "DM Mono", ui-monospace, monospace; font-weight: 600; }
+.brokaid-claim-card__type { color: var(--slate-strong); text-transform: capitalize; font-size: 14px; }
+.brokaid-claim-card__status {
+  padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.brokaid-claim-card__status--triaged { background: #E8E2D6; color: #5A5C60; }
+.brokaid-claim-card__status--lodged  { background: var(--sea-strong); color: #fff; }
+.brokaid-claim-card__status--in_review { background: #BF7A3E; color: #fff; }
+.brokaid-claim-card__status--resolved { background: #2E7D5A; color: #fff; }
+.brokaid-claim-card__status--declined { background: #C94A3D; color: #fff; }
+.brokaid-claim-card__preview { color: #0B3B4B; font-size: 14px; margin: 8px 0; }
+.brokaid-claim-card__ts { color: var(--slate-strong); font-size: 12px; margin: 0; }
+
+/* Urgency pills */
+.brokaid-urgency {
+  padding: 2px 8px; border-radius: 999px; font-size: 11px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.brokaid-urgency--normal   { background: #F4EFE6; color: #5A5C60; }
+.brokaid-urgency--high     { background: #E8623A; color: #fff; }
+.brokaid-urgency--critical { background: #C94A3D; color: #fff; }
+
+/* MOCKED pill */
+.brokaid-mocked-pill {
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 2px 8px; border-radius: 999px;
+  background: #E8623A; color: #F4EFE6; text-transform: uppercase;
+}
+
+/* FNOL form */
+.brokaid-fnol { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.brokaid-field { display: flex; flex-direction: column; gap: 6px; }
+.brokaid-field > span { font-size: 14px; color: var(--slate-strong); font-weight: 600; }
+.brokaid-field input,
+.brokaid-field textarea {
+  border: 1px solid #E8E2D6; border-radius: 8px; padding: 10px 12px;
+  font-family: inherit; font-size: 16px; color: #0B3B4B; background: #fff;
+}
+.brokaid-field textarea { min-height: 120px; resize: vertical; }
+.brokaid-fnol__actions { display: flex; gap: 12px; }
+.brokaid-fnol__mocked-note { font-size: 13px; color: var(--slate-strong); }
+.brokaid-error { color: #C94A3D; font-size: 14px; }
+.brokaid-empty-caption { color: var(--slate-strong); margin-top: 16px; }
+
+/* Claim detail */
+.brokaid-claim-detail__pills { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.brokaid-claim-detail__body { margin: 16px 0; }
+.brokaid-claim-detail__opened { color: var(--slate-strong); font-size: 13px; margin: 0 0 8px 0; }
+.brokaid-claim-detail__desc {
+  background: #fff; border-left: 3px solid var(--sea-strong); padding: 12px 16px;
+  margin: 0; color: #0B3B4B; font-size: 15px; border-radius: 4px;
+}
+
+.brokaid-claim-timeline__title { margin: 24px 0 8px 0; font-size: 18px; }
+.brokaid-claim-timeline { list-style: none; padding: 0; margin: 0; }
+.brokaid-claim-timeline__item {
+  border-left: 2px solid #E8E2D6; padding: 10px 14px; margin-bottom: 12px;
+  background: #fff; border-radius: 0 8px 8px 0;
+}
+.brokaid-claim-timeline__meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--slate-strong); }
+.brokaid-claim-timeline__kind { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #0B3B4B; }
+.brokaid-claim-timeline__ts { margin-left: auto; }
+.brokaid-claim-timeline__body { margin: 6px 0 0 0; color: #0B3B4B; }
+
+/* Notifications */
+.brokaid-notif-list { list-style: none; padding: 0; margin: 16px 0 0 0; display: flex; flex-direction: column; gap: 12px; }
+.brokaid-notif { background: #fff; border: 1px solid #E8E2D6; border-radius: 12px; padding: 16px; }
+.brokaid-notif__row { display: flex; justify-content: space-between; font-size: 12px; color: var(--slate-strong); }
+.brokaid-notif__kind { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.brokaid-notif__subject { margin: 6px 0 8px 0; font-size: 16px; color: #0B3B4B; }
+.brokaid-notif__body { white-space: pre-wrap; font-family: inherit; font-size: 14px; color: #0B3B4B; margin: 0; }
+
+/* Operator status composer + guard block */
+.brokaid-status-composer { display: flex; flex-direction: column; gap: 12px; }
+.brokaid-status-composer textarea {
+  width: 100%; border: 1px solid #5A5C60; background: #0D111A; color: #E8E2D6;
+  border-radius: 6px; padding: 10px 12px; font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 14px; resize: vertical;
+}
+.brokaid-status-composer__hint { font-size: 12px; color: var(--slate-strong); margin: 0; }
+
+.brokaid-guard-block {
+  border: 2px solid #C94A3D; border-radius: 8px; padding: 12px 16px;
+  background: rgba(201, 74, 61, 0.08);
+}
+.brokaid-guard-block__head {
+  font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: #C94A3D; font-size: 12px; margin-bottom: 8px;
+}
+.brokaid-guard-block__reason { margin: 0 0 12px 0; color: #C94A3D; font-size: 14px; }
+.brokaid-guard-block__draft {
+  padding: 10px 12px; background: rgba(255,255,255,0.6); border-radius: 6px;
+  font-family: "DM Mono", ui-monospace, monospace; font-size: 14px; color: #0D111A;
+  white-space: pre-wrap; line-height: 1.5;
+}
+.brokaid-guard-block__span {
+  background: #C94A3D; color: #F4EFE6; padding: 1px 4px; border-radius: 3px;
+  font-weight: 600;
+}
+.brokaid-guard-block__rewrite { margin-top: 12px; padding: 10px 12px;
+  background: rgba(46, 125, 90, 0.1); border-radius: 6px; border-left: 3px solid #2E7D5A; }
+.brokaid-guard-block__rewrite-label { display: block; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: #2E7D5A; font-weight: 700; }
+.brokaid-guard-block__rewrite p { margin: 4px 0 0 0; color: #0B3B4B; font-size: 14px; }
+
+.brokaid-guard-ok {
+  padding: 10px 12px; border-radius: 6px;
+  background: rgba(46, 125, 90, 0.1); color: #2E7D5A; font-size: 14px; font-weight: 600;
+}
+
+/* Decision-card CTA to the claim composer (operator side) */
+.dcard-claim-cta {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 14px; margin: 0 0 12px 0;
+  border: 1px solid var(--copper, #BF7A3E); border-radius: 4px;
+  background: rgba(191, 122, 62, 0.06);
+}
+.dcard-claim-cta__hint {
+  color: var(--slate, #5A5C60); font-size: 12px; line-height: 1.4;
+}

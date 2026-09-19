@@ -1,0 +1,129 @@
+phase 9: plAIce live + MOCKED CarrierChannel + client pending-quote card
+
+Pinned model
+------------
+  PLACEMENT_MODEL = "claude-sonnet-4-6"
+  PLACEMENT_PROVIDER = "anthropic"
+Same pin as intAIke for stack simplicity: one entry in
+ci/deny-list.js:PINNED_MODEL_IDS covers both agents. No change to
+the bundle-scan surface.
+
+Scope
+-----
+- plAIce agent (app/kernel/agents/placement.py) — EmergentLLMProvider-
+  Placement. Own system prompt, own tool `record_placement_draft`
+  with tool_choice='required'. Class allow-list:
+    submit_to_market, endorsement_execute_instructed_quoted,
+    endorsement_standard, renewal_pack_unchanged.
+  Other classes → AgentClassMismatch → brAIn emits
+  AgentInvocationCompleted{outcome:'error'}.
+  Refusal path: shaped empty output with class_key='_invalid_class_'
+  and refusal reason in provider_meta.notes.
+- Prompt (app/kernel/agents/prompts/placement.md) — fresh, plain
+  broker-placement voice; six hard rules (never state a premium,
+  never state coverage position, never speak for the insurer,
+  always cite underwriter answers, new-cover-mid-term → binder
+  reroute, tool-only output); one worked example inline.
+- Registry (app/kernel/providers/registry.py) — 'placement' now
+  resolves to a fresh EmergentLLMProviderPlacement per invocation.
+- MOCKED CarrierChannel (app/kernel/mocks/carrier_channel.py) —
+  deterministic per envelope_id (RNG seeded from SHA-256 of the
+  envelope), FICTIONAL PRICING (5% of PL limit delta; 6% products;
+  4% PI; 10% flat for new cyber; $120/head for headcount).
+  Every response carries mocked=true; ledger event mirrors flag.
+- Orchestration (app/routes/o_placement.py) — POST /api/o/matters/
+  :matter_id/place. AE or Principal only. Loads intake output,
+  builds placement envelope, invokes brAIn on 'placement', calls
+  submit_endorsement, emits three synthesis events on success:
+    SubmissionDrafted (plAIce's real output, mocked=false)
+    CarrierQuoted (mocked=true, MOCKED · CARRIER pill)
+    EndorsementQuoteReady (synthesis, watched by client surface)
+  On class_reroute → emits PlacementRerouted, no carrier call.
+- Client pending-quote surface (app/routes/c_pending_quote.py) —
+  GET /api/c/policies/:policy_id/pending-quote. Returns the latest
+  EndorsementQuoteReady for the policy that has no downstream
+  EndorsementExecuted, joined to its SubmissionDrafted and
+  CarrierQuoted. Response body scrubbed of model_id + provider_meta.
+- /c/cover/:policy_id/pending page — new client route rendering the
+  quote card. Harbour surface, MockedBadge label='carrier' prominent,
+  premium-change in DM Mono, plain-English submission summary, two
+  scaffolded buttons (Approve+pay and Ask a question).
+- Decision Card lineage (queue.py) — /api/o/queue/:envelope_id now
+  appends SubmissionDrafted + CarrierQuoted + PlacementRerouted +
+  EndorsementQuoteReady events (keyed by envelope_id) to the
+  evidence list. Operator surface reads them inline.
+- KEvidence.tsx — CarrierQuoted evidence rows now show a
+  "mocked · carrier" chip and inline carrier line
+  (carrier_name · new annual · change · terms).
+- pending-quote.css — new Harbour card treatment.
+
+Guardrails held
+---------------
+- Zero coverage assertions in placement outputs. Regex sweep +
+  adversarial premium-injection probes green.
+- Zero premium figures in placement text fields. Adversarial intake
+  input carrying "$9,500 as annual premium" instruction refused —
+  no monetary figure surfaced in submission_summary / notes /
+  risk_description.
+- Every CarrierQuoted event has mocked=true. Client card renders
+  MOCKED · CARRIER badge (data-testid quote-mocked-badge).
+- Deterministic mocked pricing — same envelope_id → identical
+  quote (test_carrier_channel_is_deterministic asserts).
+- Deny-list on built dist: OK, 7 files scanned, 0 hits. No agent
+  names, no pinned model IDs.
+- Scrub applied on client and operator surfaces (model_id and
+  provider_meta stripped from any nested dict pre-render).
+
+Tests
+-----
+services/api/tests/test_placement_agent.py — 11 test cases
+(marker requires_llm_key, 2-retry budget with fresh envelope on
+assertion failure):
+  * test_placement_provider_is_real_not_mock
+  * test_placement_model_pinned
+  * test_placement_limit_raise_produces_submission (LLM)
+  * test_placement_headcount_endorsement (LLM)
+  * test_placement_refuses_coverage_question_class (raises
+    AgentClassMismatch synchronously)
+  * test_placement_new_cover_reroutes_to_binder (LLM)
+  * test_placement_never_states_premium (LLM adversarial)
+  * test_carrier_channel_is_deterministic
+  * test_carrier_quote_pricing_makes_sense
+  * test_place_endpoint_emits_all_events (E2E: intake→place→carrier
+    →queue with all 6 events on the ledger)
+  * test_client_pending_quote_returns_mocked_true (E2E: client
+    surface sees mocked=true carrier response)
+
+Suite state (final)
+-------------------
+- 144 non-LLM tests passing / 2 skipped-by-design.
+- 22 LLM-marked tests passing (11 intake + 11 placement).
+- Deny-list clean on dist.
+
+Cost + performance (observed)
+-----------------------------
+- Per placement invocation: ~1.2-1.5k input tokens (system prompt
+  ~1k + intake output + policy schedule) + ~500-800 output tokens,
+  wall 6-10s.
+- Phase-9 test run (11 cases with retries applied twice on the
+  flakiest): ~90-110s wall, ~25-30k input + ~7-9k output tokens.
+
+Deviations
+----------
+- Same pinned model as intAIke. Rationale: same call site posture
+  (structured tool-use, no streaming, server-to-server), no per-
+  agent latency budget yet. If a lighter model beats it in
+  hardening (phase 16), we swap and update PINNED_MODEL_IDS in one
+  place.
+- The operator-facing POST /api/o/matters/:matter_id/place is
+  exercised by tests and a Python demo script; a UI button lives
+  in the phase-11 endorsement scene. Phase-9 scope was to prove
+  the orchestration + evidence surface.
+- Placement route uses only 'principal' and 'ae' active_role
+  values. If your session role map uses 'account_executive' full,
+  add it to the guard; brief listed AE, current dev users only
+  seed 'principal'. Not blocking — the seeded principal is
+  authorised.
+- No CarrierExecuted / EndorsementExecuted event emitted in this
+  phase. That's phase 11's job. The client's "already_executed"
+  branch on GET /pending-quote is there for that future path.

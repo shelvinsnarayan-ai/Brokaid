@@ -1,0 +1,21 @@
+{
+  "name": "@brokaid/brand-tokens",
+  "version": "0.0.1",
+  "private": true,
+  "description": "brokAId brand tokens — Ledger + Harbour palettes, typography, contrast tests.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.9"
+  }
+}

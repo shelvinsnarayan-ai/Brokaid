@@ -1,0 +1,15 @@
+{
+  "name": "@brokaid/kernel",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Cross-service kernel types — populated in phases 1-3.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

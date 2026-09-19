@@ -1,0 +1,90 @@
+/* Phase 14 — Shadow Mode dashboard styling (Ledger palette). */
+
+.sm-controls {
+  display: flex; gap: 24px; flex-wrap: wrap;
+  align-items: flex-end; margin: 12px 0 20px 0;
+  padding: 12px 14px; background: rgba(232,226,214,0.03);
+  border: 1px solid #232833; border-radius: 4px;
+}
+.sm-controls__group {
+  display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
+}
+.sm-controls__group--right { margin-left: auto; flex-direction: row; align-items: center; gap: 8px; }
+.sm-controls__label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--slate, #5A5C60); font-weight: 700;
+}
+.sm-controls select {
+  background: #0D111A; color: #E8E2D6; border: 1px solid #232833;
+  padding: 6px 8px; font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 12px; min-width: 180px; height: 88px;
+}
+.sm-btn {
+  background: transparent; color: #E8E2D6; border: 1px solid #232833;
+  padding: 6px 12px; font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 12px; cursor: pointer; letter-spacing: 0.02em;
+}
+.sm-btn:hover { border-color: var(--copper, #BF7A3E); color: var(--copper, #BF7A3E); }
+.sm-btn--active { background: var(--copper, #BF7A3E); border-color: var(--copper, #BF7A3E); color: #0D111A; }
+
+.sm-table {
+  width: 100%; border-collapse: collapse; margin-top: 8px;
+  font-family: "Instrument Sans", system-ui, sans-serif; font-size: 13px;
+}
+.sm-table th {
+  text-align: left; padding: 8px 12px; border-bottom: 1px solid #232833;
+  font-weight: 600; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--slate, #5A5C60);
+}
+.sm-table td {
+  padding: 10px 12px; border-bottom: 1px solid #17191F; color: #E8E2D6;
+}
+.sm-table tbody tr:hover { background: rgba(191, 122, 62, 0.06); }
+.sm-table a { color: #E8E2D6; text-decoration: none; border-bottom: 1px dotted var(--slate, #5A5C60); }
+.sm-table a:hover { color: var(--copper, #BF7A3E); border-color: var(--copper, #BF7A3E); }
+.sm-num { font-family: "DM Mono", ui-monospace, monospace; text-align: right; }
+.sm-ts  { font-family: "DM Mono", ui-monospace, monospace; font-size: 11px; color: var(--slate, #5A5C60); }
+.sm-mono { font-family: "DM Mono", ui-monospace, monospace; font-size: 11px; }
+.sm-empty { padding: 24px; text-align: center; color: var(--slate, #5A5C60); font-style: italic; }
+
+.sm-rate {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-family: "DM Mono", ui-monospace, monospace; font-size: 12px; font-weight: 600;
+}
+.sm-rate--verify { color: #2E7D5A; background: rgba(46,125,90,0.16); }
+.sm-rate--copper { color: #BF7A3E; background: rgba(191,122,62,0.16); }
+.sm-rate--alert  { color: #C94A3D; background: rgba(201,74,61,0.16); }
+.sm-rate--none   { color: var(--slate, #5A5C60); }
+
+.sm-status {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.sm-status--locked { color: var(--slate, #5A5C60); border: 1px solid #232833; }
+.sm-status--on_track { color: #BF7A3E; border: 1px solid #BF7A3E; }
+.sm-status--unlocked { color: #2E7D5A; border: 1px solid #2E7D5A; }
+.sm-status--relocked_recently { color: #C94A3D; border: 1px solid #C94A3D; }
+
+.sm-decision--approve { color: #2E7D5A; }
+.sm-decision--reject  { color: #C94A3D; }
+.sm-decision--edit    { color: #BF7A3E; }
+
+.sm-error { color: #C94A3D; }
+.sm-legend { margin-top: 20px; font-size: 12px; color: var(--slate-strong); }
+
+.sm-modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center; z-index: 50;
+}
+.sm-modal__body {
+  background: #0D111A; border: 1px solid var(--copper); padding: 16px 20px;
+  max-width: 680px; width: 90%; max-height: 80vh; overflow: auto;
+}
+.sm-modal__head { display: flex; justify-content: space-between; align-items: center; }
+.sm-modal__pre {
+  background: #17191F; color: #E8E2D6; padding: 12px; font-size: 11px;
+  font-family: "DM Mono", ui-monospace, monospace; overflow: auto;
+  border-radius: 3px; white-space: pre-wrap;
+}
+.sm-modal__hint { font-size: 11px; color: var(--slate-strong); font-style: italic; }

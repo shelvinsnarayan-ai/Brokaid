@@ -1,0 +1,45 @@
+.brokaid-mocked {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  border: 1px solid currentColor;
+  min-height: 22px;
+  white-space: nowrap;
+}
+
+.brokaid-mocked--operator {
+  /* Alert on Bone for the dark Ledger surface — original spec pair,
+     ratio 5.66 (AA). */
+  color: var(--alert, #c94a3d);
+  background: var(--bone, #e8e2d6);
+}
+
+.brokaid-mocked--client {
+  /* Phase 16 redesign (approved α):
+       body text = harbour on sand (ratio 10.53 — AAA)
+       coral survives as a 1px decorative outline + a leading ::before
+       glyph, honouring the phase-0 'coral is decorative' rule.
+     Class name kept unchanged — governance references it.
+     Decorative dot lives in ::before so it never enters textContent —
+     the visible text contract 'MOCKED · <LABEL>' stays intact. */
+  color: var(--harbour, #0b3b4b);
+  background: var(--sand, #f4efe6);
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--coral, #e8623a);
+}
+.brokaid-mocked--client::before {
+  content: "\00B7"; /* middle dot, decorative only */
+  color: var(--coral, #e8623a);
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 14px;
+  line-height: 1;
+  speak: never;
+}

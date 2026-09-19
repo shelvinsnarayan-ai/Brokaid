@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "Actor": {
+      "additionalProperties": false,
+      "description": "Who initiated / performed something. Matches trAIl's actor shape.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "system",
+            "human",
+            "agent"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "name"
+      ],
+      "title": "Actor",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Operator decision on a HITL card.\n\nSCHEMA_VERIFICATION_PENDING: Field names based on plan v1.3.1;\nawaiting verbatim \u00a77.5-7.7 confirmation from spec owner.",
+  "properties": {
+    "approver": {
+      "$ref": "#/$defs/Actor"
+    },
+    "decision": {
+      "enum": [
+        "approve",
+        "edit",
+        "reject",
+        "block"
+      ],
+      "title": "Decision",
+      "type": "string"
+    },
+    "edits": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Edits"
+    },
+    "envelope_id": {
+      "format": "uuid",
+      "title": "Envelope Id",
+      "type": "string"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "ts": {
+      "format": "date-time",
+      "title": "Ts",
+      "type": "string"
+    }
+  },
+  "required": [
+    "envelope_id",
+    "approver",
+    "decision",
+    "ts"
+  ],
+  "title": "Approval",
+  "type": "object"
+}

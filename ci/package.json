@@ -1,0 +1,9 @@
+{
+  "name": "@brokaid/ci",
+  "private": true,
+  "version": "0.0.1",
+  "description": "CI scripts for brokAId",
+  "bin": {
+    "brokaid-deny-list": "./deny-list.js"
+  }
+}
