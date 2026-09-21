@@ -83,11 +83,20 @@ def _clean_requirements(r: dict | None) -> dict:
     it = (r.get("interest_type") or "").strip().lower()
     if it not in ("additional_insured", "interested_party", "loss_payee", ""):
         it = ""
+    # Accept both `special_requirements` (canonical) and `special` (shorthand
+    # per Build Brief §7A). Persist under the canonical key and mirror under
+    # `special` on read so either wire-name roundtrips verbatim.
+    special = (
+        r.get("special_requirements")
+        or r.get("special")
+        or ""
+    )
     return {
         "interest_type": it,
         "effective_from": (r.get("effective_from") or "").strip()[:40],
         "effective_to": (r.get("effective_to") or "").strip()[:40],
-        "special_requirements": (r.get("special_requirements") or "").strip()[:2000],
+        "special_requirements": special.strip()[:2000],
+        "special": special.strip()[:2000],
     }
 
 

@@ -27,7 +27,7 @@ from typing import Any, Optional
 import qrcode
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from app.auth.sessions import Session
 from app.kernel import certificate_mongo
@@ -135,10 +135,14 @@ class RegenHolder(BaseModel):
 
 
 class RegenRequirements(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     interest_type: str | None = None
     effective_from: str | None = None
     effective_to: str | None = None
-    special_requirements: str | None = None
+    special_requirements: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("special_requirements", "special"),
+    )
 
 
 class RegenRequest(BaseModel):
