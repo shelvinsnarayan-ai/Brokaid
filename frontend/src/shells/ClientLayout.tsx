@@ -10,10 +10,12 @@
  */
 import { Link, Outlet } from "react-router-dom";
 import { AuthGuard } from "../components/AuthGuard";
+import { AppFooter } from "../components/AppFooter";
 import { BrandMark } from "../components/BrandMark";
 import { BrandWordmark } from "../components/BrandWordmark";
 import { PreviewBanner } from "../components/PreviewBanner";
 import { TabBar } from "../components/TabBar";
+import "../styles/app-footer.css";
 
 export function ClientLayout() {
   return (
@@ -50,6 +52,9 @@ export function ClientLayout() {
         <main className="brokaid-client-layout__main">
           <Outlet />
         </main>
+        <div className="brokaid-client-layout__footer-row">
+          <AppFooter variant="harbour" />
+        </div>
         <TabBar />
       </div>
     </AuthGuard>

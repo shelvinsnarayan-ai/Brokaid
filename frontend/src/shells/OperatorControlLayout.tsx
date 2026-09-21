@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { BrandWordmark } from "../components/BrandWordmark";
 import { KKbd } from "../components/ledger/KKbd";
-import { BuildIndicator } from "../components/ledger/BuildIndicator";
+import { AppFooter } from "../components/AppFooter";
+import "../styles/app-footer.css";
 import { useOperatorStore } from "../state/operatorStore";
 
 const NAV = [
@@ -155,7 +156,7 @@ export function OperatorControlLayout() {
         </div>
       ))}
 
-      <BuildIndicator />
+      <AppFooter variant="ledger" />
     </div>
   );
 }

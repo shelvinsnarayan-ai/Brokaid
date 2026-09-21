@@ -1,0 +1,66 @@
+/* AppFooter — low-weight runtime SHA footer for both shells.
+ *
+ * Harbour variant: light surface, Ink text on Sand.
+ * Ledger variant: dark surface, Bone-muted on Ink.
+ *
+ * Positioning: static-flow inside client layout (above/around TabBar),
+ * fixed bottom-right on operator (matches the previous BuildIndicator
+ * placement so the operator credibility slot is preserved).
+ */
+.brokaid-app-footer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, ui-monospace, "SF Mono", monospace);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  user-select: none;
+}
+
+.brokaid-app-footer__label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.brokaid-app-footer__sha {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.brokaid-app-footer__sep {
+  opacity: 0.5;
+}
+
+.brokaid-app-footer__env {
+  text-transform: lowercase;
+  opacity: 0.85;
+}
+
+/* Harbour (client) — inline above the tab bar so it never overlaps the
+ * safe-area inset or PWA home indicator. */
+.brokaid-app-footer--harbour {
+  justify-content: center;
+  padding: 8px 12px 12px;
+  color: rgba(14, 43, 52, 0.65);
+  background: transparent;
+}
+
+/* Ledger (operator) — fixed footer pill, bottom-right. */
+.brokaid-app-footer--ledger {
+  position: fixed;
+  right: 12px;
+  bottom: 10px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  background: rgba(13, 17, 26, 0.85);
+  border: 1px solid rgba(232, 226, 214, 0.14);
+  color: var(--bone-muted, #a8a49b);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.brokaid-app-footer--ledger .brokaid-app-footer__sha {
+  color: var(--bone, #e8e2d6);
+}

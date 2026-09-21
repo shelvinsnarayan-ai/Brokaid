@@ -30,7 +30,7 @@ from app.kernel.contracts.models import Actor, ContextEnvelope, InvocationBudget
 from app.kernel.endorsement import execute_endorsement
 from app.kernel.mocks import e_sign, payment_rail
 from app.kernel.mocks.carrier_channel import submit_endorsement
-from app.kernel.queue import enqueue as queue_enqueue
+from app.kernel.workflow import enqueue as queue_enqueue
 from app.middleware.session import require_session
 
 
