@@ -107,6 +107,7 @@ def create_app(
 
     from app.routes.auth_client import router as auth_client_router
     from app.routes.build_info import router as build_info_router
+    from app.routes.c_envelope import router as c_envelope_router
     from app.routes.auth_operator import router as auth_operator_router
     from app.routes.c_ask import router as c_ask_router
     from app.routes.c_cert import router as c_cert_router
@@ -132,6 +133,7 @@ def create_app(
 
     for r in (
         build_info_router,
+        c_envelope_router,
         auth_client_router, auth_operator_router,
         c_ask_router, c_cert_router, c_claims_router, c_me_router,
         c_next_action_router, c_pending_quote_router, c_scene_router,

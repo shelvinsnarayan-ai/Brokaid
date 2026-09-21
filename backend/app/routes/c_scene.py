@@ -39,6 +39,59 @@ from app.middleware.session import require_session
 router = APIRouter(prefix="/api/c/matters")
 
 
+class LineageIncomplete(HTTPException):
+    """Structured 409 for the failsafe surface (R1 #2 tester follow-up).
+
+    The internal `EndorsementLineageIncomplete` raise from
+    `kernel.endorsement.execute_endorsement` is wrapped here + the
+    /approve, /pay, /sign endpoints emit an early guard so operators
+    see a structured code before the internal exception fires.
+
+    Body: {"code": "EndorsementLineageIncomplete",
+           "detail": "<human-readable missing predecessor(s)>"}
+    """
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(
+            status_code=409,
+            detail={
+                "code": "EndorsementLineageIncomplete",
+                "detail": detail,
+            },
+        )
+
+
+async def _find_envelope_event(store, tenant_id: str, envelope_id: str,
+                               type_: str) -> dict | None:
+    """Latest event of `type_` scoped to a single envelope, or None.
+
+    Uses TenantSafeDatabase under `use_tenant(tenant_id)` so tenant
+    isolation is preserved.
+    """
+    from app.db.tenant_safe import wrap
+    safe = wrap(store)
+    async with use_tenant(tenant_id):
+        return await safe.events.find_one(
+            {"type": type_, "payload.envelope_id": envelope_id},
+            sort=[("seq", -1)],
+        )
+
+
+async def _require_predecessor(store, tenant_id: str, envelope_id: str,
+                               required: list[str]) -> None:
+    """Raise 409 LineageIncomplete listing every missing predecessor."""
+    missing: list[str] = []
+    for t in required:
+        row = await _find_envelope_event(store, tenant_id, envelope_id, t)
+        if row is None:
+            missing.append(t)
+    if missing:
+        raise LineageIncomplete(
+            f"missing upstream event(s) for envelope {envelope_id}: "
+            f"{', '.join(missing)}"
+        )
+
+
 def _store(request: Request):
     s = getattr(request.app.state, "mongo_db", None)
     if s is None:
@@ -228,6 +281,9 @@ async def pay(
     quote = await scene.find_carrier_quote(store, tenant_id, envelope_id)
     if not quote:
         raise HTTPException(status_code=404, detail="quote_not_found")
+    await _require_predecessor(
+        store, tenant_id, envelope_id, ["Approval"],
+    )
     jurisdiction = await scene.find_client_jurisdiction(
         store, tenant_id, policy["client_id"],
     )
@@ -271,6 +327,9 @@ async def sign(
 ) -> dict[str, Any]:
     store = _store(request)
     tenant_id = session.tenant_id
+    await _require_predecessor(
+        store, tenant_id, envelope_id, ["PaymentReceived"],
+    )
     signer_email = f"{session.user_id}@example.test"
     req = await e_sign.request_signature(
         envelope_id=envelope_id,
@@ -318,6 +377,9 @@ async def approve(
     quote = await scene.find_carrier_quote(store, tenant_id, envelope_id)
     if not quote:
         raise HTTPException(status_code=404, detail="quote_not_found")
+    await _require_predecessor(
+        store, tenant_id, envelope_id, ["EndorsementQuoteReady"],
+    )
 
     async with use_tenant(tenant_id):
         await append_via_dispatch(
@@ -351,13 +413,19 @@ async def finalise(
     session: Session = Depends(require_session),
 ) -> dict[str, Any]:
     """Run endorsement execution + certificate regeneration."""
+    from app.kernel.endorsement import EndorsementLineageIncomplete
     store = _store(request)
     tenant_id = session.tenant_id
-    result = await execute_endorsement(
-        store=store, tenant_id=tenant_id,
-        envelope_id=envelope_id, policy_id=policy_id,
-        approver_actor={"kind": "system", "id": "endorsement", "name": "endorsement"},
-    )
+    try:
+        result = await execute_endorsement(
+            store=store, tenant_id=tenant_id,
+            envelope_id=envelope_id, policy_id=policy_id,
+            approver_actor={"kind": "system", "id": "endorsement", "name": "endorsement"},
+        )
+    except EndorsementLineageIncomplete as e:
+        # Wrap the internal guard as a structured 409 so callers get a
+        # named code + human-readable detail (R1 #2 tester follow-up).
+        raise LineageIncomplete(str(e))
     cert = await regenerate_certificate_dispatch(
         store=store, tenant_id=tenant_id, policy_id=policy_id,
         envelope_id=envelope_id,
