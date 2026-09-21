@@ -145,7 +145,7 @@ async def kpi_3_retention_rate(conn, tenant_id: str) -> KpiValue:
         "label": LABELS[3], "unit": "%",
         "renewed_count": 0, "renewed_value": 0.0,
         "not_yet_measurable": True,
-        "reason": "no renewal events yet — awaits phase 8+",
+        "reason": "no renewal events yet — pending renewal ingestion",
     }
     for r in rows:
         p = _parse_payload(r["payload"])
@@ -164,7 +164,7 @@ async def kpi_4_pipeline_velocity(conn, tenant_id: str) -> KpiValue:
         "label": LABELS[4], "unit": "days",
         "stages": {}, "conversion": {},
         "not_yet_measurable": True,
-        "reason": "no pipeline events yet — awaits phase 8+",
+        "reason": "no pipeline events yet — pending pipeline ingestion",
     }
     return KpiValue(4, 0.0, meta, None, [0.0] * 12)
 
@@ -226,7 +226,7 @@ async def kpi_6_time_to_quote(conn, tenant_id: str) -> KpiValue:
         "label": LABELS[6], "unit": "hours",
         "median_hours": 0.0, "sample_size": 0,
         "not_yet_measurable": True,
-        "reason": "no endorsement→quote pairs yet — awaits phase 8 endorsement scene",
+        "reason": "no endorsement→quote pairs yet — pending endorsement telemetry",
     }
     return KpiValue(6, 0.0, meta, None, [0.0] * 12)
 
@@ -236,7 +236,7 @@ async def kpi_7_claims_timeframe(conn, tenant_id: str) -> KpiValue:
         "label": LABELS[7], "unit": "%",
         "met": 0, "missed": 0,
         "not_yet_measurable": True,
-        "reason": "no claim events yet — awaits phase 9 claim scene",
+        "reason": "no claim events yet — pending claim ingestion",
     }
     return KpiValue(7, 0.0, meta, None, [0.0] * 12)
 

@@ -16,6 +16,7 @@ const API = import.meta.env.VITE_API_BASE || "";
 
 interface PendingQuote {
   pending: boolean;
+  state?: "with_broker" | "quote_ready";
   envelope_id?: string;
   policy_id?: string;
   submission_summary?: string;
@@ -103,6 +104,38 @@ export function ClientPendingQuote() {
         title="No pending quote"
         body={data.reason === "already_executed" ? "This change has already been executed." : "There's nothing waiting for you on this policy right now."}
       />
+      <Link to="/c/cover" className="brokaid-btn brokaid-btn--secondary">← Back to cover</Link>
+    </section>
+  );
+  if (data.state === "with_broker" || (data as any).state === "with_broker") return (
+    <section className="brokaid-tab" data-testid="pending-quote-with-broker">
+      <header className="brokaid-tab__head">
+        <p className="brokaid-tab__eyebrow">With your broker</p>
+        <h1 className="brokaid-tab__title">We're on it — usually under an hour.</h1>
+        <p className="brokaid-tab__lede">
+          Your request has landed with your broker. They'll get you a quote
+          from the market and you'll see it here as soon as it's ready.
+        </p>
+      </header>
+      <div className="brokaid-quote-card" data-testid="with-broker-card">
+        <div className="brokaid-quote-card__head">
+          <div>
+            <p className="brokaid-quote-card__label">Status</p>
+            <h2 className="brokaid-quote-card__cover">Awaiting broker approval</h2>
+          </div>
+        </div>
+        <p className="brokaid-quote-card__summary">
+          No action needed from you right now. We'll notify you when the
+          quote is ready to approve. Typical turnaround: under an hour in
+          business hours.
+        </p>
+      </div>
+      {pack && (
+        <footer className="brokaid-disclosure">
+          <strong>Duty of disclosure.</strong>{" "}
+          {pack.disclosure_strings.duty_of_disclosure}
+        </footer>
+      )}
       <Link to="/c/cover" className="brokaid-btn brokaid-btn--secondary">← Back to cover</Link>
     </section>
   );

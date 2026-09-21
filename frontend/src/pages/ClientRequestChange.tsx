@@ -55,13 +55,13 @@ export function ClientRequestChange() {
         return;
       }
       const body = await r.json();
-      if (body.state === "awaiting_operator") {
-        setState("awaiting_operator");
-        // Redirect to pending-quote page so the client sees the carrier quote.
-        setTimeout(() => navigate(`/c/cover/${policy_id}/pending`), 800);
-      } else {
-        setState("intake_running");
-      }
+      // The API returns 200 as soon as the request is on file; the
+      // operator's approval + carrier quote lands via async status
+      // polling. Send the client to the pending screen immediately so
+      // they see a state ("With your broker — usually under an hour")
+      // instead of a hanging "Working…" button.
+      setState("awaiting_operator");
+      navigate(`/c/cover/${policy_id}/pending?env=${body?.envelope_id ?? ""}`);
     } catch (err: any) {
       setErrMsg(String(err));
       setState("error");

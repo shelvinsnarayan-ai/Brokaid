@@ -37,11 +37,30 @@ def _git(args: list[str], repo: Path) -> str | None:
         return None
 
 
+def _read_build_sha_file() -> str | None:
+    """Read a build-time SHA baked into /app/backend/.build_sha.
+
+    Preferred over runtime `git rev-parse` because Docker builds
+    routinely strip `.git` — leaving prod `/api/build-info` with a
+    null SHA (see R1 #1 tester follow-up). Deploy pipelines should
+    invoke `/app/scripts/bake_build_sha.sh` before packaging.
+    """
+    p = Path(__file__).resolve().parents[2] / ".build_sha"
+    if not p.is_file():
+        return None
+    try:
+        text = p.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return text or None
+
+
 def _resolve_identity() -> dict[str, Any]:
     repo = Path(__file__).resolve().parents[3]
 
     sha = (
         os.environ.get("BROKAID_BUILD_SHA")
+        or _read_build_sha_file()
         or _git(["rev-parse", "HEAD"], repo)
         or None
     )

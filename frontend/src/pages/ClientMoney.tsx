@@ -18,8 +18,7 @@ export function ClientMoney() {
 
       <EmptyState
         title="Nothing to pay right now"
-        body="This surface will show live invoices, statements, and
-              scheduled payments in a later phase."
+        body="Your invoices, statements and scheduled payments will land here once your broker enables Money on this account."
         testId="money-empty"
       />
 

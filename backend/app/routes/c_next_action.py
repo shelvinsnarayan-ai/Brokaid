@@ -55,6 +55,7 @@ SIGNAL_TYPES = (
     "CertificateRegenerated",
     "EndorsementExecuted",
     "EndorsementQuoteReady",
+    "ClientChangeRequested",
 )
 
 
@@ -132,6 +133,25 @@ async def _lookup(store, session: Session) -> dict[str, Any] | None:
                 })
                 if executed is not None:
                     continue
+                # Gate on the operator's approval (Build Brief §5B — no
+                # mocked auto-approve; the AE approves the class in
+                # Shadow Mode). Without it, we show the client's own
+                # waiting state instead of the carrier quote.
+                op_approval = await safe.events.find_one({
+                    "type": "OperatorApproval",
+                    "payload.envelope_id": env_id,
+                })
+                if op_approval is None:
+                    return {
+                        "kind": "with_broker",
+                        "envelope_id": env_id,
+                        "policy_id": p.get("policy_id"),
+                        "summary": "With your broker — usually under an hour",
+                        "revised_premium_aud": None,
+                        "delta_aud": None,
+                        "href": f"/c/cover/{p.get('policy_id')}/pending",
+                        "mocked": True,
+                    }
                 cq = await safe.events.find_one({
                     "type": "CarrierQuoted",
                     "payload.envelope_id": env_id,
@@ -150,6 +170,28 @@ async def _lookup(store, session: Session) -> dict[str, Any] | None:
                     "delta_aud": (
                         float(cq_payload.get("premium_change_amount") or 0) or None
                     ),
+                    "href": f"/c/cover/{p.get('policy_id')}/pending",
+                    "mocked": True,
+                }
+
+            if t == "ClientChangeRequested":
+                env_id = p.get("envelope_id")
+                # Skip if this change already has a QuoteReady (that
+                # newer event should have won the scan already; if we
+                # got here it was skipped, so surface the change).
+                executed = await safe.events.find_one({
+                    "type": "EndorsementExecuted",
+                    "payload.envelope_id": env_id,
+                })
+                if executed is not None:
+                    continue
+                return {
+                    "kind": "with_broker",
+                    "envelope_id": env_id,
+                    "policy_id": p.get("policy_id"),
+                    "summary": "With your broker — usually under an hour",
+                    "revised_premium_aud": None,
+                    "delta_aud": None,
                     "href": f"/c/cover/{p.get('policy_id')}/pending",
                     "mocked": True,
                 }

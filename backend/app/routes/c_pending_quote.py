@@ -49,20 +49,41 @@ async def _pending(store, tenant_id: str, policy_id: str) -> dict[str, Any]:
         ready = await _find_latest_by_type_and_policy(
             safe, "EndorsementQuoteReady", policy_id,
         )
-        if not ready:
+        client_change = await _find_latest_by_type_and_policy(
+            safe, "ClientChangeRequested", policy_id,
+        )
+        if not ready and not client_change:
             return {"pending": False}
-        envelope_id = ready.get("envelope_id")
+        # Prefer the ready envelope; if only the change request exists,
+        # the client is still in-flight through intake / placement.
+        envelope_id = (ready or client_change).get("envelope_id")
+        # Executed?
         async for r in safe.events.find({"type": "EndorsementExecuted"}):
             p = r.get("payload") or {}
             if p.get("envelope_id") == envelope_id:
                 return {"pending": False, "reason": "already_executed"}
+        # Gate on operator approval — per Build Brief §5B, the client
+        # never sees a mocked carrier quote until the AE / principal
+        # has approved it on the Control Tower.
+        op_approval = await safe.events.find_one({
+            "type": "OperatorApproval",
+            "payload.envelope_id": envelope_id,
+        })
+        if op_approval is None:
+            return {
+                "pending": True,
+                "state": "with_broker",
+                "envelope_id": envelope_id,
+                "reason": "with_broker",
+            }
         submission = await _find_latest_by_type_and_envelope(
             safe, "SubmissionDrafted", envelope_id,
         )
         quote = await _find_latest_by_type_and_envelope(
             safe, "CarrierQuoted", envelope_id,
         )
-    return {"pending": True, "envelope_id": envelope_id,
+    return {"pending": True, "state": "quote_ready",
+            "envelope_id": envelope_id,
             "submission": scrub(submission) if submission else None,
             "quote": scrub(quote) if quote else None}
 
@@ -78,12 +99,20 @@ async def pending_quote(
     )
     if not body.get("pending"):
         return {k: v for k, v in body.items() if k in ("pending", "reason")}
+    if body.get("state") == "with_broker":
+        return {
+            "pending": True,
+            "state": "with_broker",
+            "envelope_id": body["envelope_id"],
+            "policy_id": policy_id,
+        }
     qte = body["quote"]
     if not qte:
         return {"pending": False, "reason": "quote_missing"}
     sub = body["submission"]
     return {
         "pending": True,
+        "state": "quote_ready",
         "envelope_id": body["envelope_id"],
         "policy_id": policy_id,
         "submission_summary": (sub or {}).get("submission_summary"),

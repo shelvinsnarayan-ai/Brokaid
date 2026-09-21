@@ -76,6 +76,8 @@ export function ClientHome() {
           <span className="brokaid-next-action__eyebrow">
             {nextAction.kind === "certificate_ready"
               ? "New certificate ready"
+              : nextAction.kind === "with_broker"
+              ? "With your broker"
               : "Quote ready — review and approve"}
           </span>
           <span className="brokaid-next-action__body">
@@ -92,6 +94,8 @@ export function ClientHome() {
           <span className="brokaid-next-action__cta">
             {nextAction.kind === "certificate_ready"
               ? "Open certificate →"
+              : nextAction.kind === "with_broker"
+              ? "See status →"
               : "Review and approve →"}
           </span>
         </Link>

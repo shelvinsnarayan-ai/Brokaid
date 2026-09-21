@@ -378,7 +378,8 @@ async def approve(
     if not quote:
         raise HTTPException(status_code=404, detail="quote_not_found")
     await _require_predecessor(
-        store, tenant_id, envelope_id, ["EndorsementQuoteReady"],
+        store, tenant_id, envelope_id,
+        ["EndorsementQuoteReady", "OperatorApproval"],
     )
 
     async with use_tenant(tenant_id):
@@ -390,7 +391,7 @@ async def approve(
                 "policy_id": policy_id,
                 "client_id": policy["client_id"],
                 "verdict": "approve",
-                "gate_reason": "carrier_mock_passed",
+                "gate_reason": "operator_class_shadow_authoritative",
                 "mocked": True,
                 "quote_id": quote.get("quote_id"),
             },
@@ -401,7 +402,7 @@ async def approve(
         "state": "awaiting_payment",
         "envelope_id": envelope_id,
         "quote_id": quote.get("quote_id"),
-        "gate_reason": "carrier_mock_passed",
+        "gate_reason": "operator_class_shadow_authoritative",
     }
 
 

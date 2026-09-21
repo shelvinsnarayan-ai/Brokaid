@@ -585,7 +585,6 @@ async def seed_burmac_extras(
     await _seed_queue_cards(db, tenant_id)
     await _seed_renewals(db, tenant_id)
     await _seed_claim_timeframes(db, tenant_id)
-    await _seed_kai_pending_endorsement(db, tenant_id)
     await _seed_kai_verifier_token(db, tenant_id)
 
     try:

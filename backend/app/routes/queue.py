@@ -116,23 +116,49 @@ async def get_card(
 
 
 async def _emit_approval_and_resolve(
-    store, session, envelope_id: str, card: dict,
-    decision: str, edits: dict, reason: str | None,
+    store, session: Session, envelope_id: str, card: dict,
+    verdict: str, edits: dict, reason: str | None,
 ) -> str:
-    ev = await append_via_dispatch(
-        store, session.tenant_id, "Approval",
-        actor={"kind": "human", "id": session.user_id,
-               "name": session.active_role},
-        payload={
-            "envelope_id": envelope_id, "class_key": card["class_key"],
-            "user_id": session.user_id, "role": session.active_role,
-            "decision": decision, "edits": edits,
-            "reason": reason,
-        },
-        idempotency_key=(
-            f"appr:{envelope_id}:{session.user_id}:{decision}"
-        ),
-    )
+    """Emit `OperatorApproval` (upstream gate for the client Approval),
+    then the legacy `Approval` (kept for existing execute_endorsement
+    lineage checks), then mark the queue card resolved.
+
+    The `OperatorApproval` event is the AE / principal signing off
+    that the class is authoritative to proceed while it is in Shadow
+    Mode — per Build Brief v2.1 governance rules (no auto-unlock).
+    Client `/api/c/matters/{p}/approve/{env}` requires this event to
+    be present before it will emit its own client-owner Approval.
+    """
+    async with use_tenant(session.tenant_id):
+        op_ev = await append_via_dispatch(
+            store, session.tenant_id, "OperatorApproval",
+            actor={"kind": "human", "id": session.user_id,
+                   "name": session.active_role or "operator"},
+            payload={
+                "envelope_id": envelope_id,
+                "class_key": card.get("class_key"),
+                "verdict": verdict,
+                "edits": edits or {},
+                "reason": (reason or "")[:400],
+                "gate_reason": "operator_class_shadow_authoritative",
+            },
+            idempotency_key=f"op:approval:{envelope_id}",
+        )
+        ev = await append_via_dispatch(
+            store, session.tenant_id, "Approval",
+            actor={"kind": "human", "id": session.user_id,
+                   "name": session.active_role or "operator"},
+            payload={
+                "envelope_id": envelope_id,
+                "class_key": card.get("class_key"),
+                "verdict": verdict,
+                "edits": edits or {},
+                "reason": (reason or "")[:400],
+                "gate_reason": "operator_class_shadow_authoritative",
+                "upstream_operator_event": op_ev.get("event_id"),
+            },
+            idempotency_key=f"queue:approval:{envelope_id}",
+        )
     await workflow.resolve_queue_card(
         store, session.tenant_id, envelope_id,
         resolved_by_event=ev["event_id"],

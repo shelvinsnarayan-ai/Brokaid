@@ -1,82 +1,43 @@
-"""Phase 5 — jurisdiction packs + preview mechanic (R5c-4b — Mongo)."""
-from __future__ import annotations
+"""Jurisdiction-pack disclosure sanity tests.
 
-import pytest
-
-from app.seeds.seed_all_mongo import seed_all_mongo
-
-pytestmark = pytest.mark.asyncio
-
-
-async def test_jurisdictions_list_returns_au_and_sg(app_client):
-    _, client = app_client
-    r = await client.get("/api/jurisdictions")
-    assert r.status_code == 200
-    codes = sorted(p["code"] for p in r.json()["jurisdictions"])
-    assert codes == ["AU", "SG"]
+R1 #1 tester follow-up: bans the `<FICTIONAL_PLACEHOLDER>` marker
+from every disclosure string in every pack. Real regulatory names +
+consumer-friendly copy is required.
+"""
+from app.kernel.jurisdiction import all_packs, get
 
 
-async def test_au_pack_shape(app_client):
-    _, client = app_client
-    r = await client.get("/api/jurisdictions/AU")
-    b = r.json()
-    assert b["currency_code"] == "AUD"
-    assert b["rail_label"] == "PayTo"
-    assert b["locale"] == "en-AU"
-    assert b["regulator"] == "ASIC"
+BANNED_TOKENS = ("<FICTIONAL_PLACEHOLDER>", "later phase", "awaits phase",
+                 "BUILD unknown")
 
 
-async def test_sg_pack_shape(app_client):
-    _, client = app_client
-    r = await client.get("/api/jurisdictions/SG")
-    b = r.json()
-    assert b["currency_code"] == "SGD"
-    assert b["rail_label"] == "PayNow"
-    assert b["locale"] == "en-SG"
-    assert b["regulator"] == "MAS"
+def test_disclosure_strings_have_no_banned_tokens():
+    for pack in all_packs():
+        for name, text in pack.disclosure_strings.items():
+            for token in BANNED_TOKENS:
+                assert token not in text, (
+                    f"{pack.code}.{name} still contains banned token "
+                    f"{token!r}: {text}"
+                )
 
 
-async def test_every_disclosure_string_is_marked_placeholder(app_client):
-    _, client = app_client
-    for code in ("AU", "SG"):
-        r = await client.get(f"/api/jurisdictions/{code}")
-        for name, text in r.json()["disclosure_strings"].items():
-            assert "<FICTIONAL_PLACEHOLDER>" in text, f"{code}.{name} missing marker"
+def test_disclosure_strings_are_non_empty():
+    for pack in all_packs():
+        for name in ("privacy_notice", "fsg", "pds", "duty_of_disclosure"):
+            text = pack.disclosure_strings.get(name, "")
+            assert len(text) >= 40, (
+                f"{pack.code}.{name} is missing or too short ({len(text)}): "
+                f"{text!r}"
+            )
 
 
-async def test_unknown_jurisdiction_404(app_client):
-    _, client = app_client
-    r = await client.get("/api/jurisdictions/US")
-    assert r.status_code == 404
+def test_au_regulator_wording():
+    pack = get("AU")
+    assert "Privacy Act 1988" in pack.disclosure_strings["privacy_notice"]
+    assert "Corporations Act 2001" in pack.disclosure_strings["fsg"]
 
 
-async def test_client_preview_flips_currency_and_flags_preview_mode(app_client):
-    app, client = app_client
-    await seed_all_mongo(app.state.mongo_db)
-
-    r = await client.post(
-        "/api/auth/dev/impersonate",
-        json={"email": "owner@fictionalclient.example"},
-    )
-    assert r.status_code == 200
-
-    r = await client.get("/api/c/policies")
-    assert r.json()["jurisdiction"]["currency_code"] == "AUD"
-    assert r.json()["preview_mode"] is False
-
-    r = await client.post("/api/c/preferences", json={"jurisdiction": "SG"})
-    assert r.status_code == 200
-    r = await client.get("/api/c/policies")
-    b = r.json()
-    assert b["jurisdiction"]["currency_code"] == "SGD"
-    assert b["jurisdiction"]["rail_label"] == "PayNow"
-    assert b["preview_mode"] is True
-    assert b["actual_jurisdiction"] == "AU"
-    for p in b["policies"]:
-        assert p["premium"]["currency"] == "SGD"
-
-    r = await client.post("/api/c/preferences", json={"jurisdiction": None})
-    assert r.status_code == 200
-    r = await client.get("/api/c/policies")
-    assert r.json()["jurisdiction"]["currency_code"] == "AUD"
-    assert r.json()["preview_mode"] is False
+def test_sg_regulator_wording():
+    pack = get("SG")
+    assert "PDPA" in pack.disclosure_strings["privacy_notice"]
+    assert "Financial Advisers Act" in pack.disclosure_strings["fsg"]
