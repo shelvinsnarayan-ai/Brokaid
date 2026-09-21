@@ -9,7 +9,9 @@ import { ClientRequestChange } from "./pages/ClientRequestChange";
 import { ClientPay } from "./pages/ClientPay";
 import { ClientSign } from "./pages/ClientSign";
 import { ClientCertificate } from "./pages/ClientCertificate";
+import { ClientCertificateNew } from "./pages/ClientCertificateNew";
 import { VerifyPublic } from "./pages/VerifyPublic";
+import "./styles/cert-phase2.css";
 import { ClientMoney } from "./pages/ClientMoney";
 import { ClientClaims, ClaimsNew, ClaimDetail } from "./pages/ClientClaims";
 import { ClientNotifications } from "./pages/ClientNotifications";
@@ -52,6 +54,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/verify" element={<VerifyPublic />} />
         <Route path="/verify/:token" element={<VerifyPublic />} />
 
         <Route path="/c/login" element={<ClientLogin />} />
@@ -62,6 +65,7 @@ export function App() {
           <Route path="cover/:policy_id/request-change" element={<ClientRequestChange />} />
           <Route path="cover/:policy_id/pay/:envelope_id" element={<ClientPay />} />
           <Route path="cover/:policy_id/sign/:envelope_id" element={<ClientSign />} />
+          <Route path="cover/:policy_id/certificate/new" element={<ClientCertificateNew />} />
           <Route path="cover/:policy_id/certificate/:envelope_id" element={<ClientCertificate />} />
           <Route path="cover/:policy_id/certificate" element={<ClientCertificate />} />
           <Route path="money" element={<ClientMoney />} />

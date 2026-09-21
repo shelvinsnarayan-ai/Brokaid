@@ -1,17 +1,12 @@
 """Phase R5a-2a — Mongo mirror of certificate regeneration.
 
-Byte-identical output vs `kernel/certificate.py` for the same input:
-  - same `certificate_id` scheme (uuid4 — non-deterministic by design,
-    but the returned dict has the SAME SHAPE)
-  - same `raw_token` shape (32-byte URL-safe secret)
-  - same `token_hash` derivation (sha256 hex)
-  - same event authorship (CertificateRegenerated + VerifierTokenIssued)
-  - same event payload keys/values (mocked=True on the cert event)
+R1 #3 (Build Brief v2.1 §8 item 3) extends the payload to carry a
+client-captured `holder` and `requirements` block so the /verify page
+can render exactly what was on the certificate PDF.
 
-The QR PNG rendering is share-of-concern with `routes/c_cert.py`
-(`build_qr_payload` + `render_qr_png`) — kept there so the encoder
-lives next to its route. Byte-identical PNGs across backends are the
-E2E gate.
+Same event authorship (CertificateRegenerated + VerifierTokenIssued).
+Same token derivation (sha256 hex over the raw 32-byte URL-safe secret).
+Same verifier_tokens shape plus optional `holder` and `requirements`.
 """
 from __future__ import annotations
 
@@ -72,14 +67,44 @@ def _iso(v) -> str:
         return str(v)
 
 
+def _clean_holder(h: dict | None) -> dict:
+    if not isinstance(h, dict):
+        return {}
+    return {
+        "name": (h.get("name") or "").strip()[:200],
+        "address": (h.get("address") or "").strip()[:400],
+        "email": (h.get("email") or "").strip()[:200],
+    }
+
+
+def _clean_requirements(r: dict | None) -> dict:
+    if not isinstance(r, dict):
+        return {}
+    it = (r.get("interest_type") or "").strip().lower()
+    if it not in ("additional_insured", "interested_party", "loss_payee", ""):
+        it = ""
+    return {
+        "interest_type": it,
+        "effective_from": (r.get("effective_from") or "").strip()[:40],
+        "effective_to": (r.get("effective_to") or "").strip()[:40],
+        "special_requirements": (r.get("special_requirements") or "").strip()[:2000],
+    }
+
+
 async def regenerate_certificate(
     *, store, tenant_id: str, policy_id: str,
     envelope_id: str | None = None,
+    holder: dict | None = None,
+    requirements: dict | None = None,
 ) -> dict[str, Any]:
     policy = await _load_policy(store, tenant_id, policy_id)
     if policy is None:
         raise LookupError(f"policy {policy_id} not found")
-    holder = await _load_client_display(store, tenant_id, policy["client_id"])
+    default_holder = await _load_client_display(store, tenant_id, policy["client_id"])
+    holder_block = _clean_holder(holder)
+    if not holder_block.get("name"):
+        holder_block["name"] = default_holder
+    req_block = _clean_requirements(requirements)
 
     certificate_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
@@ -87,7 +112,6 @@ async def regenerate_certificate(
     hashed = hash_token(raw_token)
     expires_at = now + TOKEN_TTL
 
-    # verifier_tokens write via tenant-safe wrapper (write path).
     safe_db = wrap(store)
     async with use_tenant(tenant_id):
         try:
@@ -96,6 +120,7 @@ async def regenerate_certificate(
                 "policy_id": policy_id, "certificate_id": certificate_id,
                 "issued_at": now, "expires_at": expires_at,
                 "revoked_at": None, "rate_limit_count": 0,
+                "holder": holder_block, "requirements": req_block,
             })
         except Exception:
             pass  # duplicate → idempotent
@@ -103,19 +128,21 @@ async def regenerate_certificate(
     certificate = {
         "certificate_id": certificate_id,
         "policy_id": policy_id,
-        "holder_display": holder,
+        "holder_display": holder_block["name"] or default_holder,
+        "holder": holder_block,
+        "requirements": req_block,
         "insurer_display": policy["insurer_display"],
         "product": policy["product"],
         "cover_types": policy["schedule"].get("cover_types") or [],
         "excess": policy["schedule"].get("excess"),
         "territorial_limits": policy["schedule"].get("territorial_limits"),
-        "effective_from": policy["inception"],
-        "effective_to": policy["expiry"],
+        "effective_from": req_block.get("effective_from") or policy["inception"],
+        "effective_to": req_block.get("effective_to") or policy["expiry"],
         "issued_at": now.isoformat(timespec="microseconds"),
         "mocked_insurer": True,
     }
     async with use_tenant(tenant_id):
-        await append_via_dispatch(
+        cert_event = await append_via_dispatch(
             store, tenant_id, "CertificateRegenerated",
             actor={"kind": "system", "id": "certificate", "name": "certificate"},
             payload={
@@ -125,6 +152,8 @@ async def regenerate_certificate(
                 "qr_token_hash": hashed,
                 "effective_date": now.isoformat(timespec="microseconds"),
                 "certificate": certificate,
+                "holder": holder_block,
+                "requirements": req_block,
                 "mocked": True,
             },
             idempotency_key=f"cert:regen:{certificate_id}",
@@ -147,6 +176,7 @@ async def regenerate_certificate(
         "raw_token": raw_token,
         "token_hash": hashed,
         "expires_at": expires_at.isoformat(timespec="microseconds"),
+        "ledger_event_id": cert_event.get("event_id") if isinstance(cert_event, dict) else None,
     }
 
 
@@ -160,20 +190,15 @@ async def revoke_token(store, tenant_id: str, token_hash: str) -> bool:
     return r.modified_count == 1
 
 
-# ---- Route-side helpers (moved so c_cert can dispatch) ---------------
+# ---- Route-side helpers ---------------------------------------------
 async def load_cert_context(
     store, tenant_id: str, certificate_id: str,
 ) -> Optional[dict[str, Any]]:
-    """Load the CertificateRegenerated event + tenant slug + chain tip
-    for QR payload assembly. Mongo mirror of `c_cert._load_cert_context`.
-    """
     safe_db = wrap(store)
     async with use_tenant(tenant_id):
-        # Find the tenant slug.
         tenant_row = await safe_db.system("tenants").find_one(
             {"tenant_id": tenant_id}
         )
-        # Find the CertificateRegenerated event by cert_id.
         cert_row = None
         async for r in safe_db.events.find(
             {"type": "CertificateRegenerated"}
@@ -192,4 +217,16 @@ async def load_cert_context(
         "cert_id": certificate_id,
         "issued_at": cert.get("issued_at") or payload.get("effective_date"),
         "chain_tip": tip_row["event_hash"] if tip_row else None,
+        "certificate": cert,
+        "event_id": cert_row.get("event_id"),
     }
+
+
+async def load_cert_by_token_hash(
+    store, tenant_id: str, token_hash: str,
+) -> Optional[dict[str, Any]]:
+    """Return the verifier_tokens row for a given hash under the tenant ctx."""
+    safe_db = wrap(store)
+    async with use_tenant(tenant_id):
+        row = await safe_db.verifier_tokens.find_one({"token_hash": token_hash})
+    return row

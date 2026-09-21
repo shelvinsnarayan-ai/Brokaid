@@ -52,14 +52,26 @@ export function ClientCover() {
                 </span>
               ))}
             </div>
-            <button
-              type="button"
-              className="brokaid-btn brokaid-btn--secondary"
-              onClick={() => (window.location.href = `/c/cover/${p.policy_id}/request-change`)}
-              data-testid={`request-change-${p.status}`}
-            >
-              Request change
-            </button>
+            <div className="brokaid-cover-row__cta-group">
+              <button
+                type="button"
+                className="brokaid-btn brokaid-btn--secondary"
+                onClick={() => (window.location.href = `/c/cover/${p.policy_id}/request-change`)}
+                data-testid={`request-change-${p.status}`}
+              >
+                Request change
+              </button>
+              {p.status === "managed" && (
+                <button
+                  type="button"
+                  className="brokaid-btn brokaid-btn--primary"
+                  onClick={() => (window.location.href = `/c/cover/${p.policy_id}/certificate/new`)}
+                  data-testid={`get-certificate-${p.policy_id}`}
+                >
+                  Get a certificate
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </section>

@@ -400,11 +400,185 @@ async def _seed_kai_verifier_token(db, tenant_id: str) -> None:
         print(f"seed_burmac_extras: certificate regenerate skipped: {e}")
 
 
+# Demo verifier tokens for R1 #3 / SIRC — stable, deterministic strings
+# so demo bookmarks survive re-seeds. Length >= 20 satisfies the
+# verifier route's format guard.
+DEMO_TOKENS = [
+    {
+        "raw": "BURMAC-DEMO-VALID-2026-CERTIFICATE-KAI-MARINE",
+        "certificate_id": "d0d0d0d0-c001-4000-8000-000000000001",
+        "verdict": "VALID",
+        "expires_days": 90, "revoked": False, "tampered": False,
+        "holder_name": "Sydney Harbour Marina Pty Ltd",
+        "holder_address": "12 Wharf Road, Rozelle NSW 2039, Australia",
+        "holder_email": "operations@sydneyharbourmarina.example",
+        "interest_type": "additional_insured",
+        "special": (
+            "Marina requires additional insured status on Public Liability "
+            "for wet-berth operations for the 2026-27 season."
+        ),
+    },
+    {
+        "raw": "BURMAC-DEMO-TAMPERED-2026-CERTIFICATE-KAI-MARINE",
+        "certificate_id": "d0d0d0d0-c002-4000-8000-000000000002",
+        "verdict": "TAMPERED",
+        "expires_days": 90, "revoked": False, "tampered": True,
+        "holder_name": "Sydney Harbour Marina Pty Ltd",
+        "holder_address": "12 Wharf Road, Rozelle NSW 2039, Australia",
+        "holder_email": "operations@sydneyharbourmarina.example",
+        "interest_type": "additional_insured",
+        "special": (
+            "Payload signature invalid — this certificate should not be "
+            "accepted. Contact BurMac to reissue."
+        ),
+    },
+    {
+        "raw": "BURMAC-DEMO-EXPIRED-2025-CERTIFICATE-KAI-MARINE",
+        "certificate_id": "d0d0d0d0-c003-4000-8000-000000000003",
+        "verdict": "EXPIRED",
+        "expires_days": -30, "revoked": False, "tampered": False,
+        "holder_name": "Riverside Boatyard Pty Ltd",
+        "holder_address": "3 Blackwattle Bay, Glebe NSW 2037, Australia",
+        "holder_email": "manager@riversideboatyard.example",
+        "interest_type": "interested_party",
+        "special": "Historic certificate — 2025-26 season.",
+    },
+    {
+        "raw": "BURMAC-DEMO-REVOKED-2026-CERTIFICATE-KAI-MARINE",
+        "certificate_id": "d0d0d0d0-c004-4000-8000-000000000004",
+        "verdict": "REVOKED",
+        "expires_days": 90, "revoked": True, "tampered": False,
+        "holder_name": "North Head Ferries Pty Ltd",
+        "holder_address": "1 Manly Cove, Manly NSW 2095, Australia",
+        "holder_email": "compliance@northheadferries.example",
+        "interest_type": "loss_payee",
+        "special": (
+            "Withdrawn after cover terms were renegotiated. Reissue "
+            "expected on request."
+        ),
+    },
+]
+
+DEMO_TOKENS_MARKER = "seed:burmac_extras_demo_verifier_tokens:v1"
+
+
+async def _seed_demo_verifier_tokens(db, tenant_id: str) -> None:
+    """Seed VALID / TAMPERED / EXPIRED / REVOKED verifier tokens for
+    the SIRC demo. Idempotent: verifier_tokens has a unique index on
+    token_hash so re-runs no-op; CertificateRegenerated events are
+    idempotent via idempotency_key."""
+    from app.kernel.certificate_mongo import hash_token
+    safe = wrap(db)
+    now = datetime.now(timezone.utc)
+
+    for spec in DEMO_TOKENS:
+        raw = spec["raw"]
+        token_hash = hash_token(raw)
+        cert_id = spec["certificate_id"]
+        expires = now + timedelta(days=spec["expires_days"])
+        revoked_at = now - timedelta(days=1) if spec["revoked"] else None
+        interest = spec["interest_type"]
+        holder_block = {
+            "name": spec["holder_name"],
+            "address": spec["holder_address"],
+            "email": spec["holder_email"],
+        }
+        req_block = {
+            "interest_type": interest,
+            "effective_from": now.isoformat(timespec="microseconds"),
+            "effective_to": (now + timedelta(days=365)).isoformat(timespec="microseconds"),
+            "special_requirements": spec["special"],
+        }
+        certificate = {
+            "certificate_id": cert_id,
+            "policy_id": KAIS_MARINE_POLICY_ID,
+            "holder_display": spec["holder_name"],
+            "holder": holder_block,
+            "requirements": req_block,
+            "insurer_display": "Fictional Carrier A",
+            "product": "Marine Liability",
+            "cover_types": [
+                {"type": "Public Liability", "limit_any_one": "20,000,000",
+                 "currency": "AUD"},
+                {"type": "Products Liability", "limit_any_one": "20,000,000",
+                 "currency": "AUD"},
+            ],
+            "excess": "5,000 AUD",
+            "territorial_limits": "Australia",
+            "effective_from": req_block["effective_from"],
+            "effective_to": req_block["effective_to"],
+            "issued_at": now.isoformat(timespec="microseconds"),
+            "mocked_insurer": True,
+        }
+
+        # 1) Emit CertificateRegenerated (idempotent).
+        try:
+            await append_via_dispatch(
+                db, tenant_id, "CertificateRegenerated",
+                actor={"kind": "system", "id": "certificate", "name": "certificate"},
+                payload={
+                    "envelope_id": None,
+                    "policy_id": KAIS_MARINE_POLICY_ID,
+                    "certificate_id": cert_id,
+                    "qr_token_hash": token_hash,
+                    "effective_date": now.isoformat(timespec="microseconds"),
+                    "certificate": certificate,
+                    "holder": holder_block,
+                    "requirements": req_block,
+                    "demo_verdict": spec["verdict"],
+                    "mocked": True,
+                },
+                idempotency_key=f"seed:burmac_extras:demo_cert:{cert_id}",
+                mocked=True,
+            )
+        except (DuplicateKeyError, DuplicateIdempotencyKey):
+            pass
+
+        # 2) Upsert verifier_tokens row with tampered_flag / expiry /
+        #    revoked_at flavour.
+        async with use_tenant(tenant_id):
+            existing = await safe.verifier_tokens.find_one({"token_hash": token_hash})
+            doc = {
+                "token_hash": token_hash, "tenant_id": tenant_id,
+                "policy_id": KAIS_MARINE_POLICY_ID,
+                "certificate_id": cert_id,
+                "issued_at": now, "expires_at": expires,
+                "revoked_at": revoked_at, "rate_limit_count": 0,
+                "tampered_flag": spec["tampered"],
+                "holder": holder_block, "requirements": req_block,
+                "demo_verdict": spec["verdict"],
+            }
+            if existing is None:
+                try:
+                    await safe.verifier_tokens.insert_one(doc)
+                except (DuplicateKeyError, DuplicateIdempotencyKey):
+                    pass
+            else:
+                await safe.verifier_tokens.update_one(
+                    {"token_hash": token_hash},
+                    {"$set": {
+                        "expires_at": expires, "revoked_at": revoked_at,
+                        "tampered_flag": spec["tampered"],
+                        "holder": holder_block, "requirements": req_block,
+                        "demo_verdict": spec["verdict"],
+                    }},
+                )
+
+
 async def seed_burmac_extras(
     db: AsyncIOMotorDatabase, tenant_id: str
 ) -> dict:
-    if await _already_seeded(db, tenant_id):
-        return {"seeded": False, "reason": "already_seeded"}
+    already = await _already_seeded(db, tenant_id)
+
+    # Demo verifier tokens (R1 #3) run every boot: they are guarded by
+    # the verifier_tokens unique index + append_via_dispatch idempotency
+    # keys, so re-runs are cheap and existing DBs pick them up without
+    # a marker bump on the outer v1 seed.
+    await _seed_demo_verifier_tokens(db, tenant_id)
+
+    if already:
+        return {"seeded": False, "reason": "already_seeded",
+                "demo_verifier_tokens": True}
 
     await _seed_clients(db, tenant_id)
     await _seed_policies(db, tenant_id)
@@ -423,4 +597,4 @@ async def seed_burmac_extras(
         )
     except (DuplicateKeyError, DuplicateIdempotencyKey):
         pass
-    return {"seeded": True}
+    return {"seeded": True, "demo_verifier_tokens": True}

@@ -1,0 +1,336 @@
+/* Certificate flow (R1 #3) + verify banners — Meridian light overlays.
+ *
+ * Palette references Harbour tokens (--harbour, --sand, --sea-strong,
+ * --coral) which map onto the Meridian light expression.
+ */
+
+/* --- Steps -------------------------------------------------------- */
+.brokaid-cert-steps {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.brokaid-cert-steps__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--harbour) 6%, transparent);
+  color: color-mix(in oklab, var(--harbour) 70%, transparent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.brokaid-cert-steps__pill.is-active {
+  background: var(--sea-strong);
+  color: #ffffff;
+}
+.brokaid-cert-steps__pill.is-done {
+  background: color-mix(in oklab, var(--sea-strong) 15%, transparent);
+  color: var(--sea-strong);
+}
+.brokaid-cert-steps__num {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* --- Forms -------------------------------------------------------- */
+.brokaid-cert-form {
+  display: grid;
+  gap: 16px;
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 8%, transparent);
+}
+.brokaid-cert-form textarea {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 20%, transparent);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  color: var(--harbour);
+  background: #ffffff;
+  resize: vertical;
+  min-height: 96px;
+}
+.brokaid-cert-form__fieldset {
+  display: grid;
+  gap: 6px;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+.brokaid-cert-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .brokaid-cert-form__row {
+    grid-template-columns: 1fr;
+  }
+}
+.brokaid-cert-form__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.brokaid-cert-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 15%, transparent);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--harbour);
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.brokaid-cert-radio input {
+  accent-color: var(--sea-strong);
+}
+.brokaid-cert-radio.is-selected {
+  border-color: var(--sea-strong);
+  background: color-mix(in oklab, var(--sea-strong) 6%, transparent);
+}
+
+/* --- Preview ------------------------------------------------------ */
+.brokaid-cert-preview {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 16px;
+  display: grid;
+  gap: 12px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 8%, transparent);
+}
+.brokaid-cert-preview__title {
+  font-family: var(--font-display-harbour, var(--font-display-ledger));
+  font-size: 22px;
+  margin: 0;
+  color: var(--harbour);
+}
+.brokaid-cert-preview__grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 20px;
+  row-gap: 8px;
+  margin: 0;
+}
+.brokaid-cert-preview__grid dt {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--slate-strong);
+  align-self: baseline;
+}
+.brokaid-cert-preview__grid dd {
+  margin: 0;
+  color: var(--harbour);
+  font-size: 15px;
+  white-space: pre-wrap;
+}
+
+/* --- Issued ------------------------------------------------------- */
+.brokaid-cert-issued {
+  display: grid;
+  gap: 18px;
+}
+.brokaid-cert-issued__banner {
+  display: flex;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--sea-strong) 10%, #ffffff);
+  border-left: 4px solid var(--sea-strong);
+}
+.brokaid-cert-issued__tick {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--sea-strong);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 18px;
+  flex: 0 0 34px;
+}
+.brokaid-cert-issued__title {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--harbour);
+  margin: 0;
+}
+.brokaid-cert-issued__sub {
+  margin: 0;
+  color: color-mix(in oklab, var(--harbour) 80%, transparent);
+  font-size: 14px;
+}
+.brokaid-cert-issued__panel {
+  background: #ffffff;
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 8%, transparent);
+  display: grid;
+  gap: 12px;
+}
+.brokaid-cert-issued__panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.brokaid-cert-issued__qr-wrap {
+  display: grid;
+  grid-template-columns: min-content 1fr;
+  gap: 20px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid color-mix(in oklab, var(--harbour) 8%, transparent);
+}
+@media (max-width: 520px) {
+  .brokaid-cert-issued__qr-wrap {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+}
+.brokaid-cert-issued__qr {
+  border-radius: 8px;
+  background: #ffffff;
+}
+.brokaid-cert-issued__qr-copy {
+  display: grid;
+  gap: 8px;
+}
+.brokaid-cert-issued__label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--slate-strong);
+  margin: 0;
+}
+.brokaid-cert-issued__url {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--harbour);
+  margin: 0;
+  word-break: break-all;
+}
+
+/* --- Verify banners ---------------------------------------------- */
+.brokaid-verify__lede {
+  margin: 6px 0 0 0;
+  font-size: 14px;
+  color: color-mix(in oklab, var(--harbour) 74%, transparent);
+  max-width: 60ch;
+}
+.brokaid-verify__lookup {
+  display: grid;
+  gap: 12px;
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in oklab, var(--harbour) 8%, transparent);
+  max-width: 520px;
+}
+.brokaid-verify__banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border-left: 4px solid transparent;
+  background: #ffffff;
+}
+.brokaid-verify__banner-title {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--harbour);
+  margin: 0;
+}
+.brokaid-verify__banner-sub {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  color: color-mix(in oklab, var(--harbour) 76%, transparent);
+}
+.brokaid-verify__banner-tick {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 16px;
+  flex: 0 0 30px;
+  background: var(--slate-strong);
+}
+.brokaid-verify__banner--valid {
+  background: color-mix(in oklab, var(--sea-strong) 10%, #ffffff);
+  border-left-color: var(--sea-strong);
+}
+.brokaid-verify__banner--valid .brokaid-verify__banner-tick {
+  background: var(--sea-strong);
+}
+.brokaid-verify__banner--tampered {
+  background: color-mix(in oklab, var(--alert, #C0392B) 10%, #ffffff);
+  border-left-color: var(--alert, #C0392B);
+}
+.brokaid-verify__banner--tampered .brokaid-verify__banner-tick {
+  background: var(--alert, #C0392B);
+}
+.brokaid-verify__banner--warn {
+  background: color-mix(in oklab, var(--copper, #BF7A3E) 12%, #ffffff);
+  border-left-color: var(--copper, #BF7A3E);
+}
+.brokaid-verify__banner--warn .brokaid-verify__banner-tick {
+  background: var(--copper, #BF7A3E);
+}
+.brokaid-verify__banner--muted {
+  background: color-mix(in oklab, var(--harbour) 5%, #ffffff);
+  border-left-color: color-mix(in oklab, var(--harbour) 20%, transparent);
+}
+
+.brokaid-verify__body-wrap {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+.brokaid-verify__body-wrap.is-muted {
+  opacity: 0.72;
+}
+.brokaid-verify__meta {
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  color: color-mix(in oklab, var(--harbour) 62%, transparent);
+}
+.brokaid-verify__reset {
+  margin-top: 18px;
+  justify-self: start;
+}
+
+/* --- Cover "Get a certificate" CTA -------------------------------- */
+.brokaid-cover-row__cta-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
