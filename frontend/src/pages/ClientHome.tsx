@@ -12,6 +12,8 @@ const API = import.meta.env.VITE_API_BASE || "";
 interface NextAction {
   kind: string;
   policy_id: string | null;
+  envelope_id?: string | null;
+  certificate_id?: string | null;
   summary: string | null;
   revised_premium_aud: number | null;
   delta_aud: number | null;
@@ -26,18 +28,29 @@ export function ClientHome() {
   const [nextAction, setNextAction] = useState<NextAction | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       const res = await fetch(`${API}/api/c/policies`, {
         credentials: "include",
       });
-      if (res.ok) setPolicies((await res.json()).policies);
+      if (!cancelled && res.ok) setPolicies((await res.json()).policies);
     })();
-    (async () => {
+    async function loadNextAction() {
       const res = await fetch(`${API}/api/c/next-action`, {
         credentials: "include",
       });
-      if (res.ok) setNextAction((await res.json()).next_action);
-    })();
+      if (!cancelled && res.ok)
+        setNextAction((await res.json()).next_action);
+    }
+    loadNextAction();
+    // Poll every 4s so the CTA surfaces within seconds of the mocked
+    // carrier returning a quote (Build Brief §8 R1 #2 — "Home CTA
+    // leads to the pending quote").
+    const t = window.setInterval(loadNextAction, 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
   }, [me?.client_prefs?.jurisdiction]);
 
   return (
@@ -61,7 +74,9 @@ export function ClientHome() {
           data-testid="home-next-action-card"
         >
           <span className="brokaid-next-action__eyebrow">
-            You have 1 endorsement to approve
+            {nextAction.kind === "certificate_ready"
+              ? "New certificate ready"
+              : "Quote ready — review and approve"}
           </span>
           <span className="brokaid-next-action__body">
             {nextAction.summary}
@@ -74,7 +89,11 @@ export function ClientHome() {
               )}
             </span>
           )}
-          <span className="brokaid-next-action__cta">Review and approve →</span>
+          <span className="brokaid-next-action__cta">
+            {nextAction.kind === "certificate_ready"
+              ? "Open certificate →"
+              : "Review and approve →"}
+          </span>
         </Link>
       ) : (
         <EmptyState

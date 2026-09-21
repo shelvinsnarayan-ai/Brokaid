@@ -7,7 +7,7 @@
  * lands in phase 12.
  */
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { MockedBadge } from "@brokaid/mocks";
 import { EmptyState } from "../components/EmptyState";
 import { usePack } from "../state/meStore";
@@ -47,9 +47,12 @@ function formatMoney(amount: string, currency: string): string {
 
 export function ClientPendingQuote() {
   const { policy_id = "" } = useParams();
+  const navigate = useNavigate();
   const pack = usePack();
   const [data, setData] = useState<PendingQuote | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [approving, setApproving] = useState(false);
+  const [approveErr, setApproveErr] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -62,6 +65,27 @@ export function ClientPendingQuote() {
       } catch (e) { setError(String(e)); }
     })();
   }, [policy_id]);
+
+  async function approveAndPay() {
+    if (!data?.envelope_id) return;
+    setApproving(true);
+    setApproveErr(null);
+    try {
+      const r = await fetch(
+        `${API}/api/c/matters/${policy_id}/approve/${data.envelope_id}`,
+        { method: "POST", credentials: "include" }
+      );
+      if (!r.ok) {
+        setApproveErr(`${r.status}: ${await r.text()}`);
+        setApproving(false);
+        return;
+      }
+      navigate(`/c/cover/${policy_id}/pay/${data.envelope_id}`);
+    } catch (e: any) {
+      setApproveErr(String(e));
+      setApproving(false);
+    }
+  }
 
   if (error) return (
     <section className="brokaid-tab" data-testid="pending-quote-error">
@@ -153,20 +177,28 @@ export function ClientPendingQuote() {
           <button
             type="button"
             className="brokaid-btn brokaid-btn--primary"
-            disabled
-            title="Approve + pay will land with the payment step in the next phase"
-            data-testid="quote-approve-scaffold"
+            onClick={approveAndPay}
+            disabled={approving}
+            data-testid="quote-approve"
           >
-            Approve and pay
+            {approving ? "Approving…" : "Approve and pay"}
           </button>
           <Link
             to={`/c/ask?quote_id=${c && (data.envelope_id || "")}`}
             className="brokaid-btn brokaid-btn--secondary"
-            data-testid="quote-ask-scaffold"
+            data-testid="quote-ask"
           >
             Ask a question
           </Link>
         </div>
+        {approveErr && (
+          <p
+            className="brokaid-quote-card__summary"
+            data-testid="quote-approve-error"
+          >
+            {approveErr}
+          </p>
+        )}
       </article>
 
       {pack && (

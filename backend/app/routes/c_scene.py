@@ -30,6 +30,8 @@ from app.kernel.contracts.models import Actor, ContextEnvelope, InvocationBudget
 from app.kernel.endorsement import execute_endorsement
 from app.kernel.mocks import e_sign, payment_rail
 from app.kernel.mocks.carrier_channel import submit_endorsement
+from app.kernel.tenant_ctx import use_tenant
+from app.kernel.trail_dispatch import append_via_dispatch
 from app.kernel.workflow import enqueue as queue_enqueue
 from app.middleware.session import require_session
 
@@ -288,6 +290,57 @@ async def sign(
         user_id=session.user_id, sig=sig,
     )
     return {"state": "executing", "signature": sig}
+
+
+@router.post("/{policy_id}/approve/{envelope_id}")
+async def approve(
+    policy_id: str,
+    envelope_id: str,
+    request: Request,
+    session: Session = Depends(require_session),
+) -> dict[str, Any]:
+    """Client-side approval of the mocked-carrier quote.
+
+    Emits an `Approval` event so `execute_endorsement` finds a complete
+    lineage on finalise. Carries `gate_reason="carrier_mock_passed"` per
+    R1 #2 audit requirement — the operator queue card gate is bypassed
+    for the SIRC demo path because the carrier response is mocked. The
+    real (non-mocked) path routes via the operator queue and emits a
+    principal-signed Approval via `resolve_queue_card`.
+    """
+    store = _store(request)
+    tenant_id = session.tenant_id
+    if session.active_role not in ("client_owner", "client_contact"):
+        raise HTTPException(status_code=403, detail="client_role_required")
+    policy = await scene.load_policy(store, tenant_id, policy_id)
+    if not policy:
+        raise HTTPException(status_code=404, detail="policy_not_found")
+    quote = await scene.find_carrier_quote(store, tenant_id, envelope_id)
+    if not quote:
+        raise HTTPException(status_code=404, detail="quote_not_found")
+
+    async with use_tenant(tenant_id):
+        await append_via_dispatch(
+            store, tenant_id, "Approval",
+            actor={"kind": "human", "id": session.user_id, "name": "client_owner"},
+            payload={
+                "envelope_id": envelope_id,
+                "policy_id": policy_id,
+                "client_id": policy["client_id"],
+                "verdict": "approve",
+                "gate_reason": "carrier_mock_passed",
+                "mocked": True,
+                "quote_id": quote.get("quote_id"),
+            },
+            idempotency_key=f"client:approval:{envelope_id}",
+            mocked=True,
+        )
+    return {
+        "state": "awaiting_payment",
+        "envelope_id": envelope_id,
+        "quote_id": quote.get("quote_id"),
+        "gate_reason": "carrier_mock_passed",
+    }
 
 
 @router.post("/{policy_id}/finalise/{envelope_id}")
