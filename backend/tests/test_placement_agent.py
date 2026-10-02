@@ -123,6 +123,15 @@ POLICY_CURRENT_PL = {
     "product": "marine_liability",
     "schedule": {
         "limits": {"public_liability": 10000000, "products_liability": 5000000},
+        # Authoritative cover_types mirror — required by carrier_channel
+        # since the R1 Blocker-1 regression fix (2026-10-04). Without
+        # this the mocked quote raises MissingCurrentLimitError.
+        "cover_types": [
+            {"type": "Public Liability", "limit_any_one": 10000000,
+             "currency": "AUD"},
+            {"type": "Products Liability", "limit_any_one": 5000000,
+             "currency": "AUD"},
+        ],
         "employees": {"headcount": 12},
         "covers": {"public_liability": True},
     },

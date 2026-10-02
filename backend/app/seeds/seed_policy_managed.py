@@ -18,6 +18,14 @@ async def seed(pool: object, tenant_id: str, client_id: str) -> str:
     inception = now
     expiry = now + timedelta(days=365)
     schedule = {
+        # `limits` mirrors `cover_types[*].limit_any_one` so the
+        # endorsement flow (which writes `schedule.limits.<slug>`)
+        # and the certificate/verifier (which read cover_types)
+        # cannot drift. Both representations seed at 10,000,000.
+        "limits": {
+            "public_liability": 10_000_000,
+            "products_liability": 10_000_000,
+        },
         "cover_types": [
             {"type": "Public Liability", "limit_any_one": 10_000_000,
              "aggregate": 20_000_000, "currency": "AUD"},

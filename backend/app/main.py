@@ -75,6 +75,18 @@ def create_app(
                 )
             except Exception as e:  # noqa: BLE001
                 logger.warning("CI seed failed (non-fatal): %r", e)
+
+        # R1 Blocker-1 close-out (2026-10-04): warn-level sanity check
+        # that scans every policy and reports drift between
+        # `schedule.limits.<slug>` and the authoritative
+        # `schedule.cover_types[*].limit_any_one`. Non-fatal.
+        try:
+            from app.kernel.policy_sanity import (
+                warn_on_policy_schedule_mismatches,
+            )
+            await warn_on_policy_schedule_mismatches(app.state.mongo_db)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("policy sanity scan failed (non-fatal): %r", e)
         try:
             yield
         finally:

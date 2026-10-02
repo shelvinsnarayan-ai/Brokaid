@@ -5,11 +5,21 @@ Deterministic per envelope_id so the same submission always produces
 the same quote (RNG seeded on envelope_id).
 
 R1 close-out (user prod verification 2026-10-02):
-  · Pricing is now a ratio-of-base-premium so a $10M→$30M PL uplift on
+  · Pricing is a ratio-of-base-premium so a $10M→$30M PL uplift on
     an $8,500 policy quotes a plausible ~$2,550 — not the $1.35M
     nonsense that came out of the old `delta_pct_of_limit` rule.
   · Carrier identity is READ FROM THE POLICY (`insurer_display`), not
     randomised. One policy = one carrier end-to-end.
+
+R1 Blocker-1 regression fix (2026-10-04):
+  · `current_limit` is now read from the authoritative
+    `schedule.cover_types[slug].limit_any_one` on the policy — NOT
+    from `schedule.limits.<slug>` and NOT from the LLM-reported
+    `from_value` (which was coming back as 0 on policies whose seed
+    had no mirrored `limits` map, driving the premium delta to $0).
+  · If no authoritative current_limit is present on the policy for
+    the requested slug, we raise `MissingCurrentLimitError` — the
+    envelope parks (silence parks) rather than ship a $0 quote.
 """
 from __future__ import annotations
 
@@ -18,6 +28,13 @@ import uuid
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
+
+
+class MissingCurrentLimitError(RuntimeError):
+    """Raised when the policy doesn't carry an authoritative
+    `schedule.cover_types[*].limit_any_one` for the slug being
+    endorsed. Blocks the mocked quote so no $0 nonsense reaches
+    the client."""
 
 
 # k = elasticity of premium to limit change. Tuned so that for a
@@ -40,6 +57,42 @@ def _dec(v) -> Decimal:
         return Decimal(0)
 
 
+def _slug(s: str) -> str:
+    return (s or "").strip().lower().replace(" ", "_")
+
+
+def _extract_limit_slug(field_path: str) -> str | None:
+    """Pull the limit slug from a `schedule.limits.<slug>` field_path.
+
+    Nested limit paths (e.g. `schedule.limits.cyber.aggregate`) collapse
+    to their first segment (`cyber`) so cover_types lookup still works.
+    """
+    if "limits." not in field_path:
+        return None
+    tail = field_path.split("limits.", 1)[1]
+    return tail.split(".")[0] if tail else None
+
+
+def _lookup_current_limit(policy_current: dict, slug: str) -> Decimal | None:
+    """Read `schedule.cover_types[match slug].limit_any_one` — the
+    authoritative display field.
+    """
+    schedule = policy_current.get("schedule") or {}
+    cover_types = schedule.get("cover_types") or []
+    if not isinstance(cover_types, list):
+        return None
+    for ct in cover_types:
+        if not isinstance(ct, dict):
+            continue
+        if _slug(ct.get("type")) == slug:
+            v = ct.get("limit_any_one")
+            if v is None:
+                return None
+            d = _dec(v)
+            return d if d > 0 else None
+    return None
+
+
 def _ratio_based_change(
     base_premium: Decimal, from_limit: Decimal, to_limit: Decimal,
 ) -> Decimal:
@@ -59,11 +112,12 @@ def _ratio_based_change(
 def _find_limit_change(
     requested_changes: list[dict],
 ) -> tuple[str | None, Decimal, Decimal]:
-    """Return (field_path, from_limit, to_limit) for the largest change.
+    """Return (field_path, from_value_hint, to_value) for the biggest
+    change by absolute delta.
 
-    Pre-close-out we tracked only the delta, which made it impossible to
-    compute a ratio. Now we return both endpoints so pricing can scale
-    off `to/from` instead of raw delta.
+    `from_value_hint` is kept only for backward compatibility with the
+    headcount path; the limit path now ignores it in favour of the
+    policy's authoritative `cover_types[*].limit_any_one`.
     """
     best = (None, Decimal(0), Decimal(0), Decimal(0))  # path,from,to,|delta|
     for ch in requested_changes or []:
@@ -94,19 +148,30 @@ async def submit_endorsement(
         ss.get("requested_changes")
         or submission.get("requested_changes") or []
     )
-    field_path, from_v, to_v = _find_limit_change(requested_changes)
+    field_path, from_hint, to_v = _find_limit_change(requested_changes)
 
     base_premium = _dec(policy_current.get("premium_amount"))
     currency = policy_current.get("premium_currency") or "AUD"
 
     if field_path and ".headcount" in field_path:
-        delta_amt = ((to_v - from_v) * PER_HEAD_ANNUAL).quantize(Decimal("0.01"))
-        # Still cap at base to prevent runaway.
+        delta_amt = ((to_v - from_hint) * PER_HEAD_ANNUAL).quantize(Decimal("0.01"))
         cap = base_premium * PREMIUM_CHANGE_CAP_MULT
         if abs(delta_amt) > cap:
             delta_amt = cap if delta_amt > 0 else -cap
     elif field_path:
-        delta_amt = _ratio_based_change(base_premium, from_v, to_v)
+        slug = _extract_limit_slug(field_path)
+        if not slug:
+            raise MissingCurrentLimitError(
+                f"could not parse limit slug from field_path {field_path!r}"
+            )
+        current_limit = _lookup_current_limit(policy_current, slug)
+        if current_limit is None:
+            raise MissingCurrentLimitError(
+                f"policy {policy_current.get('policy_id')!r} is missing an "
+                f"authoritative schedule.cover_types[*].limit_any_one for "
+                f"slug {slug!r} — cannot price endorsement."
+            )
+        delta_amt = _ratio_based_change(base_premium, current_limit, to_v)
     else:
         # No limit change identified → nominal mid-term endorsement fee.
         delta_amt = (base_premium * Decimal("0.025")).quantize(Decimal("0.01"))
