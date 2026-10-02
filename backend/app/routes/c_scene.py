@@ -13,12 +13,13 @@ certificate carry their own kernel modules.
 """
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.auth.sessions import Session
 from app.kernel import scene
@@ -101,6 +102,154 @@ def _store(request: Request):
 
 class RequestChangeBody(BaseModel):
     raw_message: str
+    idempotency_key: str | None = Field(default=None, max_length=100)
+
+
+# Background-task handles kept alive here so asyncio.create_task doesn't
+# garbage-collect them before the chain finishes.
+_PENDING_TASKS: set[asyncio.Task] = set()
+
+
+async def _find_existing_envelope_by_idempotency(
+    store, tenant_id: str, policy_id: str, user_id: str, idem: str,
+) -> str | None:
+    from app.db.tenant_safe import wrap
+    safe = wrap(store)
+    async with use_tenant(tenant_id):
+        row = await safe.events.find_one({
+            "type": "ClientChangeRequested",
+            "payload.policy_id": policy_id,
+            "payload.client_idempotency_key": idem,
+            "payload.submitted_by": user_id,
+        })
+    if row is None:
+        return None
+    return (row.get("payload") or {}).get("envelope_id")
+
+
+async def _run_intake_placement_async(
+    store, *, tenant_id: str, user_id: str, envelope_id_str: str,
+    policy_id: str, policy: dict, raw_message: str,
+) -> None:
+    """Background chain: intAIke → plAIce → MOCKED carrier → enqueue.
+
+    Any failure is swallowed and the envelope stays parked in
+    `ClientChangeRequested` state — honours the governance invariant
+    'silence parks' (no auto-advance on error).
+    """
+    try:
+        envelope_id = uuid.UUID(envelope_id_str)
+        intake_envelope = ContextEnvelope(
+            envelope_id=envelope_id,
+            tenant_id=uuid.UUID(tenant_id), matter_id=None,
+            client_id=uuid.UUID(policy["client_id"]),
+            class_key="request_info",
+            intent="parse client change request",
+            inputs={"raw_message": raw_message, "policy_id": policy_id,
+                    "context_events_summary": "client-initiated change request"},
+            context_events=[], risk_schema_refs=[], tenant_config={},
+            budget=InvocationBudget(
+                max_input_tokens=4000, max_output_tokens=1500, max_wall_ms=45000,
+            ),
+            caller=Actor(kind="human", id=user_id, name="client_owner"),
+            ts=datetime.now(timezone.utc),
+        )
+        brain = Brain(store)
+        intake_out = await brain.invoke(intake_envelope, "intake")
+        intake_payload = intake_out.payload or {}
+        proposed_class = (
+            intake_out.class_key
+            or intake_payload.get("class_proposed")
+            or ""
+        )
+        if proposed_class not in PLACEMENT_ELIGIBLE_CLASSES:
+            try:
+                await queue_enqueue(
+                    store, tenant_id=tenant_id,
+                    envelope_id=envelope_id_str,
+                    class_key=(
+                        proposed_class
+                        if proposed_class in INTAKE_ELIGIBLE_CLASSES
+                        else "request_info"
+                    ),
+                    proposal_ref=(
+                        (await scene.last_event_id_for_envelope(
+                            store, tenant_id, "AgentOutputProduced",
+                            envelope_id_str,
+                        )) or ""
+                    ),
+                    matter_id=None,
+                    client_id=policy["client_id"],
+                    gate_reason="intake_only",
+                    confidence=None,
+                    routed_to_role="account_executive",
+                )
+            except Exception:
+                pass
+            return
+
+        placement_envelope = ContextEnvelope(
+            envelope_id=envelope_id,
+            tenant_id=uuid.UUID(tenant_id), matter_id=None,
+            client_id=uuid.UUID(policy["client_id"]),
+            class_key=proposed_class,
+            intent="draft submission for market",
+            inputs={"intake_output": intake_payload, "policy_current": policy,
+                    "context_events_summary": "client-initiated change request"},
+            context_events=[], risk_schema_refs=[], tenant_config={},
+            budget=InvocationBudget(
+                max_input_tokens=6000, max_output_tokens=2000, max_wall_ms=45000,
+            ),
+            caller=Actor(kind="human", id=user_id, name="client_owner"),
+            ts=datetime.now(timezone.utc),
+        )
+        placement_out = await brain.invoke(placement_envelope, "placement")
+        plc_payload = placement_out.payload or {}
+        await scene.emit_submission_drafted(
+            store, tenant_id=tenant_id,
+            envelope_id=envelope_id_str, policy_id=policy_id,
+            submission_summary=plc_payload.get("submission_summary"),
+            structured_submission=plc_payload.get("structured_submission") or {},
+            recommended_wording_ref=plc_payload.get("recommended_wording_ref"),
+        )
+        quote = await submit_endorsement(
+            envelope_id=envelope_id_str, submission=plc_payload,
+            policy_current=policy,
+        )
+        await scene.emit_carrier_quoted(
+            store, tenant_id=tenant_id,
+            envelope_id=envelope_id_str, policy_id=policy_id, quote=quote,
+        )
+        await scene.emit_endorsement_quote_ready(
+            store, tenant_id=tenant_id,
+            envelope_id=envelope_id_str, policy_id=policy_id,
+            quote_id=quote["quote_id"],
+        )
+        # Enqueue the operator queue card so the AE / principal can
+        # approve the class on the Control Tower (operator-gate rule
+        # from Phase 3 close-out).
+        try:
+            await queue_enqueue(
+                store, tenant_id=tenant_id,
+                envelope_id=envelope_id_str,
+                class_key=proposed_class,
+                proposal_ref=(
+                    (await scene.last_event_id_for_envelope(
+                        store, tenant_id, "AgentOutputProduced",
+                        envelope_id_str,
+                    )) or ""
+                ),
+                matter_id=None,
+                client_id=policy["client_id"],
+                gate_reason="awaiting_operator_class_shadow_authoritative",
+                confidence=None,
+                routed_to_role="account_executive",
+            )
+        except Exception:
+            pass
+    except Exception:
+        # Silence parks — do not auto-advance on failure.
+        return
 
 
 @router.post("/{policy_id}/request-change")
@@ -110,143 +259,70 @@ async def request_change(
     body: RequestChangeBody = Body(...),
     session: Session = Depends(require_session),
 ) -> dict[str, Any]:
-    """Kick off the full scene: intAIke → plAIce → MOCKED quote → HITL enqueue."""
+    """Accept-fast: emit ClientChangeRequested, return <2s, run chain async.
+
+    Idempotency: if the client resubmits with the same
+    `idempotency_key` within the lifetime of the tenant's event log,
+    we return the EXISTING envelope_id. No new envelope, no duplicate
+    queue cards (R1 close-out — user prod verification 2026-10-02).
+    """
     store = _store(request)
     policy = await scene.load_policy(store, session.tenant_id, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="policy_not_found")
 
     tenant_id = session.tenant_id
+    idem = (body.idempotency_key or "").strip() or None
+    if idem:
+        existing = await _find_existing_envelope_by_idempotency(
+            store, tenant_id, policy_id, session.user_id, idem,
+        )
+        if existing:
+            return {
+                "state": "received",
+                "envelope_id": existing,
+                "idempotency_key": idem,
+                "deduplicated": True,
+            }
+
     envelope_id = uuid.uuid4()
-
-    await scene.emit_client_change_requested(
-        store, tenant_id=tenant_id, user_id=session.user_id,
-        envelope_id=str(envelope_id), policy_id=policy_id,
-        client_id=policy["client_id"], raw_message=body.raw_message,
-    )
-
-    intake_envelope = ContextEnvelope(
-        envelope_id=envelope_id,
-        tenant_id=uuid.UUID(tenant_id),
-        matter_id=None,
-        client_id=uuid.UUID(policy["client_id"]),
-        class_key="request_info",
-        intent="parse client change request",
-        inputs={
-            "raw_message": body.raw_message,
-            "policy_id": policy_id,
-            "context_events_summary": "client-initiated change request",
-        },
-        context_events=[],
-        risk_schema_refs=[],
-        tenant_config={},
-        budget=InvocationBudget(
-            max_input_tokens=4000, max_output_tokens=1500, max_wall_ms=45000,
-        ),
-        caller=Actor(kind="human", id=session.user_id, name="client_owner"),
-        ts=datetime.now(timezone.utc),
-    )
-    brain = Brain(store)
-    intake_out = await brain.invoke(intake_envelope, "intake")
-    intake_payload = intake_out.payload or {}
-    proposed_class = intake_out.class_key or intake_payload.get("class_proposed") or ""
-
-    if proposed_class not in PLACEMENT_ELIGIBLE_CLASSES:
-        try:
-            await queue_enqueue(
-                store,
-                tenant_id=tenant_id,
-                envelope_id=str(envelope_id),
-                class_key=(
-                    proposed_class
-                    if proposed_class in INTAKE_ELIGIBLE_CLASSES
-                    else "request_info"
-                ),
-                proposal_ref=(
-                    (await scene.last_event_id_for_envelope(
-                        store, tenant_id, "AgentOutputProduced",
-                        str(envelope_id),
-                    )) or ""
-                ),
-                matter_id=None,
-                client_id=policy["client_id"],
-                gate_reason="intake_only",
-                confidence=None,
-                routed_to_role="account_executive",
+    try:
+        await scene.emit_client_change_requested(
+            store, tenant_id=tenant_id, user_id=session.user_id,
+            envelope_id=str(envelope_id), policy_id=policy_id,
+            client_id=policy["client_id"], raw_message=body.raw_message,
+            client_idempotency_key=idem,
+        )
+    except Exception as e:
+        # Mongo unique-index collision on the idempotency_key — a
+        # concurrent sibling request already won the insert. Look up
+        # the winner by the same idem key and return its envelope.
+        if idem and "duplicate" in str(e).lower():
+            existing = await _find_existing_envelope_by_idempotency(
+                store, tenant_id, policy_id, session.user_id, idem,
             )
-        except Exception:
-            pass
-        return {
-            "state": "intake_only",
-            "envelope_id": str(envelope_id),
-            "class_proposed": proposed_class,
-        }
+            if existing:
+                return {
+                    "state": "received",
+                    "envelope_id": existing,
+                    "idempotency_key": idem,
+                    "deduplicated": True,
+                }
+        raise
 
-    placement_envelope = ContextEnvelope(
-        envelope_id=envelope_id,
-        tenant_id=uuid.UUID(tenant_id),
-        matter_id=None,
-        client_id=uuid.UUID(policy["client_id"]),
-        class_key=proposed_class,
-        intent="draft submission for market",
-        inputs={
-            "intake_output": intake_payload,
-            "policy_current": policy,
-            "context_events_summary": "client-initiated change request",
-        },
-        context_events=[],
-        risk_schema_refs=[],
-        tenant_config={},
-        budget=InvocationBudget(
-            max_input_tokens=6000, max_output_tokens=2000, max_wall_ms=45000,
-        ),
-        caller=Actor(kind="human", id=session.user_id, name="client_owner"),
-        ts=datetime.now(timezone.utc),
-    )
-    placement_out = await brain.invoke(placement_envelope, "placement")
-    plc_payload = placement_out.payload or {}
-
-    await scene.emit_submission_drafted(
-        store, tenant_id=tenant_id,
-        envelope_id=str(envelope_id), policy_id=policy_id,
-        submission_summary=plc_payload.get("submission_summary"),
-        structured_submission=plc_payload.get("structured_submission") or {},
-        recommended_wording_ref=plc_payload.get("recommended_wording_ref"),
-    )
-
-    quote = await submit_endorsement(
-        envelope_id=str(envelope_id),
-        submission=plc_payload,
-        policy_current=policy,
-    )
-    await scene.emit_carrier_quoted(
-        store, tenant_id=tenant_id,
-        envelope_id=str(envelope_id), policy_id=policy_id, quote=quote,
-    )
-    ready = await scene.emit_endorsement_quote_ready(
-        store, tenant_id=tenant_id,
-        envelope_id=str(envelope_id), policy_id=policy_id,
-        quote_id=quote["quote_id"],
-    )
-
-    await queue_enqueue(
-        store,
-        tenant_id=tenant_id,
-        envelope_id=str(envelope_id),
-        class_key=proposed_class,
-        proposal_ref=ready["event_id"],
-        matter_id=None,
-        client_id=policy["client_id"],
-        gate_reason="quote_ready_operator_confirmation_required",
-        confidence=0.9,
-        routed_to_role="principal",
-    )
+    task = asyncio.create_task(_run_intake_placement_async(
+        store, tenant_id=tenant_id, user_id=session.user_id,
+        envelope_id_str=str(envelope_id),
+        policy_id=policy_id, policy=policy, raw_message=body.raw_message,
+    ))
+    _PENDING_TASKS.add(task)
+    task.add_done_callback(_PENDING_TASKS.discard)
 
     return {
-        "state": "awaiting_operator",
+        "state": "received",
         "envelope_id": str(envelope_id),
-        "quote": quote,
-        "submission_summary": plc_payload.get("submission_summary"),
+        "idempotency_key": idem,
+        "deduplicated": False,
     }
 
 

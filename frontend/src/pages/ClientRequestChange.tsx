@@ -1,9 +1,14 @@
 /**
  * ClientRequestChange — /c/cover/:policy_id/request-change
  *
- * The client submits a plain-language change request. Backend fires
- * intAIke → plAIce → MOCKED carrier quote. On success, we redirect
- * to the pending-quote card.
+ * Accept-fast: on submit we send an idempotency key (uuid v4) and
+ * expect a <2s 200 with state="received". The server runs intake +
+ * placement + mocked carrier asynchronously. We navigate to the
+ * /pending screen which polls and advances once the operator
+ * approves the Shadow-Mode gate.
+ *
+ * Three rapid-fire taps with the same idempotency key return the
+ * SAME envelope_id — no duplicate queue cards.
  */
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -11,13 +16,18 @@ import { EmptyState } from "../components/EmptyState";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
-type SceneState =
-  | "idle"
-  | "sending"
-  | "intake_running"
-  | "placement_running"
-  | "awaiting_operator"
-  | "error";
+type SceneState = "idle" | "sending" | "received" | "error";
+
+function uuidv4(): string {
+  if (typeof crypto !== "undefined" && (crypto as any).randomUUID) {
+    return (crypto as any).randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 export function ClientRequestChange() {
   const { policy_id = "" } = useParams();
@@ -25,13 +35,15 @@ export function ClientRequestChange() {
   const [raw, setRaw] = useState("");
   const [state, setState] = useState<SceneState>("idle");
   const [errMsg, setErrMsg] = useState<string | null>(null);
-  const pollRef = useRef<number | null>(null);
+  // Lock the idempotency key to the current draft content. A fresh
+  // key is minted on first keystroke after a successful submit.
+  const idemRef = useRef<string>(uuidv4());
 
   useEffect(() => {
-    return () => {
-      if (pollRef.current) window.clearInterval(pollRef.current);
-    };
-  }, []);
+    if (state === "idle") {
+      idemRef.current = uuidv4();
+    }
+  }, [state === "idle" ? raw : null, state]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,7 +57,10 @@ export function ClientRequestChange() {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ raw_message: raw }),
+          body: JSON.stringify({
+            raw_message: raw,
+            idempotency_key: idemRef.current,
+          }),
         }
       );
       if (!r.ok) {
@@ -55,25 +70,19 @@ export function ClientRequestChange() {
         return;
       }
       const body = await r.json();
-      // The API returns 200 as soon as the request is on file; the
-      // operator's approval + carrier quote lands via async status
-      // polling. Send the client to the pending screen immediately so
-      // they see a state ("With your broker — usually under an hour")
-      // instead of a hanging "Working…" button.
-      setState("awaiting_operator");
-      navigate(`/c/cover/${policy_id}/pending?env=${body?.envelope_id ?? ""}`);
+      setState("received");
+      // Show "Received" for a beat, then forward to /pending where
+      // the client sees the live "With your broker" waiting state.
+      window.setTimeout(() => {
+        navigate(
+          `/c/cover/${policy_id}/pending?env=${body?.envelope_id ?? ""}`
+        );
+      }, 600);
     } catch (err: any) {
       setErrMsg(String(err));
       setState("error");
     }
   }
-
-  const stepLabels: Record<Exclude<SceneState, "idle" | "error">, string> = {
-    sending: "Sending to your broker…",
-    intake_running: "Reading your request…",
-    placement_running: "Drafting the submission…",
-    awaiting_operator: "Quote is ready — routing to your broker.",
-  };
 
   return (
     <section className="brokaid-tab" data-testid="request-change-root">
@@ -113,30 +122,32 @@ export function ClientRequestChange() {
           className="brokaid-request-form__textarea"
           placeholder="e.g. We took on a bigger project. Please raise our public liability from $10M to $20M."
           rows={6}
-          disabled={state !== "idle" && state !== "error"}
+          disabled={state === "sending" || state === "received"}
           data-testid="request-change-textarea"
         />
         <button
           type="submit"
           className="brokaid-btn brokaid-btn--primary"
-          disabled={
-            state !== "idle" && state !== "error"
-          }
+          disabled={state === "sending" || state === "received"}
           data-testid="request-change-submit"
         >
-          {state === "idle" || state === "error"
-            ? "Send to my broker"
-            : "Working…"}
+          {state === "sending"
+            ? "Sending…"
+            : state === "received"
+            ? "Received ✓"
+            : "Send to my broker"}
         </button>
       </form>
 
-      {state !== "idle" && state !== "error" && (
+      {(state === "sending" || state === "received") && (
         <div
           className="brokaid-request-progress"
           data-testid="request-change-progress"
         >
           <p className="brokaid-request-progress__label">
-            {stepLabels[state]}
+            {state === "received"
+              ? "Received — your broker is on it."
+              : "Sending…"}
           </p>
           <div className="brokaid-request-progress__bar">
             <div className="brokaid-request-progress__bar-fill" />

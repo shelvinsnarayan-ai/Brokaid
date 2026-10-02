@@ -268,17 +268,32 @@ async def _emit(store, tenant_id: str, **kw) -> dict[str, Any]:
 async def emit_client_change_requested(
     store, *, tenant_id: str, user_id: str, envelope_id: str,
     policy_id: str, client_id: str, raw_message: str,
+    client_idempotency_key: str | None = None,
 ) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "envelope_id": envelope_id,
+        "policy_id": policy_id,
+        "client_id": client_id,
+        "raw_message": raw_message,
+        "submitted_by": user_id,
+    }
+    if client_idempotency_key:
+        payload["client_idempotency_key"] = client_idempotency_key
+    # Scope the trail-level idempotency key on the client-supplied
+    # nonce (if provided) so Mongo's unique index on events.
+    # idempotency_key serialises rapid-fire resubmits atomically. Three
+    # taps in <5ms all land here with the same key; the first wins and
+    # the rest raise DuplicateIdempotencyKey.
+    idem_key = (
+        f"cchreq:{tenant_id}:{policy_id}:{user_id}:{client_idempotency_key}"
+        if client_idempotency_key
+        else f"cchreq:{envelope_id}"
+    )
     return await _emit(
         store, tenant_id, type="ClientChangeRequested",
         actor={"kind": "human", "id": user_id, "name": "client_owner"},
-        payload={
-            "envelope_id": envelope_id,
-            "policy_id": policy_id,
-            "client_id": client_id,
-            "raw_message": raw_message,
-        },
-        idempotency_key=f"cchreq:{envelope_id}",
+        payload=payload,
+        idempotency_key=idem_key,
     )
 
 

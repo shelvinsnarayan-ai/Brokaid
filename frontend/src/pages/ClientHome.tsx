@@ -85,9 +85,9 @@ export function ClientHome() {
           </span>
           {nextAction.revised_premium_aud != null && (
             <span className="brokaid-next-action__meta">
-              Revised premium AUD ${nextAction.revised_premium_aud.toLocaleString()}
+              Revised premium AUD {nextAction.revised_premium_aud.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               {nextAction.delta_aud != null && (
-                <> · +AUD ${nextAction.delta_aud.toLocaleString()}</>
+                <> · +AUD {nextAction.delta_aud.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>
               )}
             </span>
           )}

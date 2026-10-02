@@ -71,6 +71,35 @@ async def _load_lineage(
     return lineage
 
 
+def _slug(s: str) -> str:
+    return (s or "").strip().lower().replace(" ", "_")
+
+
+def _sync_cover_types_to_limits(schedule: dict[str, Any]) -> None:
+    """Mirror `schedule.limits.<slug>` into any matching
+    `schedule.cover_types[*].limit_any_one`.
+
+    The policy seed stores two parallel representations: a flat
+    `limits` map that endorsements write to, and a `cover_types` list
+    that the certificate PDF + verifier render. Without this mirror
+    the certificate shows the pre-endorsement limits forever.
+    R1 close-out (user prod verification 2026-10-02).
+    """
+    limits = schedule.get("limits")
+    cover_types = schedule.get("cover_types")
+    if not isinstance(limits, dict) or not isinstance(cover_types, list):
+        return
+    for ct in cover_types:
+        if not isinstance(ct, dict):
+            continue
+        key = _slug(ct.get("type"))
+        if key in limits:
+            try:
+                ct["limit_any_one"] = int(limits[key])
+            except (TypeError, ValueError):
+                ct["limit_any_one"] = limits[key]
+
+
 def _apply_change(schedule: dict[str, Any], change: dict[str, Any]) -> dict[str, Any]:
     """Naïve dot-path setter used by the mocked scene. Applies a
     `field_path` + `to_value` write into the policy schedule.
@@ -99,6 +128,7 @@ def _apply_change(schedule: dict[str, Any], change: dict[str, Any]) -> dict[str,
             arr.append(change.get("to_value"))
     elif op == "remove":
         cur.pop(last, None)
+    _sync_cover_types_to_limits(schedule)
     return schedule
 
 
