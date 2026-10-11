@@ -41,6 +41,13 @@ class ActionBody(BaseModel):
     target_kind: str | None = "workflow"
 
 
+def _utc_iso(v):
+    from datetime import datetime, timezone
+    if isinstance(v, datetime):
+        return (v if v.tzinfo else v.replace(tzinfo=timezone.utc)).isoformat()
+    return v
+
+
 @router.get("")
 async def list_queue(
     request: Request,
@@ -95,7 +102,20 @@ async def get_card(
     scalar = conf_obj.get("scalar")
     if scalar is None and card.get("confidence") is not None:
         scalar = float(card["confidence"])
+    resolution = None
+    if card.get("resolved_at"):
+        async with use_tenant(session.tenant_id):
+            r_ev = await safe.events.find_one({"event_id": card.get("resolved_by_event")}) or {}
+            actor = r_ev.get("actor") or {}
+            u = await safe.users.find_one({"user_id": actor.get("id")}) if actor.get("id") else None
+        resolution = {
+            "event_type": r_ev.get("type"),
+            "verdict": (r_ev.get("payload") or {}).get("verdict") or card.get("resolution"),
+            "actor_name": (u or {}).get("display_name") or actor.get("name"),
+            "resolved_at": _utc_iso(card.get("resolved_at")),
+        }
     return {
+        "resolution": resolution,
         "card": card,
         "proposal": scrub(proposal),
         "evidence": scrub(evidence),

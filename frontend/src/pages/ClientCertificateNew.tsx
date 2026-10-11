@@ -60,6 +60,7 @@ export function ClientCertificateNew() {
   const navigate = useNavigate();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [brokerReasons, setBrokerReasons] = useState<string[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -111,6 +112,12 @@ export function ClientCertificateNew() {
           },
         }),
       });
+      if (r.status === 202) {
+        const b = await r.json();
+        setBrokerReasons(b.reasons_plain as string[]);
+        setSubmitting(false);
+        return;
+      }
       if (!r.ok) {
         setError(`Issue failed (HTTP ${r.status})`);
         setSubmitting(false);
@@ -167,6 +174,20 @@ export function ClientCertificateNew() {
       <span className="brokaid-cert-steps__num">{n}</span>
       {label}
     </span>
+  );
+
+  if (brokerReasons) return (
+    <section className="brokaid-tab" data-testid="cert-awaiting-broker">
+      <header className="brokaid-tab__head">
+        <p className="brokaid-tab__eyebrow">Certificate</p>
+        <h1 className="brokaid-tab__title">Your broker is handling this certificate request</h1>
+        <p className="brokaid-tab__lede">We can't issue this one instantly because:</p>
+      </header>
+      <ul className="brokaid-quote-card" data-testid="cert-broker-reasons">
+        {brokerReasons.map((r, i) => <li key={i} data-testid={`cert-broker-reason-${i}`}>{r}</li>)}
+      </ul>
+      <p className="brokaid-tab__lede">Your broker will send it to you once it's checked.</p>
+    </section>
   );
 
   return (

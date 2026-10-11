@@ -22,15 +22,19 @@ from __future__ import annotations
 
 import io
 import json
+import uuid
 from typing import Any, Optional
 
 import qrcode
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from app.auth.sessions import Session
-from app.kernel import certificate_mongo
+from app.kernel import cert_stp, certificate_mongo, scene
+from app.kernel.tenant_ctx import use_tenant
+from app.kernel.trail_dispatch import append_via_dispatch
+from app.kernel.workflow import enqueue as queue_enqueue
 from app.middleware.session import require_session
 
 
@@ -158,6 +162,9 @@ async def regen(
 ) -> dict:
     if session.active_role not in ("client_owner", "client_contact"):
         raise HTTPException(status_code=403, detail="client_role_required")
+    gate = await _r_coc_01(request, session, body)
+    if gate is not None:
+        return gate
     try:
         result = await certificate_mongo.regenerate_certificate(
             store=_store(request),
@@ -174,6 +181,42 @@ async def regen(
         "expires_at": result["expires_at"],
         "ledger_event_id": result.get("ledger_event_id"),
     }
+
+
+async def _r_coc_01(request: Request, session: Session, body: "RegenRequest") -> JSONResponse | None:
+    """R-CoC-01: STP only when all five conditions pass; else a broker task (202)."""
+    store = _store(request)
+    policy = await scene.load_policy(store, session.tenant_id, body.policy_id)
+    if not policy:
+        raise HTTPException(status_code=404, detail="policy_not_found")
+    f = await cert_stp.facts(store, session.tenant_id, body.policy_id)
+    special = body.requirements.special_requirements if body.requirements else None
+    reasons = cert_stp.evaluate(policy, special=special, **f)
+    if not reasons:
+        return None
+    request_id = str(uuid.uuid4())
+    async with use_tenant(session.tenant_id):
+        await append_via_dispatch(
+            store, session.tenant_id, "CertificateRequestNeedsBroker",
+            actor={"kind": "human", "id": session.user_id, "name": session.active_role},
+            payload={"envelope_id": request_id, "policy_id": body.policy_id,
+                     "reasons": reasons, "holder": body.holder.model_dump() if body.holder else None,
+                     "special_requirements": special},
+            idempotency_key=f"cert:needs_broker:{request_id}",
+        )
+    proposal_ref = await scene.last_event_id_for_envelope(
+        store, session.tenant_id, "CertificateRequestNeedsBroker", request_id)
+    await queue_enqueue(
+        store, tenant_id=session.tenant_id, envelope_id=request_id,
+        class_key="certificate_issue", proposal_ref=proposal_ref or "",
+        matter_id=None, client_id=policy["client_id"],
+        gate_reason="certificate_broker_task", confidence=None,
+        routed_to_role="account_executive",
+    )
+    return JSONResponse(status_code=202, content={
+        "status": "awaiting_broker", "request_id": request_id, "reasons": reasons,
+        "reasons_plain": [cert_stp.PLAIN[r] for r in reasons],
+    })
 
 
 class PdfRequest(BaseModel):

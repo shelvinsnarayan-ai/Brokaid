@@ -11,12 +11,23 @@ import { KKbd } from "../../components/ledger/KKbd";
 import { KNumber } from "../../components/ledger/KNumber";
 import { useOperatorStore } from "../../state/operatorStore";
 import { labelFor } from "../../lib/labels";
-import { fmtDateTime } from "../../lib/format";
+import { fmtDateTime, fmtSydDate, fmtSydTime } from "../../lib/format";
+
+const resolvedVerb = (r: { event_type: string | null; verdict: string | null }) => {
+  const v = (r.verdict || r.event_type || "").toLowerCase();
+  if (v.includes("reject")) return "Rejected";
+  if (v.includes("block")) return "Blocked";
+  if (v.includes("edit")) return "Edited";
+  if (v.includes("stale")) return "Closed as stale";
+  if (v.includes("abandon")) return "Abandoned";
+  return "Approved";
+};
 import "../../styles/phase13.css";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
 interface CardResp {
+  resolution?: { event_type: string | null; verdict: string | null; actor_name: string | null; resolved_at: string } | null;
   card: {
     envelope_id: string; class_key: string;
     sla_state: "ok" | "warn" | "overdue";
@@ -85,7 +96,7 @@ export function DecisionCard() {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
       if (tag === "input" || tag === "textarea" || e.metaKey || e.ctrlKey) return;
-      if (e.key === "a" && data) { e.preventDefault(); approveWithConfirm(); }
+      if (e.key === "a" && data && !data.resolution) { e.preventDefault(); approveWithConfirm(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -175,6 +186,12 @@ export function DecisionCard() {
               Client · {card.client_display}
             </p>
           )}
+          {data.resolution ? (
+            <p className="dcard-resolved" data-testid="dcard-resolved-badge"
+              style={{ fontSize: 12, color: "var(--slate)", border: "1px solid var(--line, #33415a)", padding: "6px 10px", display: "inline-block" }}>
+              Resolved · {resolvedVerb(data.resolution)} by {data.resolution.actor_name || "broker"} on {fmtSydDate(data.resolution.resolved_at)} at {fmtSydTime(data.resolution.resolved_at)} AEST
+            </p>
+          ) : (
           <div className="dcard-actions">
             <button className="k-btn k-btn--primary" onClick={approveWithConfirm} data-testid="dcard-approve">
               <KKbd>a</KKbd> Approve
@@ -204,6 +221,7 @@ export function DecisionCard() {
               <KKbd>b</KKbd> Block
             </button>
           </div>
+          )}
         </div>
 
         <div className="dcard-col" data-testid="dcard-evidence">

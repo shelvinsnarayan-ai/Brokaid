@@ -19,6 +19,7 @@ from app.seeds import (
     seed_org_mongo,
     seed_policy_managed_mongo,
     seed_kai_motor_mongo,
+    seed_memberships_mongo,
     seed_policy_tracked_mongo,
     seed_users_mongo,
     seed_vulnerable_mongo,
@@ -32,6 +33,7 @@ async def seed_all_mongo(db: AsyncIOMotorDatabase) -> dict:
 
     await seed_org_mongo.seed_mongo(db, tenant_id, brokerage_id)
     client_id = await seed_client_mongo.seed_mongo(db, tenant_id)
+    await seed_memberships_mongo.seed_mongo(db, tenant_id)
     managed_id = await seed_policy_managed_mongo.seed_mongo(
         db, tenant_id, client_id,
     )

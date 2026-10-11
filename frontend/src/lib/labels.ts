@@ -16,6 +16,8 @@ const LABELS: Record<string, string> = {
   awaiting_operator_class_shadow_authoritative: "Awaiting broker approval",
   intake_only: "Needs broker review",
   unmatched_policy_field: "Details don't match the policy — review",
+  certificate_broker_task: "Certificate — broker to handle",
+  CertificateRequestNeedsBroker: "Certificate request needs broker",
   personal_advice_required: "Personal advice required — broker to handle",
   out_of_scope: "Out of scope for the portal",
   AdviceBoundaryClassified: "Advice boundary classified",

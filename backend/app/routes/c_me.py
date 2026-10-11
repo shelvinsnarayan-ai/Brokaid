@@ -6,6 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
+from app.kernel.authority import memberships_for_user
 from app.auth.sessions import Session
 from app.db.tenant_safe import wrap
 from app.kernel.tenant_ctx import use_tenant
@@ -71,4 +72,7 @@ async def me(request: Request, session: Session = Depends(require_session)) -> d
         },
         "linked_client": body["linked_client"],
         "client_prefs": body["client_prefs"],
+        "memberships": await memberships_for_user(
+            request.app.state.mongo_db, session.tenant_id, session.user_id,
+        ),
     }

@@ -1,4 +1,5 @@
 """R0.2 one-time cleanup (idempotent). Run: python -m app.scripts.r02_cleanup
+# tenant-safe: system-only
 
 1. Close pre-R0.2-format open queue cards (hitl_since < cutoff, proposal not
    an AgentOutputProduced carrying confidence) as resolution=stale, with a

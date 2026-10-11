@@ -12,6 +12,17 @@ export function fmtDate(v: string | number | Date | null | undefined): string {
   return d ? `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}` : "—";
 }
 
+// Sydney wall-clock, labelled "AEST" by callers (demo-literal per Shelvin's ruling).
+const SYD = { timeZone: "Australia/Sydney" } as const;
+export function fmtSydDate(v: string | number | Date | null | undefined): string {
+  const d = toDate(v);
+  return d ? d.toLocaleDateString("en-AU", { ...SYD, day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+}
+export function fmtSydTime(v: string | number | Date | null | undefined): string {
+  const d = toDate(v);
+  return d ? d.toLocaleTimeString("en-AU", { ...SYD, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "—";
+}
+
 export function fmtDateTime(v: string | number | Date | null | undefined): string {
   const d = toDate(v);
   return d ? `${fmtDate(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}` : "—";

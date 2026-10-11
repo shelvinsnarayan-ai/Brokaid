@@ -1,4 +1,5 @@
 """Startup sanity check: warn if a policy's `schedule.limits.<slug>`
+# tenant-safe: system-only
 drifts from its authoritative `schedule.cover_types[*].limit_any_one`.
 
 Does NOT block startup. The idea is to surface a loud WARNING log for

@@ -35,7 +35,8 @@ def _aware(v: Any) -> datetime:
 
 def _syd(v: Any, with_time: bool = True) -> str:
     d = _aware(v).astimezone(SYD)
-    return d.strftime("%d/%m/%Y %H:%M %Z") if with_time else d.strftime("%d/%m/%Y")
+    # Demo-literal "AEST" per Shelvin's R0.3 ruling — not DST-correct (Sydney is AEDT Oct–Apr).
+    return d.strftime("%d/%m/%Y %H:%M") + " AEST" if with_time else d.strftime("%d/%m/%Y")
 
 
 def _money(v: Any) -> str:
@@ -65,7 +66,10 @@ def _change_lines(changes: list[dict], basis: str) -> list[str]:
     out = []
     for i, ch in enumerate(changes, 1):
         op = (ch.get("operation") or "set").lower()
-        before = _val(ch.get("from_value")) if op != "add" else "(none)"
+        ref = ch.get("from_value")
+        if ref is None and op == "remove":
+            ref = ch.get("to_value")
+        before = _val(ref) if op != "add" else "(none)"
         after = "(removed)" if op == "remove" else _val(ch.get("to_value"))
         out.append(f"  {i}. {ch.get('field_path')} ({op})  BEFORE: {before}  AFTER: {after}   {tag}")
     return out or ["  (no structured changes on this request)"]

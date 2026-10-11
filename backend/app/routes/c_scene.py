@@ -33,6 +33,7 @@ from app.kernel.endorsement import execute_endorsement
 from app.kernel.mocks import e_sign, payment_rail
 from app.kernel.mocks.carrier_channel import submit_endorsement
 from app.kernel.advice_boundary import classify
+from app.kernel.authority import require_authority
 from app.kernel.policy_field_guard import UnmatchedPolicyField, validate_requested_changes
 from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
@@ -129,6 +130,16 @@ async def _find_existing_envelope_by_idempotency(
     if row is None:
         return None
     return (row.get("payload") or {}).get("envelope_id")
+
+
+async def _authorise(store, session: Session, policy_id: str, envelope_id: str,
+                     action: str, needed: str) -> None:
+    """Membership authority check (additive to the operator gate)."""
+    policy = await scene.load_policy(store, session.tenant_id, policy_id)
+    if not policy:
+        raise HTTPException(status_code=404, detail="policy_not_found")
+    await require_authority(store, session, client_id=policy["client_id"], action=action,
+                            needed=needed, policy_id=policy_id, envelope_id=envelope_id)
 
 
 async def _park_for_broker(
@@ -490,6 +501,7 @@ async def paid(
         raise HTTPException(status_code=403, detail="client_role_required")
     store = _store(request)
     tenant_id = session.tenant_id
+    await _authorise(store, session, policy_id, envelope_id, "pay_attempt", "can_pay")
     policy, quote = await _load_payable(store, tenant_id, policy_id, envelope_id)
     row = await _find_envelope_event(
         store, tenant_id, envelope_id, scene.PAYMENT_ADVISED,
@@ -535,6 +547,7 @@ async def sign(
 ) -> dict[str, Any]:
     store = _store(request)
     tenant_id = session.tenant_id
+    await _authorise(store, session, policy_id, envelope_id, "sign_attempt", "can_sign")
     await _require_predecessor(
         store, tenant_id, envelope_id, [scene.PAYMENT_ADVISED],
     )
@@ -579,6 +592,7 @@ async def approve(
     tenant_id = session.tenant_id
     if session.active_role not in ("client_owner", "client_contact"):
         raise HTTPException(status_code=403, detail="client_role_required")
+    await _authorise(store, session, policy_id, envelope_id, "approve_attempt", "can_approve")
     policy = await scene.load_policy(store, tenant_id, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="policy_not_found")
@@ -590,7 +604,9 @@ async def approve(
         ["EndorsementQuoteReady", "OperatorApproval"],
     )
 
+    deduplicated = False
     async with use_tenant(tenant_id):
+      try:
         await append_via_dispatch(
             store, tenant_id, "Approval",
             actor={"kind": "human", "id": session.user_id, "name": "client_owner"},
@@ -606,9 +622,12 @@ async def approve(
             idempotency_key=f"client:approval:{envelope_id}",
             mocked=True,
         )
+      except DuplicateIdempotencyKey:
+        deduplicated = True
     return {
         "state": "awaiting_payment",
         "envelope_id": envelope_id,
+        "deduplicated": deduplicated,
         "quote_id": quote.get("quote_id"),
         "gate_reason": "operator_class_shadow_authoritative",
     }
