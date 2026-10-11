@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MockedBadge } from "@brokaid/mocks";
+import { fmtAud, fmtDate } from "../lib/format";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -21,10 +22,7 @@ interface Policy {
 }
 
 function fmtMoney(p: Policy) {
-  const n = new Intl.NumberFormat("en-AU", { maximumFractionDigits: 0 }).format(
-    p.premium.amount
-  );
-  return `${p.premium.symbol}${n} ${p.premium.currency}`;
+  return fmtAud(p.premium.amount);
 }
 
 export function OperatorPolicies() {
@@ -88,10 +86,10 @@ export function OperatorPolicies() {
               </td>
               <td className="brokaid-matters__mono">{fmtMoney(p)}</td>
               <td className="brokaid-matters__mono">
-                {new Date(p.inception).toISOString().slice(0, 10)}
+                {fmtDate(p.inception)}
               </td>
               <td className="brokaid-matters__mono">
-                {new Date(p.expiry).toISOString().slice(0, 10)}
+                {fmtDate(p.expiry)}
               </td>
               <td>{p.imported_from ?? "in-house"}</td>
             </tr>

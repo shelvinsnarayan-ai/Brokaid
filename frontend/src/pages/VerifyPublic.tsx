@@ -16,6 +16,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { MockedBadge } from "@brokaid/mocks";
+import { fmtDate, fmtDateTime } from "../lib/format";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -299,7 +300,7 @@ function CertBody({ cert, muted }: { cert: Payload; muted?: boolean }) {
         <div>
           <p className="brokaid-verify__label">Effective</p>
           <p className="brokaid-verify__value">
-            {cert.effective_from?.slice(0, 10)} — {cert.effective_to?.slice(0, 10)}
+            {fmtDate(cert.effective_from)} — {fmtDate(cert.effective_to)}
           </p>
         </div>
       </div>
@@ -327,7 +328,7 @@ function CertBody({ cert, muted }: { cert: Payload; muted?: boolean }) {
       )}
 
       <p className="brokaid-verify__footnote">
-        Issued {new Date(cert.issued_at).toLocaleString()}
+        Issued {fmtDateTime(cert.issued_at)}
         {cert.ledger_event_id ? (
           <>
             {" · "}

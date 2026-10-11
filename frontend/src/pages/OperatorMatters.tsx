@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { fmtDateTime } from "../lib/format";
 
 interface Matter {
   matter_id: string;
@@ -122,7 +123,7 @@ export function OperatorMatters() {
                 <span className="brokaid-matters__status">{m.status}</span>
               </td>
               <td className="brokaid-matters__mono">
-                {new Date(m.updated_at).toISOString().replace("T", " ").slice(0, 19)}
+                {fmtDateTime(m.updated_at)}
               </td>
               <td className="brokaid-matters__mono">
                 {m.matter_id.slice(0, 8)}…

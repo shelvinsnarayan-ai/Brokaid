@@ -57,6 +57,31 @@ async def _pending(store, tenant_id: str, policy_id: str) -> dict[str, Any]:
         # Prefer the ready envelope; if only the change request exists,
         # the client is still in-flight through intake / placement.
         envelope_id = (ready or client_change).get("envelope_id")
+        newest_cc = await safe.events.find_one(
+            {"type": "ClientChangeRequested", "payload.policy_id": policy_id},
+            sort=[("seq", -1)],
+        )
+        newest_ready = await safe.events.find_one(
+            {"type": "EndorsementQuoteReady", "payload.policy_id": policy_id},
+            sort=[("seq", -1)],
+        )
+        if newest_cc and (not newest_ready or newest_cc["seq"] > newest_ready["seq"]):
+            envelope_id = (newest_cc.get("payload") or {}).get("envelope_id")
+        abandoned = await _find_latest_by_type_and_envelope(
+            safe, "EnvelopeAbandoned", envelope_id,
+        )
+        if abandoned:
+            return {"pending": False, "reason": "abandoned"}
+        review = await _find_latest_by_type_and_envelope(
+            safe, "RequestNeedsHumanReview", envelope_id,
+        )
+        if review:
+            return {
+                "pending": True,
+                "state": "awaiting_broker_review",
+                "envelope_id": envelope_id,
+                "reason": "awaiting_broker_review",
+            }
         # Executed?
         async for r in safe.events.find({"type": "EndorsementExecuted"}):
             p = r.get("payload") or {}
@@ -99,10 +124,10 @@ async def pending_quote(
     )
     if not body.get("pending"):
         return {k: v for k, v in body.items() if k in ("pending", "reason")}
-    if body.get("state") == "with_broker":
+    if body.get("state") in ("with_broker", "awaiting_broker_review"):
         return {
             "pending": True,
-            "state": "with_broker",
+            "state": body["state"],
             "envelope_id": body["envelope_id"],
             "policy_id": policy_id,
         }

@@ -11,12 +11,13 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { MockedBadge } from "@brokaid/mocks";
 import { EmptyState } from "../components/EmptyState";
 import { usePack } from "../state/meStore";
+import { fmtAud } from "../lib/format";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
 interface PendingQuote {
   pending: boolean;
-  state?: "with_broker" | "quote_ready";
+  state?: "with_broker" | "quote_ready" | "awaiting_broker_review";
   envelope_id?: string;
   policy_id?: string;
   submission_summary?: string;
@@ -38,12 +39,8 @@ interface PendingQuote {
   reason?: string;
 }
 
-function formatMoney(amount: string, currency: string): string {
-  const n = Number(amount);
-  const sign = n > 0 ? "+" : "";
-  return `${sign}${currency} ${new Intl.NumberFormat("en-AU", {
-    minimumFractionDigits: 2, maximumFractionDigits: 2,
-  }).format(n)}`;
+function formatMoney(amount: string, _currency: string): string {
+  return fmtAud(amount, { signed: true });
 }
 
 export function ClientPendingQuote() {
@@ -104,6 +101,25 @@ export function ClientPendingQuote() {
         title="No pending quote"
         body={data.reason === "already_executed" ? "This change has already been executed." : "There's nothing waiting for you on this policy right now."}
       />
+      <Link to="/c/cover" className="brokaid-btn brokaid-btn--secondary">← Back to cover</Link>
+    </section>
+  );
+  if (data.state === "awaiting_broker_review") return (
+    <section className="brokaid-tab" data-testid="pending-quote-broker-review">
+      <header className="brokaid-tab__head">
+        <p className="brokaid-tab__eyebrow">With your broker</p>
+        <h1 className="brokaid-tab__title">Your broker is reviewing this change</h1>
+        <p className="brokaid-tab__lede">
+          Some details in your request don't match what we hold on this
+          policy, so your broker will check them with you before anything
+          is quoted.
+        </p>
+      </header>
+      <div className="brokaid-quote-card" data-testid="broker-review-card">
+        <p className="brokaid-quote-card__summary">
+          No action needed right now. Your broker will be in touch.
+        </p>
+      </div>
       <Link to="/c/cover" className="brokaid-btn brokaid-btn--secondary">← Back to cover</Link>
     </section>
   );
@@ -184,7 +200,7 @@ export function ClientPendingQuote() {
           <div>
             <p className="brokaid-quote-card__stat-label">New annual premium</p>
             <p className="brokaid-quote-card__stat-value" data-testid="quote-new-annual">
-              {c.premium_currency} {new Intl.NumberFormat("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(c.premium_new_annual))}
+              {fmtAud(c.premium_new_annual)}
             </p>
           </div>
         </div>

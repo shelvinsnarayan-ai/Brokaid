@@ -1,3 +1,4 @@
+import { fmtDateTime } from "../../lib/format";
 interface TimelineItem {
   event_id: string;
   ts: string;
@@ -30,7 +31,7 @@ function oneLine(item: TimelineItem): string {
 }
 
 function shortTs(ts: string): string {
-  return ts.replace("T", " ").slice(0, 19);
+  return fmtDateTime(ts);
 }
 
 export function KTimeline({ items, testId }: { items: TimelineItem[]; testId?: string }) {

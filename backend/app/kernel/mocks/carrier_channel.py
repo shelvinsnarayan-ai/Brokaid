@@ -47,6 +47,28 @@ PREMIUM_CHANGE_CAP_MULT = Decimal("1.0")
 # Per-headcount uplift kept as before (not a limit path).
 PER_HEAD_ANNUAL = Decimal("120.00")
 
+# Vehicle operations (R0.2): base × k × (net delta / current count),
+# |change| floored at $150 and capped at 0.5 × base; 1-for-1 swap = flat fee.
+VEHICLE_K = Decimal("0.08")
+VEHICLE_FLOOR = Decimal("150.00")
+VEHICLE_CAP_MULT = Decimal("0.5")
+VEHICLE_SWAP_ADMIN_FEE = Decimal("85.00")
+
+
+def vehicle_change_premium(
+    base_premium: Decimal, current_count: int, vehicle_ops: list[dict],
+) -> Decimal:
+    net = 0
+    for c in vehicle_ops:
+        op = (c.get("operation") or c.get("op") or "").lower()
+        net += 1 if op == "add" else -1 if op == "remove" else 0
+    if net == 0:
+        return VEHICLE_SWAP_ADMIN_FEE
+    raw = abs(base_premium * VEHICLE_K * Decimal(net) / Decimal(max(current_count, 1)))
+    amt = min(max(raw, VEHICLE_FLOOR), base_premium * VEHICLE_CAP_MULT)
+    amt = amt.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return amt if net > 0 else -amt
+
 
 def _dec(v) -> Decimal:
     if v is None:
@@ -152,8 +174,13 @@ async def submit_endorsement(
 
     base_premium = _dec(policy_current.get("premium_amount"))
     currency = policy_current.get("premium_currency") or "AUD"
+    vehicle_ops = [c for c in requested_changes
+                   if (c.get("field_path") or "").startswith("schedule.vehicles")]
 
-    if field_path and ".headcount" in field_path:
+    if vehicle_ops:
+        current_count = len((policy_current.get("schedule") or {}).get("vehicles") or [])
+        delta_amt = vehicle_change_premium(base_premium, current_count, vehicle_ops)
+    elif field_path and ".headcount" in field_path:
         delta_amt = ((to_v - from_hint) * PER_HEAD_ANNUAL).quantize(Decimal("0.01"))
         cap = base_premium * PREMIUM_CHANGE_CAP_MULT
         if abs(delta_amt) > cap:

@@ -9,6 +9,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { EmptyState } from "../components/EmptyState";
 import "../styles/phase13.css";
+import { fmtDateTime } from "../lib/format";
 
 const API = (import.meta as any).env.VITE_API_BASE || "";
 
@@ -26,7 +27,7 @@ function formatClaimTs(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString();
+  return fmtDateTime(d);
 }
 
 interface ClaimListItem {

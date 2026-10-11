@@ -9,6 +9,7 @@ import { KEmpty } from "../../components/ledger/KEmpty";
 import { KKbd } from "../../components/ledger/KKbd";
 import { KNumber } from "../../components/ledger/KNumber";
 import { useOperatorStore } from "../../state/operatorStore";
+import { labelFor } from "../../lib/labels";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -111,13 +112,13 @@ export function Queue() {
       }
       else if (e.key === "a" && visible[selected]) {
         e.preventDefault();
-        if (window.confirm(`Approve ${visible[selected].card.class_key}?`)) {
+        if (window.confirm(`Approve ${labelFor(visible[selected].card.class_key)}?`)) {
           void act(visible[selected].card.envelope_id, "approve");
         }
       }
       else if (e.key === "r" && visible[selected]) {
         e.preventDefault();
-        const reason = window.prompt(`Reject ${visible[selected].card.class_key}? Reason:`);
+        const reason = window.prompt(`Reject ${labelFor(visible[selected].card.class_key)}? Reason:`);
         if (reason !== null) void act(visible[selected].card.envelope_id, "reject", { reason });
       }
       else if (e.key === "/") {
@@ -167,17 +168,17 @@ export function Queue() {
               <tr
                 key={c.envelope_id}
                 className={cls}
-                onClick={() => setSelected(i)}
-                onDoubleClick={() => nav(`/o/queue/${c.envelope_id}`)}
+                onClick={() => { setSelected(i); nav(`/o/queue/${c.envelope_id}`); }}
+                style={{ cursor: "pointer" }}
                 data-testid={`queue-row-${i}`}
               >
                 <td><KChip variant={c.sla_state}>{c.sla_state}</KChip></td>
-                <td>{c.class_key}</td>
+                <td title={c.class_key} data-raw={c.class_key} data-testid={`queue-class-${i}`}>{labelFor(c.class_key)}</td>
                 <td>{c.client_display ?? "—"}</td>
-                <td style={{ color: "var(--bone-muted)", fontSize: 12 }}>{c.gate_reason ?? "—"}</td>
+                <td style={{ color: "var(--bone-muted)", fontSize: 12 }} title={c.gate_reason ?? ""} data-raw={c.gate_reason ?? ""} data-testid={`queue-reason-${i}`}>{labelFor(c.gate_reason)}</td>
                 <td className="k-num"><KNumber value={c.confidence} format="raw" /></td>
                 <td className="k-num" data-testid={`queue-countdown-${i}`}>{countdown(c.sla_deadline, now)}</td>
-                <td>{c.routed_to_role ?? "—"}</td>
+                <td title={c.routed_to_role ?? ""} data-raw={c.routed_to_role ?? ""}>{labelFor(c.routed_to_role)}</td>
               </tr>
             ))}
           </tbody>

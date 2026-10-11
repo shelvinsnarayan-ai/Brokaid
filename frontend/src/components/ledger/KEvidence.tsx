@@ -1,3 +1,4 @@
+import { fmtDateTime } from "../../lib/format";
 interface EvidenceItem {
   event_id: string;
   ts: string;
@@ -21,7 +22,7 @@ export function KEvidence({ items, testId }: { items: EvidenceItem[]; testId?: s
         return (
           <div key={it.event_id} className="k-evidence__item">
             <div className="k-evidence__meta">
-              {it.type} · {it.ts.replace("T", " ").slice(0, 19)} · {it.event_id.slice(0, 8)}…
+              {it.type} · {fmtDateTime(it.ts)} · {it.event_id.slice(0, 8)}…
               {isCarrier && (
                 <span
                   className="k-chip k-chip--warn"

@@ -18,6 +18,7 @@ from app.seeds import (
     seed_historical_mongo,
     seed_org_mongo,
     seed_policy_managed_mongo,
+    seed_kai_motor_mongo,
     seed_policy_tracked_mongo,
     seed_users_mongo,
     seed_vulnerable_mongo,
@@ -37,6 +38,7 @@ async def seed_all_mongo(db: AsyncIOMotorDatabase) -> dict:
     tracked_id = await seed_policy_tracked_mongo.seed_mongo(
         db, tenant_id, client_id,
     )
+    await seed_kai_motor_mongo.seed_mongo(db, tenant_id, client_id)
 
     hist = await seed_historical_mongo.seed_historical_decisions_mongo(
         db, tenant_id,

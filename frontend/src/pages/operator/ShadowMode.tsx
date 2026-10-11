@@ -6,6 +6,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useParams } from "react-router-dom";
+import { fmtDateTime } from "../../lib/format";
 
 const API = (import.meta as any).env.VITE_API_BASE || "";
 
@@ -170,7 +171,7 @@ export function ShadowMode() {
                 </td>
                 <td className="sm-num">{r.eno_misses}</td>
                 <td><span className={statusClass(r.unlock_status)}>{r.unlock_status}</span></td>
-                <td className="sm-ts">{r.last_decision_at ? new Date(r.last_decision_at).toLocaleString() : "—"}</td>
+                <td className="sm-ts">{r.last_decision_at ? fmtDateTime(r.last_decision_at) : "—"}</td>
               </tr>
             ))}
             {filtered.length === 0 && !loading ? (
@@ -240,7 +241,7 @@ export function ShadowModeDrill() {
           {pairs.map((p) => (
             <tr key={p.event_refs.approval_event_id || p.envelope_id}
                 data-testid={`sm-drill-row-${p.envelope_id}`}>
-              <td className="sm-ts">{new Date(p.ts).toLocaleString()}</td>
+              <td className="sm-ts">{fmtDateTime(p.ts)}</td>
               <td className="sm-mono">{(p.envelope_id || "").slice(0, 8)}…</td>
               <td>{p.proposal_summary}</td>
               <td className={`sm-decision sm-decision--${p.human_decision}`}>

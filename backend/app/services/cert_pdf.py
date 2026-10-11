@@ -46,12 +46,19 @@ def _qr_png(url: str) -> bytes:
     return buf.getvalue()
 
 
+def _fmt_money(v, currency: str = "AUD") -> str:
+    try:
+        return f"{currency} ${float(v):,.2f}"
+    except (TypeError, ValueError):
+        return "—"
+
+
 def _fmt_date(iso: str | None) -> str:
     if not iso:
         return "—"
     try:
         dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
-        return dt.strftime("%d %b %Y")
+        return dt.strftime("%d/%m/%Y")
     except Exception:
         return iso
 
@@ -61,7 +68,7 @@ def _fmt_datetime(iso: str | None) -> str:
         return "—"
     try:
         dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
-        return dt.strftime("%d %b %Y · %H:%M UTC")
+        return dt.strftime("%d/%m/%Y · %H:%M UTC")
     except Exception:
         return iso
 
@@ -178,7 +185,7 @@ def render_certificate_pdf(
     for ct in (certificate.get("cover_types") or []) or []:
         if not isinstance(ct, dict):
             continue
-        line = f"• {ct.get('type', 'Cover')} — limit any one occurrence {ct.get('limit_any_one', '—')} {ct.get('currency', '')}".strip()
+        line = f"• {ct.get('type', 'Cover')} — limit any one occurrence {_fmt_money(ct.get('limit_any_one'), ct.get('currency') or 'AUD')}"
         c.drawString(margin, y, line[:110])
         y -= 5 * mm
     if not certificate.get("cover_types"):

@@ -7,6 +7,7 @@
  */
 import { useEffect, useState } from "react";
 import "../styles/phase13.css";
+import { fmtDateTime } from "../lib/format";
 
 const API = (import.meta as any).env.VITE_API_BASE || "";
 
@@ -49,7 +50,7 @@ export function ClientNotifications() {
             <div className="brokaid-notif__row">
               <span className="brokaid-notif__kind">{n.kind}</span>
               <span className="brokaid-notif__ts">
-                {new Date(n.ts).toLocaleString()}
+                {fmtDateTime(n.ts)}
               </span>
             </div>
             <h3 className="brokaid-notif__subject">{n.subject}</h3>

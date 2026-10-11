@@ -185,7 +185,7 @@ export function TrailExport() {
         <div className="te-preview" data-testid="te-preview-panel">
           <h2>
             <span className="te-count" data-testid="te-count">
-              {preview.event_count.toLocaleString()}
+              {preview.event_count.toLocaleString("en-AU")}
             </span>
             <span className="te-count-label"> events in this range</span>
           </h2>

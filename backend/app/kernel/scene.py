@@ -45,6 +45,22 @@ from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
 
 PAYMENT_ADVISED = "payment.advised"
+NEEDS_HUMAN_REVIEW = "RequestNeedsHumanReview"
+ENVELOPE_ABANDONED = "EnvelopeAbandoned"
+
+
+async def emit_request_needs_human_review(
+    store, *, tenant_id: str, envelope_id: str, policy_id: str,
+    stage: str, mismatch: dict[str, Any],
+) -> dict[str, Any]:
+    return await _emit(
+        store, tenant_id, type=NEEDS_HUMAN_REVIEW,
+        actor={"kind": "system", "id": "policy_field_guard", "name": "guard"},
+        payload={"envelope_id": envelope_id, "policy_id": policy_id,
+                 "stage": stage, "mismatch": mismatch,
+                 "state": "awaiting_broker_review"},
+        idempotency_key=f"guard:needs_review:{envelope_id}",
+    )
 
 
 def _is_mongo(store) -> bool:
@@ -226,8 +242,17 @@ def compute_status(events: list[dict[str, Any]]) -> dict[str, Any]:
             envelope_id = p.get("envelope_id")
         payloads.setdefault(r["type"], p)
         latest_types.append(r["type"])
+    newest_env_types = [
+        r["type"] for r in events
+        if (r.get("payload") or {}).get("envelope_id") == envelope_id
+    ]
     state = "idle"
-    if "CertificateRegenerated" in latest_types:
+    if ENVELOPE_ABANDONED in newest_env_types:
+        state = "abandoned"
+    elif (NEEDS_HUMAN_REVIEW in newest_env_types
+          and "OperatorApproval" not in newest_env_types):
+        state = "awaiting_broker_review"
+    elif "CertificateRegenerated" in latest_types:
         state = "certificate_ready"
     elif "EndorsementExecuted" in latest_types:
         state = "executing"

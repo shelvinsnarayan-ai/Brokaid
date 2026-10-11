@@ -16,6 +16,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { MockedBadge } from "@brokaid/mocks";
+import { fmtDate } from "../lib/format";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -430,8 +431,8 @@ export function ClientCertificateNew() {
               <dd>{issued.product}</dd>
               <dt>Effective</dt>
               <dd>
-                {issued.effective_from?.slice(0, 10)} —{" "}
-                {issued.effective_to?.slice(0, 10)}
+                {fmtDate(issued.effective_from)} —{" "}
+                {fmtDate(issued.effective_to)}
               </dd>
               {ledgerEventId && (
                 <>

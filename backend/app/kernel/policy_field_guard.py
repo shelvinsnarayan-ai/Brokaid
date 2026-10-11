@@ -1,0 +1,104 @@
+"""Made-up-field guard (R0.2).
+
+Validates LLM-proposed `requested_changes` against the policy's current
+schedule. Anything the policy doesn't actually hold raises
+`UnmatchedPolicyField` — the caller parks the envelope for broker review.
+Never auto-fixes or drops a change.
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class UnmatchedPolicyField(ValueError):
+    def __init__(self, field_path: str, attempted: Any, reason: str):
+        self.field_path = field_path
+        self.attempted = attempted
+        self.reason = reason
+        super().__init__(f"{field_path}: {reason}")
+
+    def as_payload(self) -> dict[str, Any]:
+        return {"field_path": self.field_path, "attempted_value": self.attempted,
+                "reason": self.reason}
+
+
+def _norm(v: Any) -> str:
+    return re.sub(r"[^A-Z0-9]", "", str(v or "").upper())
+
+
+def _slug(s: str) -> str:
+    return (s or "").strip().lower().replace(" ", "_")
+
+
+_ALIASES = {
+    "rego": ("rego", "registration", "registration_number", "plate"),
+    "vin": ("vin",),
+    "licence_number": ("licence_number", "license_number", "licence"),
+    "name": ("name", "driver_name"),
+}
+
+
+def _ident(value: Any, keys: tuple[str, ...]) -> list[str]:
+    if isinstance(value, dict):
+        return [_norm(value.get(a)) for k in keys for a in _ALIASES.get(k, (k,)) if value.get(a)]
+    return [_norm(value)] if value else []
+
+
+def _check_listed(schedule: dict, list_key: str, ch: dict, keys: tuple[str, ...]) -> None:
+    fp = ch.get("field_path") or ""
+    op = (ch.get("operation") or ch.get("op") or "").lower()
+    items = schedule.get(list_key)
+    if not isinstance(items, list) or not items:
+        raise UnmatchedPolicyField(
+            fp, ch.get("from_value") or ch.get("to_value"),
+            f"policy has no schedule.{list_key}",
+        )
+    if op == "add":
+        return
+    ref = ch.get("from_value") if ch.get("from_value") is not None else ch.get("to_value")
+    wanted = set(_ident(ref, keys))
+    held = {i for item in items for i in _ident(item, keys)}
+    if not wanted and ref is not None:
+        # No identifier field — accept only if a held identifier appears verbatim in the text.
+        text = _norm(" ".join(str(v) for v in (ref.values() if isinstance(ref, dict) else [ref])))
+        wanted = {h for h in held if h and h in text}
+    if not wanted or not (wanted & held):
+        raise UnmatchedPolicyField(fp, ref, f"no matching entry in schedule.{list_key}")
+
+
+def _check_address(schedule: dict, ch: dict) -> None:
+    fp = ch.get("field_path") or ""
+    held = {_norm(a.get("address") if isinstance(a, dict) else a)
+            for a in schedule.get("addresses") or []}
+    held |= {_norm(v.get("garaged_address")) for v in schedule.get("vehicles") or []
+             if isinstance(v, dict) and v.get("garaged_address")}
+    held.discard("")
+    ref = ch.get("from_value")
+    if not held:
+        raise UnmatchedPolicyField(fp, ref or ch.get("to_value"), "policy holds no addresses")
+    if ref is not None and _norm(ref.get("address") if isinstance(ref, dict) else ref) not in held:
+        raise UnmatchedPolicyField(fp, ref, "address not on the policy schedule")
+
+
+def _check_limit(schedule: dict, ch: dict) -> None:
+    fp = ch.get("field_path") or ""
+    slug = fp.split("limits.", 1)[1].split(".")[0]
+    covers = {_slug(c.get("type") or c.get("slug") or "")
+              for c in schedule.get("cover_types") or []}
+    if slug not in covers:
+        raise UnmatchedPolicyField(fp, ch.get("to_value"), f"no cover_types entry for {slug!r}")
+
+
+def validate_requested_changes(policy: dict, changes: list[dict] | None) -> None:
+    schedule = (policy or {}).get("schedule") or {}
+    for ch in changes or []:
+        fp = ch.get("field_path") or ""
+        if fp.startswith("schedule.vehicles"):
+            _check_listed(schedule, "vehicles", ch, ("rego", "vin"))
+        elif fp.startswith("schedule.drivers"):
+            _check_listed(schedule, "drivers", ch, ("licence_number", "name"))
+        elif "address" in fp:
+            _check_address(schedule, ch)
+        elif "limits." in fp:
+            _check_limit(schedule, ch)

@@ -32,6 +32,7 @@ from app.kernel.contracts.models import Actor, ContextEnvelope, InvocationBudget
 from app.kernel.endorsement import execute_endorsement
 from app.kernel.mocks import e_sign, payment_rail
 from app.kernel.mocks.carrier_channel import submit_endorsement
+from app.kernel.policy_field_guard import UnmatchedPolicyField, validate_requested_changes
 from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
 from app.kernel.trail_mongo import DuplicateIdempotencyKey
@@ -129,6 +130,35 @@ async def _find_existing_envelope_by_idempotency(
     return (row.get("payload") or {}).get("envelope_id")
 
 
+async def _park_if_unmatched(
+    store, *, tenant_id: str, envelope_id: str, policy: dict,
+    changes: list | None, stage: str,
+) -> bool:
+    """Made-up-field guard: park for broker review instead of pricing."""
+    try:
+        validate_requested_changes(policy, changes)
+        return False
+    except UnmatchedPolicyField as e:
+        await scene.emit_request_needs_human_review(
+            store, tenant_id=tenant_id, envelope_id=envelope_id,
+            policy_id=policy["policy_id"], stage=stage, mismatch=e.as_payload(),
+        )
+        try:
+            await queue_enqueue(
+                store, tenant_id=tenant_id, envelope_id=envelope_id,
+                class_key="request_info",
+                proposal_ref=(await scene.last_event_id_for_envelope(
+                    store, tenant_id, scene.NEEDS_HUMAN_REVIEW, envelope_id,
+                )) or "",
+                matter_id=None, client_id=policy["client_id"],
+                gate_reason="unmatched_policy_field", confidence=None,
+                routed_to_role="account_executive",
+            )
+        except Exception:
+            pass
+        return True
+
+
 async def _run_intake_placement_async(
     store, *, tenant_id: str, user_id: str, envelope_id_str: str,
     policy_id: str, policy: dict, raw_message: str,
@@ -159,6 +189,12 @@ async def _run_intake_placement_async(
         brain = Brain(store)
         intake_out = await brain.invoke(intake_envelope, "intake")
         intake_payload = intake_out.payload or {}
+        if await _park_if_unmatched(
+            store, tenant_id=tenant_id, envelope_id=envelope_id_str,
+            policy=policy, changes=intake_payload.get("proposed_changes"),
+            stage="intake",
+        ):
+            return
         proposed_class = (
             intake_out.class_key
             or intake_payload.get("class_proposed")
@@ -200,13 +236,19 @@ async def _run_intake_placement_async(
                     "context_events_summary": "client-initiated change request"},
             context_events=[], risk_schema_refs=[], tenant_config={},
             budget=InvocationBudget(
-                max_input_tokens=6000, max_output_tokens=2000, max_wall_ms=45000,
+                max_input_tokens=8000, max_output_tokens=3000, max_wall_ms=60000,
             ),
             caller=Actor(kind="human", id=user_id, name="client_owner"),
             ts=datetime.now(timezone.utc),
         )
         placement_out = await brain.invoke(placement_envelope, "placement")
         plc_payload = placement_out.payload or {}
+        if await _park_if_unmatched(
+            store, tenant_id=tenant_id, envelope_id=envelope_id_str,
+            policy=policy, stage="placement",
+            changes=(plc_payload.get("structured_submission") or {}).get("requested_changes"),
+        ):
+            return
         await scene.emit_submission_drafted(
             store, tenant_id=tenant_id,
             envelope_id=envelope_id_str, policy_id=policy_id,

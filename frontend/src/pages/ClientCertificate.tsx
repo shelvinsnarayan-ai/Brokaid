@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { MockedBadge } from "@brokaid/mocks";
+import { fmtDate } from "../lib/format";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -174,8 +175,8 @@ export function ClientCertificate() {
           <div>
             <p className="brokaid-quote-card__stat-label">Effective</p>
             <p className="brokaid-quote-card__stat-value">
-              {new Date(cert.effective_from).toLocaleDateString()} —{" "}
-              {new Date(cert.effective_to).toLocaleDateString()}
+              {fmtDate(cert.effective_from)} —{" "}
+              {fmtDate(cert.effective_to)}
             </p>
           </div>
         </div>

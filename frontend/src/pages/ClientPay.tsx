@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { MockedBadge } from "@brokaid/mocks";
+import { fmtAud, fmtDate } from "../lib/format";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -19,10 +20,6 @@ interface Details {
   eft: { account_name: string; bsb: string; account_number: string; reference: string };
 }
 
-const fmtAud = (v: string) =>
-  Number(v).toLocaleString("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2 });
-const fmtDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
 
 function Row({ label, value, testId }: { label: string; value: string; testId: string }) {
   return (

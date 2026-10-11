@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { EmptyState } from "../components/EmptyState";
 import { PolicyCard, type Policy } from "../components/PolicyCard";
 import { useMeStore, usePack } from "../state/meStore";
+import { fmtAud } from "../lib/format";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -85,9 +86,9 @@ export function ClientHome() {
           </span>
           {nextAction.revised_premium_aud != null && (
             <span className="brokaid-next-action__meta">
-              Revised premium AUD {nextAction.revised_premium_aud.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              Revised premium {fmtAud(nextAction.revised_premium_aud)}
               {nextAction.delta_aud != null && (
-                <> · +AUD {nextAction.delta_aud.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>
+                <> · {fmtAud(nextAction.delta_aud, { signed: true })}</>
               )}
             </span>
           )}

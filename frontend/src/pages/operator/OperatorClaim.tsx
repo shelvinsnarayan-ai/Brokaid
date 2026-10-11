@@ -9,6 +9,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import "../../styles/phase13.css";
+import { fmtDateTime } from "../../lib/format";
 
 const API = (import.meta as any).env.VITE_API_BASE || "";
 
@@ -147,7 +148,7 @@ export function OperatorClaim() {
                   <span className="brokaid-mocked-pill">MOCKED · INSURER</span>
                 ) : null}
                 <span className="brokaid-claim-timeline__ts">
-                  {new Date(t.ts).toLocaleString()}
+                  {fmtDateTime(t.ts)}
                 </span>
               </div>
               <p className="brokaid-claim-timeline__body">{t.summary}</p>
