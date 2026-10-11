@@ -18,6 +18,7 @@ const NAV = [
   { to: "/o/shadow-mode", label: "Shadow Mode",  kbd: "g s" },
   { to: "/o/export",      label: "Export",       kbd: "g e" },
   { to: "/o/chase",       label: "Chase",        kbd: "g h" },
+  { to: "/o/governance",  label: "Governance",   kbd: "g g" },
 ];
 
 export function OperatorControlLayout() {
@@ -48,14 +49,14 @@ export function OperatorControlLayout() {
       if (gPrefix) {
         const map: Record<string, string> = {
           o: "/o", q: "/o/queue", b: "/o/brief", c: "/o/clients",
-          s: "/o/shadow-mode", e: "/o/export", h: "/o/chase",
+          s: "/o/shadow-mode", e: "/o/export", h: "/o/chase", g: "/o/governance",
         };
         const dest = map[e.key.toLowerCase()];
         if (dest) { e.preventDefault(); navigate(dest); }
         setGPrefix(false);
         return;
       }
-      if (e.key.toLowerCase() === "g") { setGPrefix(true); setTimeout(() => setGPrefix(false), 1500); }
+      if (e.key.toLowerCase() === "g" && !gPrefix) { setGPrefix(true); setTimeout(() => setGPrefix(false), 1500); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -135,6 +136,7 @@ export function OperatorControlLayout() {
               ["g s", "Go to Shadow Mode"],
               ["g e", "Go to Export"],
               ["g h", "Go to Chase (preview)"],
+              ["g g", "Go to Governance"],
               ["j / k", "Move selection down / up (Queue)"],
               ["Enter", "Open selected row"],
               ["a", "Approve selected"],

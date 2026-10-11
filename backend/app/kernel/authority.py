@@ -27,8 +27,14 @@ async def memberships_for_user(store, tenant_id: str, user_id: str) -> list[dict
     safe = wrap(store)
     async with use_tenant(tenant_id):
         rows = [m async for m in safe.memberships.find({"user_id": user_id, "revoked_at": None})]
+        owners = {}
+        for m in rows:
+            o = await safe.memberships.find_one({"client_id": m["client_id"], "role": "owner", "revoked_at": None})
+            u = await safe.users.find_one({"user_id": o["user_id"]}) if o else None
+            owners[m["client_id"]] = (u or {}).get("display_name")
     return [{"membership_id": m["membership_id"], "client_id": m["client_id"],
-             "role": m["role"], "authority": m["authority"]} for m in rows]
+             "role": m["role"], "authority": m["authority"],
+             "owner_name": owners.get(m["client_id"])} for m in rows]
 
 
 async def require_authority(

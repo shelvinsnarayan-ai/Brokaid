@@ -27,6 +27,24 @@ export interface Me {
     jurisdiction_code: "AU" | "SG";
   } | null;
   client_prefs: { jurisdiction?: "AU" | "SG" };
+  memberships?: {
+    client_id: string; role: string; owner_name?: string | null;
+    authority: { can_approve: boolean; can_pay: boolean; can_sign: boolean; can_change_bank: boolean };
+  }[];
+}
+
+/** Membership authority for the linked client; no membership row = legacy full access. */
+export function useAuthority() {
+  const me = useMeStore((s) => s.me);
+  const m = me?.memberships?.find((x) => x.client_id === (me?.linked_client?.client_id ?? me?.session.client_id))
+    ?? me?.memberships?.[0];
+  const owner = (m?.owner_name || "the owner").split(" ")[0];
+  return {
+    canApprove: m ? m.authority.can_approve : true,
+    canSign: m ? m.authority.can_sign : true,
+    canPay: m ? m.authority.can_pay : true,
+    hint: `Only the policy owner can approve or sign this change. Ask ${owner} to approve.`,
+  };
 }
 
 export interface Pack {

@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { MockedBadge } from "@brokaid/mocks";
 import { EmptyState } from "../components/EmptyState";
-import { usePack } from "../state/meStore";
+import { useAuthority, usePack } from "../state/meStore";
 import { fmtAud } from "../lib/format";
 
 const API = import.meta.env.VITE_API_BASE || "";
@@ -47,6 +47,7 @@ export function ClientPendingQuote() {
   const { policy_id = "" } = useParams();
   const navigate = useNavigate();
   const pack = usePack();
+  const auth = useAuthority();
   const [data, setData] = useState<PendingQuote | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
@@ -240,6 +241,9 @@ export function ClientPendingQuote() {
             className="brokaid-btn brokaid-btn--primary"
             onClick={approveAndPay}
             disabled={approving}
+            aria-disabled={!auth.canApprove}
+            title={auth.canApprove ? undefined : auth.hint}
+            style={auth.canApprove ? undefined : { opacity: 0.45, cursor: "not-allowed" }}
             data-testid="quote-approve"
           >
             {approving ? "Approving…" : "Approve and pay"}
@@ -252,6 +256,11 @@ export function ClientPendingQuote() {
             Ask a question
           </Link>
         </div>
+        {!auth.canApprove && (
+          <p className="brokaid-quote-card__summary" style={{ opacity: 0.75, fontSize: 13 }} data-testid="quote-owner-only-hint">
+            {auth.hint}
+          </p>
+        )}
         {approveErr && (
           <p
             className="brokaid-quote-card__summary"

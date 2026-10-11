@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { MockedBadge } from "@brokaid/mocks";
+import { useAuthority } from "../state/meStore";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -17,6 +18,7 @@ export function ClientSign() {
     "idle" | "signing" | "signed" | "finalising" | "error"
   >("idle");
   const [err, setErr] = useState<string | null>(null);
+  const auth = useAuthority();
 
   async function sign() {
     setState("signing");
@@ -90,11 +92,19 @@ export function ClientSign() {
                 type="button"
                 className="brokaid-btn brokaid-btn--primary"
                 onClick={sign}
+                aria-disabled={!auth.canSign}
+                title={auth.canSign ? undefined : auth.hint}
+                style={auth.canSign ? undefined : { opacity: 0.45, cursor: "not-allowed" }}
                 data-testid="sign-button"
               >
                 Sign
               </button>
             </div>
+            {!auth.canSign && (
+              <p className="brokaid-quote-card__summary" style={{ opacity: 0.75, fontSize: 13 }} data-testid="sign-owner-only-hint">
+                {auth.hint}
+              </p>
+            )}
           </>
         )}
 

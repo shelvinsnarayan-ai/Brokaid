@@ -16,6 +16,7 @@
   background: var(--sand);
   color: var(--harbour);
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto 1fr auto;
 }
 
@@ -62,6 +63,7 @@
   width: 100%;
   margin: 0 auto;
 }
+.brokaid-client-layout__main > * { min-width: 0; max-width: 100%; }
 
 .brokaid-shell-boot {
   min-height: 100dvh;

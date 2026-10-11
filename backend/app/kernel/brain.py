@@ -33,6 +33,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.db.tenant_safe import TenantSafeDatabase
 from app.kernel.contracts.models import ContextEnvelope, OutputContract
+from app.kernel import spend
 from app.kernel.gate.confidence import Confidence, compute
 from app.kernel.providers import registry as provider_registry
 from app.kernel.providers.base import AgentProvider
@@ -93,6 +94,10 @@ class SprintCapBreached(BrainError):
 
 class PerInvocationBudgetBreached(BrainError):
     """Provider blew past `budget.max_output_tokens` or `budget.max_wall_ms`."""
+
+
+class SpendCapBreached(BrainError):
+    """SPEND_CAP_USD reached (estimate from advertised rates)."""
 
 
 @dataclass
@@ -182,6 +187,32 @@ class Brain:
             },
             idempotency_key=f"aginv:start:{envelope_id}:{agent_name}",
         )
+
+        # a2. Kill switch (R0.5) — no model call when a switch matches --
+        if _is_mongo(self.store):
+            from app.kernel import governance
+            ks = await governance.check(self.store, agent_name, tenant_id)
+            if ks is not None:
+                blocked = governance.KillSwitchActive(ks, agent_name)
+                await self._emit(
+                    tenant_id, type="AgentInvocationBlocked", actor=self.ACTOR,
+                    payload={"envelope_id": envelope_id, "agent_name": agent_name,
+                             **blocked.as_payload()},
+                    idempotency_key=f"aginv:blocked:{envelope_id}:{agent_name}",
+                )
+                await self._emit_completed(tenant_id, envelope_id, agent_name, "blocked")
+                raise blocked
+
+        # a3. Spend cap (R0.5, USD estimate) ------------------------------
+        if _is_mongo(self.store) and spend.cap_usd() is not None:
+            cost_now = (await spend.summary(self.store, tenant_id))["cost_usd"]
+            if cost_now >= spend.cap_usd():
+                await self._emit_breach(
+                    tenant_id, envelope_id, agent_name, "spend_cap",
+                    {"cost_usd": cost_now, "cap_usd": spend.cap_usd(), "estimate": True},
+                )
+                await self._emit_completed(tenant_id, envelope_id, agent_name, "breach")
+                raise SpendCapBreached(f"spend cap ${spend.cap_usd()} reached (estimate ${cost_now})")
 
         # b. Sprint cap check --------------------------------------------
         cap = self.settings.sprint_cap_tokens
@@ -297,6 +328,8 @@ class Brain:
             resolved_class=envelope.class_key,
         )
 
+        cost = spend.cost_usd(agent_name, output.tokens_used.input, output.tokens_used.output)
+
         # h. AgentOutputProduced -----------------------------------------
         # This event's projection updates proj_sprint_usage atomically.
         await self._emit(
@@ -309,6 +342,8 @@ class Brain:
                 "decision": output.decision,
                 "citations": [c.model_dump() for c in output.citations],
                 "tokens_used": output.tokens_used.model_dump(),
+                "cost_usd": cost,
+                "model": spend.AGENT_MODEL.get(agent_name, "mock"),
                 "wall_ms": output.wall_ms,
                 "confidence": {
                     "components": dict(confidence.components),
@@ -338,10 +373,14 @@ class Brain:
                     )
                     highest_pct_crossed = pct
 
+        if _is_mongo(self.store):
+            total = (await spend.summary(self.store, tenant_id))["cost_usd"]
+            await spend.record_alerts(self.store, tenant_id, total, self._emit)
+
         # j. AgentInvocationCompleted ------------------------------------
         await self._emit_completed(
             tenant_id, envelope_id, agent_name, "ok",
-            attempts=attempt,
+            attempts=attempt, cost_usd=cost,
         )
 
         return output
@@ -368,7 +407,7 @@ class Brain:
 
     async def _emit_completed(
         self, tenant_id: str, envelope_id: str, agent_name: str, outcome: str,
-        *, attempts: int = 1,
+        *, attempts: int = 1, cost_usd: float = 0.0,
     ) -> None:
         await self._emit(
             tenant_id, type="AgentInvocationCompleted",
@@ -378,6 +417,8 @@ class Brain:
                 "agent_name": agent_name,
                 "outcome": outcome,
                 "attempt_count": attempts,
+                "cost_usd": cost_usd,
+                "cost_estimate": True,
                 "acceptance_mode": (
                     os.environ.get("BROKAID_ACCEPTANCE_MODE", "").lower()
                     == "true"

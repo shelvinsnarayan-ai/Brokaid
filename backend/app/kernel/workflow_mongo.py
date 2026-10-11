@@ -397,7 +397,8 @@ async def project_event(db, ev) -> None:
         # Upsert proj_sprint_usage.
         await safe_db.proj_sprint_usage.update_one(
             {},
-            {"$inc": {"tokens_used": delta, "invocations": 1},
+            {"$inc": {"tokens_used": delta, "invocations": 1,
+                      "cost_usd_total": float(p.get("cost_usd") or 0.0)},
              "$set": {"updated_by_event": event_id},
              "$setOnInsert": {"last_alert_pct": 0}},
             upsert=True,
