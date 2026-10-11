@@ -82,7 +82,7 @@ export function ClientProfile() {
         )}
       </section>
 
-      {__AUTH_DEV_MODE__ && (
+      {import.meta.env.BROKAID_AUTH_DEV_MODE && (
         <section
           className="brokaid-profile__block"
           data-testid="profile-jurisdiction-switch"

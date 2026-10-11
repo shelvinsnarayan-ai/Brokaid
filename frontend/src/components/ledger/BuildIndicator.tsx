@@ -2,8 +2,8 @@
  * BuildIndicator — footer-line pill on the operator shell (Ledger only).
  *
  * Reads two Vite-injected globals baked at build time:
- *   __BROKAID_BUILD_SHA__     — short (7-char) git SHA of the built commit
- *   __BROKAID_BUILD_SIGNED__  — "G" (good), "N" (not signed), "?" (unknown)
+ *   import.meta.env.BROKAID_BUILD_SHA    — short (7-char) git SHA of the built commit
+ *   import.meta.env.BROKAID_BUILD_SIGNED — "G" (good), "N" (not signed), "?" (unknown)
  *
  * Rendered as e.g.  `build 51150d3 · G`.
  *
@@ -12,8 +12,8 @@
  * NEVER rendered on the client shell — this is operator credibility only.
  */
 export function BuildIndicator() {
-  const sha = typeof __BROKAID_BUILD_SHA__ === "string" ? __BROKAID_BUILD_SHA__ : "unknown";
-  const sig = typeof __BROKAID_BUILD_SIGNED__ === "string" ? __BROKAID_BUILD_SIGNED__ : "?";
+  const sha = import.meta.env.BROKAID_BUILD_SHA || "unknown";
+  const sig = import.meta.env.BROKAID_BUILD_SIGNED || "?";
   return (
     <div
       className="ledger-build-indicator"

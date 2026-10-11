@@ -1,8 +1,6 @@
 {
-  "globals": {
-    "__AUTH_DEV_MODE__": "readonly",
-    "__BROKAID_BUILD_SHA__": "readonly",
-    "__BROKAID_BUILD_SIGNED__": "readonly"
-  },
-  "ignorePatterns": ["dev-dist/**", "dist/**"]
+  "ignorePatterns": [
+    "dev-dist/**",
+    "dist/**"
+  ]
 }

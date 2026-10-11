@@ -148,9 +148,9 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     define: {
-      __AUTH_DEV_MODE__: JSON.stringify(authDev),
-      __BROKAID_BUILD_SHA__: JSON.stringify(readBuildIdentity().sha),
-      __BROKAID_BUILD_SIGNED__: JSON.stringify(readBuildIdentity().signed),
+      "import.meta.env.BROKAID_AUTH_DEV_MODE": JSON.stringify(authDev),
+      "import.meta.env.BROKAID_BUILD_SHA": JSON.stringify(readBuildIdentity().sha),
+      "import.meta.env.BROKAID_BUILD_SIGNED": JSON.stringify(readBuildIdentity().signed),
     },
     server: {
       host: "0.0.0.0",

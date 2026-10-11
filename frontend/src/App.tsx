@@ -50,7 +50,7 @@ const KitchenSink = lazy(() =>
 export function App() {
   return (
     <>
-      {__AUTH_DEV_MODE__ ? <DevAuthBanner /> : null}
+      {import.meta.env.BROKAID_AUTH_DEV_MODE ? <DevAuthBanner /> : null}
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
@@ -75,7 +75,7 @@ export function App() {
           <Route path="notifications" element={<ClientNotifications />} />
           <Route path="ask" element={<ClientAsk />} />
           <Route path="profile" element={<ClientProfile />} />
-          {__AUTH_DEV_MODE__ ? (
+          {import.meta.env.BROKAID_AUTH_DEV_MODE ? (
             <Route
               path="_kitchen-sink"
               element={
@@ -106,7 +106,7 @@ export function App() {
           <Route path="chase" element={<ChaseLadder />} />
         </Route>
 
-        {__AUTH_DEV_MODE__ ? (
+        {import.meta.env.BROKAID_AUTH_DEV_MODE ? (
           <Route
             path="/dev/login"
             element={
