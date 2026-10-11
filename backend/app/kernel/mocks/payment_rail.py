@@ -1,69 +1,48 @@
-"""MOCKED payment rail.
+"""MOCKED payment details (BPAY + EFT).
 
-Deterministic per envelope_id. FICTIONAL rails (PayTo / PayNow).
-Every response carries `mocked=True`; ledger events wrapping these
-calls MUST carry `mocked: true`. The client-facing pay screen MUST
-render a MockedBadge with `label="payment"`.
+Payments are advised, never processed (Build Brief v3.0 §11, A12a M3-5).
+This module only builds static, MOCKED remittance details for display;
+there is no gateway, mandate or receipt.
 """
 from __future__ import annotations
 
-import asyncio
 import hashlib
-import uuid
-from datetime import datetime, timezone
+from datetime import date, timedelta
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Any
+
+BPAY_BILLER_CODE_MOCKED = "999999"
+EFT_BSB_MOCKED = "000-000"
+EFT_ACCOUNT_MOCKED = "00000000"
+EFT_ACCOUNT_NAME_MOCKED = "Broker trust account"
+DUE_IN_DAYS = 7
 
 
-RailLabel = Literal["PayTo", "PayNow"]
+def _bpay_reference(envelope_id: str) -> str:
+    digest = hashlib.sha256(envelope_id.encode("utf-8")).hexdigest()
+    return str(int(digest[:12], 16))[:10].rjust(10, "0")
 
 
-def _det_uuid(seed: str) -> str:
-    return str(uuid.UUID(bytes=hashlib.sha256(seed.encode()).digest()[:16]))
-
-
-async def initiate_mandate(
-    *,
-    envelope_id: str,
-    client_id: str,
-    amount: Decimal | str | float,
-    currency: str,
-    rail_label: RailLabel,
+def payment_details(
+    *, envelope_id: str, amount: Decimal | str | float, currency: str,
+    today: date | None = None,
 ) -> dict[str, Any]:
-    """Create a mocked payment mandate. Deterministic per envelope_id."""
-    await asyncio.sleep(0.05)      # simulate a hair of latency
+    due = (today or date.today()) + timedelta(days=DUE_IN_DAYS)
     return {
-        "mandate_id": _det_uuid(f"mandate:{envelope_id}"),
-        "client_id": client_id,
         "amount": str(Decimal(str(amount)).quantize(Decimal("0.01"))),
         "currency": currency,
-        "rail_label": rail_label,
-        "status": "pending",
-        "created_at": datetime.now(timezone.utc).isoformat(timespec="microseconds"),
-        "mocked": True,
-    }
-
-
-async def execute_payment(
-    *,
-    envelope_id: str,
-    mandate_id: str,
-    quote_id: str,
-    amount: Decimal | str | float,
-    currency: str,
-    rail_label: RailLabel,
-) -> dict[str, Any]:
-    """Execute a mocked payment against a mandate. Always succeeds in phase 11."""
-    await asyncio.sleep(0.2)       # ~200ms simulated latency
-    return {
-        "payment_id": _det_uuid(f"payment:{envelope_id}:{mandate_id}"),
-        "mandate_id": mandate_id,
-        "quote_id": quote_id,
-        "amount": str(Decimal(str(amount)).quantize(Decimal("0.01"))),
-        "currency": currency,
-        "rail_label": rail_label,
-        "status": "succeeded",
-        "ref": f"MOCK-{rail_label.upper()}-{_det_uuid(f'ref:{envelope_id}')[:8]}",
-        "settled_at": datetime.now(timezone.utc).isoformat(timespec="microseconds"),
+        "due_date": due.isoformat(),
+        "bpay": {
+            "biller_code": BPAY_BILLER_CODE_MOCKED,
+            "reference": _bpay_reference(envelope_id),
+            "mocked": True,
+        },
+        "eft": {
+            "account_name": EFT_ACCOUNT_NAME_MOCKED,
+            "bsb": EFT_BSB_MOCKED,
+            "account_number": EFT_ACCOUNT_MOCKED,
+            "reference": _bpay_reference(envelope_id),
+            "mocked": True,
+        },
         "mocked": True,
     }

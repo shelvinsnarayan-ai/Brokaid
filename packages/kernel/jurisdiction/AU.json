@@ -3,7 +3,7 @@
   "display_name": "Australia",
   "currency_code": "AUD",
   "currency_symbol": "$",
-  "rail_label": "PayTo",
+  "rail_label": "BPAY",
   "locale": "en-AU",
   "regulator": "ASIC",
   "disclosure_strings": {

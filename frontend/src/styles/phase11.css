@@ -78,6 +78,30 @@
   border: 1px solid color-mix(in oklab, var(--verify) 35%, transparent);
   background: color-mix(in oklab, var(--verify) 8%, transparent);
 }
+.brokaid-paydetails {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 16px;
+}
+.brokaid-paydetails__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid color-mix(in oklab, var(--slate) 18%, transparent);
+  padding: 6px 0;
+}
+.brokaid-paydetails__row p { margin: 0; }
+.brokaid-paydetails__title {
+  margin: 14px 0 2px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.brokaid-paydetails__mocked {
+  margin-left: 6px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--coral, #c2553a);
+}
 
 /* --- Certificate ----------------------------------------------- */
 .brokaid-cert {

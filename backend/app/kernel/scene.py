@@ -44,6 +44,8 @@ from app.db.tenant_safe import TenantSafeDatabase
 from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
 
+PAYMENT_ADVISED = "payment.advised"
+
 
 def _is_mongo(store) -> bool:
     return isinstance(store, (AsyncIOMotorDatabase, TenantSafeDatabase))
@@ -233,7 +235,7 @@ def compute_status(events: list[dict[str, Any]]) -> dict[str, Any]:
         state = "executing"
     elif "SignatureRequested" in latest_types:
         state = "awaiting_signature"
-    elif "PaymentReceived" in latest_types:
+    elif PAYMENT_ADVISED in latest_types:
         state = "awaiting_signature"
     elif "Approval" in latest_types:
         state = "awaiting_payment"
@@ -360,58 +362,27 @@ async def emit_endorsement_quote_ready(
     )
 
 
-async def emit_payment_mandate_created(
+async def emit_payment_advised(
     store, *, tenant_id: str, envelope_id: str, policy_id: str,
-    user_id: str, mandate: dict[str, Any],
+    user_id: str, actor_role: str, amount: str, currency: str,
+    method: str, paid_at: str,
 ) -> dict[str, Any]:
+    """Client says they've paid. Never flips anything to Paid (M3-5)."""
     return await _emit(
-        store, tenant_id, type="PaymentMandateCreated",
-        actor={"kind": "human", "id": user_id, "name": "client_owner"},
+        store, tenant_id, type=PAYMENT_ADVISED,
+        actor={"kind": "human", "id": user_id, "name": actor_role},
         payload={
             "envelope_id": envelope_id,
             "policy_id": policy_id,
-            **mandate,
-        },
-        mocked=True,
-        idempotency_key=f"payment:mandate:{envelope_id}",
-    )
-
-
-async def emit_payment_initiated(
-    store, *, tenant_id: str, envelope_id: str, policy_id: str,
-    mandate_id: str, amount: str, currency: str, rail_label: str,
-) -> dict[str, Any]:
-    return await _emit(
-        store, tenant_id, type="PaymentInitiated",
-        actor={"kind": "system", "id": "payment_rail", "name": "payment"},
-        payload={
-            "envelope_id": envelope_id,
-            "policy_id": policy_id,
-            "mandate_id": mandate_id,
+            "actor": actor_role,
             "amount": amount,
             "currency": currency,
-            "rail_label": rail_label,
+            "method": method,
+            "paid_at": paid_at,
             "mocked": True,
         },
         mocked=True,
-        idempotency_key=f"payment:initiated:{envelope_id}",
-    )
-
-
-async def emit_payment_received(
-    store, *, tenant_id: str, envelope_id: str, policy_id: str,
-    receipt: dict[str, Any],
-) -> dict[str, Any]:
-    return await _emit(
-        store, tenant_id, type="PaymentReceived",
-        actor={"kind": "system", "id": "payment_rail", "name": "payment"},
-        payload={
-            "envelope_id": envelope_id,
-            "policy_id": policy_id,
-            **receipt,
-        },
-        mocked=True,
-        idempotency_key=f"payment:received:{envelope_id}",
+        idempotency_key=f"payment:advised:{envelope_id}",
     )
 
 

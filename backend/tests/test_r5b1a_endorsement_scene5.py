@@ -10,7 +10,7 @@ the two DB helpers against `TenantSafeDatabase` under `use_tenant`.
 Pins
 ----
 1. lineage-incomplete: raises `EndorsementLineageIncomplete` when
-   any of Approval / PaymentReceived / SignatureCompleted is absent.
+   any of Approval / payment.advised / SignatureCompleted is absent.
 2. execute_endorsement happy path on PG: emits `EndorsementExecuted`
    + `PolicyUpdated`, mutates `policies.schedule`, returns the
    expected dict shape.
@@ -74,7 +74,7 @@ async def _pg_tenant_with_policy(pool):
 async def _seed_lineage(store, tenant_id: str, policy_id: str, envelope_id: str,
                         requested_changes=None, ts_override=None,
                         event_id_overrides=None):
-    """Seed Approval + PaymentReceived + SignatureCompleted +
+    """Seed Approval + payment.advised + SignatureCompleted +
     SubmissionDrafted for `envelope_id`. Under Mongo we wrap
     trail_mongo.append_event under `use_tenant`. Overrides are for
     the Scene 5 parity test only (allow-listed)."""
@@ -99,7 +99,7 @@ async def _seed_lineage(store, tenant_id: str, policy_id: str, envelope_id: str,
                       "operation": "set", "to_value": "20000000"}])},
           "recommended_wording_ref": None, "mocked": False},
          f"placement:submission:{envelope_id}", False),
-        ("PaymentReceived",
+        ("payment.advised",
          {"kind": "system", "id": "payment_rail", "name": "payment"},
          {"envelope_id": envelope_id, "policy_id": policy_id,
           "amount": "125.00", "currency": "AUD", "status": "succeeded",
@@ -143,7 +143,7 @@ async def test_r5b1a_endorsement_lineage_incomplete(pool):
     )
     tid, _, policy_id = await _pg_tenant_with_policy(pool)
     envelope_id = str(uuid.uuid4())
-    # Seed only Approval — missing PaymentReceived + SignatureCompleted.
+    # Seed only Approval — missing payment.advised + SignatureCompleted.
     from app.kernel import trail
     await trail.append(
         pool, tid, "Approval",
@@ -161,7 +161,7 @@ async def test_r5b1a_endorsement_lineage_incomplete(pool):
             approver_actor={"kind": "system", "id": "endorsement",
                              "name": "endorsement"},
         )
-    assert "PaymentReceived" in str(ei.value)
+    assert "payment.advised" in str(ei.value)
 
 
 # ---- Pin 2: happy path on PG ----------------------------------------

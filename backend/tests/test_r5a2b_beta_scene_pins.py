@@ -13,8 +13,8 @@ HTTP (observable):
   - GET  /status: every state-machine transition (idle, intake_running,
     placement_running, awaiting_operator, awaiting_payment,
     awaiting_signature, executing, certificate_ready)
-  - POST /pay:  emits PaymentMandateCreated + PaymentInitiated +
-    PaymentReceived with pre-extraction payload/actor/idem/mocked shape.
+  - GET /pay: MOCKED BPAY/EFT details, no events; POST /paid emits a
+    single mocked `payment.advised`.
   - POST /sign: emits SignatureRequested + SignatureCompleted with
     pre-extraction payload/actor/idem/mocked shape.
   - RBAC: no session on the client shell → 401.
@@ -181,15 +181,14 @@ _STATE_CASES = [
       "EndorsementQuoteReady", "Approval"], "awaiting_payment"),
     (["ClientChangeRequested", "SubmissionDrafted",
       "EndorsementQuoteReady", "Approval",
-      "PaymentMandateCreated", "PaymentInitiated",
-      "PaymentReceived"], "awaiting_signature"),
+      "payment.advised"], "awaiting_signature"),
     (["ClientChangeRequested", "SubmissionDrafted",
       "EndorsementQuoteReady", "Approval",
-      "PaymentMandateCreated", "PaymentInitiated", "PaymentReceived",
+      "payment.advised",
       "SignatureRequested", "SignatureCompleted"], "executing"),
     (["ClientChangeRequested", "SubmissionDrafted",
       "EndorsementQuoteReady", "Approval",
-      "PaymentMandateCreated", "PaymentInitiated", "PaymentReceived",
+      "payment.advised",
       "SignatureRequested", "SignatureCompleted",
       "EndorsementExecuted", "PolicyUpdated",
       "CertificateRegenerated"], "certificate_ready"),
@@ -209,8 +208,8 @@ async def test_r5a2bb_status_state_machine(pool, event_types, expected_state):
             "ClientChangeRequested": {"kind": "human", "id": ctx["user_id"],
                                        "name": "client_owner"},
             "Approval": {"kind": "human", "id": ctx["user_id"], "name": "principal"},
-            "PaymentMandateCreated": {"kind": "human", "id": ctx["user_id"],
-                                       "name": "client_owner"},
+            "payment.advised": {"kind": "human", "id": ctx["user_id"],
+                                 "name": "client_owner"},
             "SignatureCompleted": {"kind": "human", "id": ctx["user_id"],
                                     "name": "client_owner"},
         }
@@ -236,10 +235,10 @@ async def test_r5a2bb_status_state_machine(pool, event_types, expected_state):
     assert r.json()["state"] == expected_state, r.json()
 
 
-# ---- HTTP pins: /pay end-to-end (3 events) ---------------------------
-async def test_r5a2bb_pay_emits_three_events(pool):
-    """POST /pay → PaymentMandateCreated + PaymentInitiated +
-    PaymentReceived land with pre-extraction shape."""
+# ---- HTTP pins: /pay details (no events) + /paid (payment.advised) ----
+async def test_r5a2bb_pay_details_then_paid_advised(pool):
+    """GET /pay → MOCKED BPAY/EFT details, no payment events. POST /paid
+    → exactly one `payment.advised` (mocked, human actor, idem pin)."""
     ctx = await _tenant_and_client(pool)
     tid = ctx["tenant_id"]
     envelope_id = str(uuid.uuid4())
@@ -250,56 +249,26 @@ async def test_r5a2bb_pay_emits_three_events(pool):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://testserver",
         ) as ac:
-            r = await ac.post(
+            r = await ac.get(
                 f"/api/c/matters/{ctx['policy_id']}/pay/{envelope_id}",
                 cookies=_cookie(ctx["session_id"]),
             )
+            assert r.status_code == 200, r.text
+            d = r.json()["payment_details"]
+            assert d["mocked"] is True and d["bpay"]["mocked"] is True
+            assert d["eft"]["mocked"] is True and d["due_date"]
+            for t in ("PaymentMandateCreated", "PaymentInitiated", "PaymentReceived"):
+                assert not await _fetch_events_by_type_env(pool, tid, t, envelope_id)
+            r = await ac.post(
+                f"/api/c/matters/{ctx['policy_id']}/paid/{envelope_id}",
+                cookies=_cookie(ctx["session_id"]),
+            )
     assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["state"] == "awaiting_signature"
-    assert body["payment"]["mocked"] is True
-    assert body["payment"]["status"] == "succeeded"
-
-    # PaymentMandateCreated — human actor, mocked=True, idem pin.
-    mandates = await _fetch_events_by_type_env(
-        pool, tid, "PaymentMandateCreated", envelope_id,
-    )
-    assert len(mandates) == 1
-    m = mandates[0]
-    assert m["mocked"] is True
-    assert m["actor"] == {"kind": "human", "id": ctx["user_id"],
-                          "name": "client_owner"}
-    assert m["idempotency_key"] == f"payment:mandate:{envelope_id}"
-    assert m["payload"]["policy_id"] == ctx["policy_id"]
-    assert m["payload"]["rail_label"] == "PayTo"
-
-    # PaymentInitiated — system payment_rail, mocked=True.
-    inits = await _fetch_events_by_type_env(
-        pool, tid, "PaymentInitiated", envelope_id,
-    )
-    assert len(inits) == 1
-    i = inits[0]
-    assert i["mocked"] is True
-    assert i["actor"] == {"kind": "system", "id": "payment_rail",
-                          "name": "payment"}
-    assert i["idempotency_key"] == f"payment:initiated:{envelope_id}"
-    assert set(i["payload"].keys()) == {
-        "envelope_id", "policy_id", "mandate_id",
-        "amount", "currency", "rail_label", "mocked",
-    }
-    assert i["payload"]["mocked"] is True
-
-    # PaymentReceived — system payment_rail, mocked=True.
-    recvd = await _fetch_events_by_type_env(
-        pool, tid, "PaymentReceived", envelope_id,
-    )
-    assert len(recvd) == 1
-    p = recvd[0]
-    assert p["mocked"] is True
-    assert p["actor"] == {"kind": "system", "id": "payment_rail",
-                          "name": "payment"}
-    assert p["idempotency_key"] == f"payment:received:{envelope_id}"
-    assert p["payload"]["status"] == "succeeded"
+    adv = await _fetch_events_by_type_env(pool, tid, "payment.advised", envelope_id)
+    assert len(adv) == 1
+    assert adv[0]["mocked"] is True
+    assert adv[0]["idempotency_key"] == f"payment:advised:{envelope_id}"
+    assert adv[0]["payload"]["method"] == "bpay"
 
 
 async def test_r5a2bb_pay_no_quote_404(pool):
@@ -491,11 +460,11 @@ async def test_r5a2bb_pin_compute_status_pure(pool):
     scene = _scene_or_skip()
     # idle
     assert scene.compute_status([])["state"] == "idle"
-    # awaiting_signature after PaymentReceived
+    # awaiting_signature after payment.advised
     evs = [
         {"type": "ClientChangeRequested",
          "payload": {"envelope_id": "E1", "policy_id": "P"}},
-        {"type": "PaymentReceived",
+        {"type": "payment.advised",
          "payload": {"envelope_id": "E1", "policy_id": "P"}},
     ]
     # newest first: compute_status expects events in seq-DESC order

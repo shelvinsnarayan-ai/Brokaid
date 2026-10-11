@@ -10,6 +10,7 @@ import { KEvidence } from "../../components/ledger/KEvidence";
 import { KKbd } from "../../components/ledger/KKbd";
 import { KNumber } from "../../components/ledger/KNumber";
 import { useOperatorStore } from "../../state/operatorStore";
+import { labelFor } from "../../lib/labels";
 import "../../styles/phase13.css";
 
 const API = import.meta.env.VITE_API_BASE || "";
@@ -84,13 +85,13 @@ export function DecisionCard() {
 
   return (
     <section data-testid="decision-card-page">
-      <p className="ledger-main__eyebrow">Queue · {card.class_key}</p>
+      <p className="ledger-main__eyebrow">Queue · {labelFor(card.class_key)}</p>
       <h1 className="ledger-main__title">Decision card</h1>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
         <KChip variant={card.sla_state} testId="dcard-sla-chip">{card.sla_state} · {countdown(card.sla_deadline)}</KChip>
-        <KChip variant="info" testId="dcard-class-chip">{card.class_key}</KChip>
-        {card.routed_to_role && <KChip variant="role">Routed · {card.routed_to_role}</KChip>}
+        <KChip variant="info" testId="dcard-class-chip">{labelFor(card.class_key)}</KChip>
+        {card.routed_to_role && <KChip variant="role">Routed · {labelFor(card.routed_to_role)}</KChip>}
         {mocked_capabilities.map((cap) => (
           <MockedBadge key={cap} label={cap as any} variant="operator" />
         ))}
@@ -117,7 +118,7 @@ export function DecisionCard() {
         <div className="dcard-col" data-testid="dcard-proposal">
           <h3>Proposal</h3>
           <div style={{ marginBottom: 8, color: "var(--slate)", fontSize: 11 }}>
-            {proposal.type} · {proposal.event_id.slice(0, 8)}… · {proposal.ts.replace("T", " ").slice(0, 19)}
+            {labelFor(proposal.type)} · {proposal.event_id.slice(0, 8)}… · {proposal.ts.replace("T", " ").slice(0, 19)}
           </div>
           <p style={{ marginTop: 0 }}>
             {proposal.payload?.output?.summary || <em style={{ color: "var(--slate)" }}>(no summary field)</em>}
@@ -174,7 +175,7 @@ export function DecisionCard() {
             <div style={{ fontSize: 11, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
               Gate reason
             </div>
-            <div style={{ fontSize: 12 }}>{card.gate_reason || "—"}</div>
+            <div style={{ fontSize: 12 }} data-testid="dcard-gate-reason">{labelFor(card.gate_reason)}</div>
             <div style={{ marginTop: 8, fontSize: 11, color: "var(--slate)" }}>
               HITL since {card.hitl_since.replace("T", " ").slice(0, 19)} · confidence {" "}
               <KNumber value={card.confidence} format="raw" />

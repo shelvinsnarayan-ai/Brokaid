@@ -49,9 +49,7 @@ EXPECTED_TRACE: list[tuple[str, str]] = [
     ("EndorsementQuoteReady",   "system"),
     ("QueueCardEnqueued",       "system"),
     ("Approval",                "human"),
-    ("PaymentMandateCreated",   "human"),
-    ("PaymentInitiated",        "system"),
-    ("PaymentReceived",         "system"),
+    ("payment.advised",         "human"),
     ("SignatureRequested",      "system"),
     ("SignatureCompleted",      "human"),
     ("EndorsementExecuted",     "system"),
@@ -105,10 +103,13 @@ async def test_reference_scene_happy_path(app_client, scene_seeded) -> None:
         idempotency_key=f"appr:{envelope_id}:{user_id}:approve",
     )
 
-    # --- 3. Client pays (MOCKED) ------------------------------------------
-    r = await client.post(f"/api/c/matters/{policy_id}/pay/{envelope_id}")
+    # --- 3. Client sees MOCKED BPAY/EFT details, then advises payment -----
+    r = await client.get(f"/api/c/matters/{policy_id}/pay/{envelope_id}")
     assert r.status_code == 200, r.text
-    assert r.json()["payment"]["mocked"] is True
+    assert r.json()["payment_details"]["mocked"] is True
+    r = await client.post(f"/api/c/matters/{policy_id}/paid/{envelope_id}")
+    assert r.status_code == 200, r.text
+    assert r.json()["ledger_event"]["type"] == "payment.advised"
 
     # --- 4. Client signs (MOCKED) -----------------------------------------
     r = await client.post(f"/api/c/matters/{policy_id}/sign/{envelope_id}")

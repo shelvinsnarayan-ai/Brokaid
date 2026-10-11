@@ -48,7 +48,7 @@ async def _land_lineage(
         idempotency_key=f"t:appr:{envelope_id}",
     )
     await append(
-        pool, tenant_id, "PaymentReceived",
+        pool, tenant_id, "payment.advised",
         actor={"kind": "system", "id": "payment_rail", "name": "payment"},
         payload={"envelope_id": envelope_id, "policy_id": policy_id,
                  "payment_id": str(uuid.uuid4()), "mocked": True},

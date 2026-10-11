@@ -3,7 +3,8 @@
 Route surface unchanged:
   POST /api/c/matters/{policy_id}/request-change     intAIke → plAIce → carrier quote
   GET  /api/c/matters/{policy_id}/status             polling, returns latest state
-  POST /api/c/matters/{policy_id}/pay/{envelope_id}  initiate + execute MOCKED payment
+  GET|POST /api/c/matters/{policy_id}/pay/{envelope_id}  MOCKED BPAY/EFT payment details
+  POST /api/c/matters/{policy_id}/paid/{envelope_id} client advises payment (payment.advised)
   POST /api/c/matters/{policy_id}/sign/{envelope_id} request + simulate MOCKED e-sign
   POST /api/c/matters/{policy_id}/finalise/{envelope_id}  endorsement + certificate
 
@@ -33,6 +34,7 @@ from app.kernel.mocks import e_sign, payment_rail
 from app.kernel.mocks.carrier_channel import submit_endorsement
 from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
+from app.kernel.trail_mongo import DuplicateIdempotencyKey
 from app.kernel.workflow import enqueue as queue_enqueue
 from app.middleware.session import require_session
 
@@ -340,58 +342,103 @@ async def status(
     return scene.compute_status(events)
 
 
-@router.post("/{policy_id}/pay/{envelope_id}")
+async def _load_payable(store, tenant_id: str, policy_id: str,
+                        envelope_id: str) -> tuple[dict, dict]:
+    policy = await scene.load_policy(store, tenant_id, policy_id)
+    if not policy:
+        raise HTTPException(status_code=404, detail="policy_not_found")
+    quote = await scene.find_carrier_quote(store, tenant_id, envelope_id)
+    if not quote:
+        raise HTTPException(status_code=404, detail="quote_not_found")
+    await _require_predecessor(store, tenant_id, envelope_id, ["Approval"])
+    return policy, quote
+
+
+def _details_for(policy: dict, quote: dict, envelope_id: str) -> dict:
+    return payment_rail.payment_details(
+        envelope_id=envelope_id,
+        amount=quote.get("premium_change_amount") or "0",
+        currency=quote.get("premium_currency") or policy["premium_currency"],
+    )
+
+
+@router.api_route("/{policy_id}/pay/{envelope_id}", methods=["GET", "POST"])
 async def pay(
     policy_id: str,
     envelope_id: str,
     request: Request,
     session: Session = Depends(require_session),
 ) -> dict[str, Any]:
-    """MOCKED PayTo/PayNow: mandate + execute + emit trio."""
+    """MOCKED payment details (BPAY + EFT). Read-only: emits no events."""
+    store = _store(request)
+    policy, quote = await _load_payable(
+        store, session.tenant_id, policy_id, envelope_id,
+    )
+    advised = await _find_envelope_event(
+        store, session.tenant_id, envelope_id, scene.PAYMENT_ADVISED,
+    )
+    return {
+        "state": "awaiting_signature" if advised else "awaiting_payment",
+        "envelope_id": envelope_id,
+        "payment_details": _details_for(policy, quote, envelope_id),
+        "payment_advised": bool(advised),
+    }
+
+
+class PaidBody(BaseModel):
+    paid_at: str | None = Field(default=None, max_length=40)
+
+
+@router.post("/{policy_id}/paid/{envelope_id}")
+async def paid(
+    policy_id: str,
+    envelope_id: str,
+    request: Request,
+    body: PaidBody | None = Body(default=None),
+    session: Session = Depends(require_session),
+) -> dict[str, Any]:
+    """Client taps "I've paid this" → one `payment.advised` ledger event.
+
+    Advice only: nothing is marked Paid (M3-5). Idempotent per envelope.
+    """
+    if session.active_role not in ("client_owner", "client_contact"):
+        raise HTTPException(status_code=403, detail="client_role_required")
     store = _store(request)
     tenant_id = session.tenant_id
-    policy = await scene.load_policy(store, tenant_id, policy_id)
-    if not policy:
-        raise HTTPException(status_code=404, detail="policy_not_found")
-
-    quote = await scene.find_carrier_quote(store, tenant_id, envelope_id)
-    if not quote:
-        raise HTTPException(status_code=404, detail="quote_not_found")
-    await _require_predecessor(
-        store, tenant_id, envelope_id, ["Approval"],
+    policy, quote = await _load_payable(store, tenant_id, policy_id, envelope_id)
+    row = await _find_envelope_event(
+        store, tenant_id, envelope_id, scene.PAYMENT_ADVISED,
     )
-    jurisdiction = await scene.find_client_jurisdiction(
-        store, tenant_id, policy["client_id"],
-    )
-    rail_label = "PayNow" if jurisdiction == "SG" else "PayTo"
-    amount = quote.get("premium_change_amount") or "0"
-    currency = quote.get("premium_currency") or policy["premium_currency"]
-
-    mandate = await payment_rail.initiate_mandate(
-        envelope_id=envelope_id, client_id=policy["client_id"],
-        amount=amount, currency=currency, rail_label=rail_label,
-    )
-    await scene.emit_payment_mandate_created(
-        store, tenant_id=tenant_id,
-        envelope_id=envelope_id, policy_id=policy_id,
-        user_id=session.user_id, mandate=mandate,
-    )
-    await scene.emit_payment_initiated(
-        store, tenant_id=tenant_id,
-        envelope_id=envelope_id, policy_id=policy_id,
-        mandate_id=mandate["mandate_id"], amount=amount,
-        currency=currency, rail_label=rail_label,
-    )
-    receipt = await payment_rail.execute_payment(
-        envelope_id=envelope_id, mandate_id=mandate["mandate_id"],
-        quote_id=quote["quote_id"], amount=amount, currency=currency,
-        rail_label=rail_label,
-    )
-    await scene.emit_payment_received(
-        store, tenant_id=tenant_id,
-        envelope_id=envelope_id, policy_id=policy_id, receipt=receipt,
-    )
-    return {"state": "awaiting_signature", "payment": receipt}
+    deduplicated = row is not None
+    if not deduplicated:
+        details = _details_for(policy, quote, envelope_id)
+        paid_at = (body.paid_at if body and body.paid_at
+                   else datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        try:
+            await scene.emit_payment_advised(
+                store, tenant_id=tenant_id, envelope_id=envelope_id,
+                policy_id=policy_id, user_id=session.user_id,
+                actor_role=session.active_role, amount=details["amount"],
+                currency=details["currency"], method="bpay", paid_at=paid_at,
+            )
+        except DuplicateIdempotencyKey:
+            # Concurrent double-tap lost the idempotency-key race.
+            deduplicated = True
+        row = await _find_envelope_event(
+            store, tenant_id, envelope_id, scene.PAYMENT_ADVISED,
+        )
+    return {
+        "state": "awaiting_signature",
+        "envelope_id": envelope_id,
+        "deduplicated": deduplicated,
+        "ledger_event": {
+            "event_id": row["event_id"],
+            "type": scene.PAYMENT_ADVISED,
+            "seq": row["seq"],
+            "mocked": True,
+            "payload": row["payload"],
+        },
+    }
 
 
 @router.post("/{policy_id}/sign/{envelope_id}")
@@ -404,7 +451,7 @@ async def sign(
     store = _store(request)
     tenant_id = session.tenant_id
     await _require_predecessor(
-        store, tenant_id, envelope_id, ["PaymentReceived"],
+        store, tenant_id, envelope_id, [scene.PAYMENT_ADVISED],
     )
     signer_email = f"{session.user_id}@example.test"
     req = await e_sign.request_signature(

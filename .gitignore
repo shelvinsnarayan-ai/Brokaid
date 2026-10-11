@@ -59,3 +59,7 @@ credentials.json
 .emergent/cross_platform_fork_in_progress
 .emergent/mono_fork_setup_complete
 .emergent/.fork_pod_run_id
+
+# Generated (vite-plugin-pwa dev SW) and baked build identity
+frontend/dev-dist/
+backend/.build_sha

@@ -190,7 +190,7 @@ async def execute_endorsement(
     policy_id: str,
     approver_actor: dict[str, Any],
 ) -> dict[str, Any]:
-    """Run after Approval + PaymentReceived + SignatureCompleted.
+    """Run after Approval + payment.advised + SignatureCompleted.
 
     Emits `EndorsementExecuted` + `PolicyUpdated`, updates the
     policies row.  Returns the endorsement payload dict.
@@ -201,7 +201,7 @@ async def execute_endorsement(
     byte-identical event_hash for identical inputs.
     """
     lineage = await _load_lineage(store, tenant_id, envelope_id)
-    for required in ("Approval", "PaymentReceived", "SignatureCompleted"):
+    for required in ("Approval", "payment.advised", "SignatureCompleted"):
         if required not in lineage:
             raise EndorsementLineageIncomplete(
                 f"missing upstream event: {required}"
