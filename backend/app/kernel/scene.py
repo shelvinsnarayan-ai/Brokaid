@@ -47,6 +47,18 @@ from app.kernel.trail_dispatch import append_via_dispatch
 PAYMENT_ADVISED = "payment.advised"
 NEEDS_HUMAN_REVIEW = "RequestNeedsHumanReview"
 ENVELOPE_ABANDONED = "EnvelopeAbandoned"
+ADVICE_CLASSIFIED = "AdviceBoundaryClassified"
+
+
+async def emit_advice_boundary_classified(
+    store, *, tenant_id: str, envelope_id: str, policy_id: str, verdict: dict[str, Any],
+) -> dict[str, Any]:
+    return await _emit(
+        store, tenant_id, type=ADVICE_CLASSIFIED,
+        actor={"kind": "system", "id": "advice_boundary", "name": "advice-boundary"},
+        payload={"envelope_id": envelope_id, "policy_id": policy_id, **verdict},
+        idempotency_key=f"advice:classified:{envelope_id}",
+    )
 
 
 async def emit_request_needs_human_review(
@@ -247,8 +259,14 @@ def compute_status(events: list[dict[str, Any]]) -> dict[str, Any]:
         if (r.get("payload") or {}).get("envelope_id") == envelope_id
     ]
     state = "idle"
+    declined = any(
+        r["type"] == ADVICE_CLASSIFIED and (r.get("payload") or {}).get("tier") == "X"
+        for r in events if (r.get("payload") or {}).get("envelope_id") == envelope_id
+    )
     if ENVELOPE_ABANDONED in newest_env_types:
         state = "abandoned"
+    elif declined:
+        state = "declined"
     elif (NEEDS_HUMAN_REVIEW in newest_env_types
           and "OperatorApproval" not in newest_env_types):
         state = "awaiting_broker_review"

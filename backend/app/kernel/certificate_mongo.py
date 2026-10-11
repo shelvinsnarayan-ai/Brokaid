@@ -17,11 +17,19 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from app.db.tenant_safe import wrap
-from app.kernel.tenant_ctx import get_tenant_id, use_tenant
+from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
 
 
 TOKEN_TTL = timedelta(days=90)
+
+
+def _cert_vehicles(schedule: dict) -> list[dict]:
+    drivers = {d.get("driver_id"): d.get("name") for d in schedule.get("drivers") or []}
+    return [{"rego": v.get("rego"), "year": v.get("year"), "make": v.get("make"),
+             "model": v.get("model"),
+             "driver_assigned": drivers.get(v.get("driver_assigned")) or v.get("driver_assigned")}
+            for v in schedule.get("vehicles") or [] if isinstance(v, dict)]
 
 
 def hash_token(raw: str) -> str:
@@ -143,6 +151,8 @@ async def regenerate_certificate(
         "insurer_display": policy["insurer_display"],
         "product": policy["product"],
         "cover_types": policy["schedule"].get("cover_types") or [],
+        **({"vehicles": _cert_vehicles(policy["schedule"])}
+           if policy["schedule"].get("vehicles") else {}),
         "excess": policy["schedule"].get("excess"),
         "territorial_limits": policy["schedule"].get("territorial_limits"),
         "effective_from": req_block.get("effective_from") or policy["inception"],

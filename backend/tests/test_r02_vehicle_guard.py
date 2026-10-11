@@ -88,3 +88,38 @@ def test_guard_accepts_registration_alias_and_text():
     validate_requested_changes(MOTOR, [_op("remove", frm={"description": "Navara ABC123"})])
     with pytest.raises(UnmatchedPolicyField):
         validate_requested_changes(MOTOR, [_op("remove", frm={"description": "Nissan Navara"})])
+
+
+def test_guard_element_paths():
+    ok = {"field_path": "schedule.vehicles[DEF456].garaged_address", "operation": "set",
+          "from_value": "4 Slipway Lane, Fictional Bay NSW 2000", "to_value": "9 New St"}
+    validate_requested_changes(MOTOR, [ok])
+    with pytest.raises(UnmatchedPolicyField):
+        validate_requested_changes(MOTOR, [dict(ok, field_path="schedule.vehicles[ZZZ999].garaged_address")])
+    with pytest.raises(UnmatchedPolicyField):
+        validate_requested_changes(MOTOR, [dict(ok, from_value="1 Wrong St")])
+
+
+def test_apply_vehicle_and_driver_changes():
+    import copy
+    from app.kernel.endorsement import _apply_change, vehicle_mutations
+    s = copy.deepcopy(SCHEDULE)
+    swap = [_op("remove", frm={"registration": "ABC123"}),
+            _op("add", {"registration": "XYZ789", "make": "Toyota", "model": "Hilux", "year": 2024})]
+    for c in swap:
+        _apply_change(s, c)
+    assert [v["rego"] for v in s["vehicles"]] == ["DEF456", "XYZ789"]
+    assert vehicle_mutations(swap, s) == {"added": ["XYZ789"], "removed": ["ABC123"],
+                                          "vehicles_after": ["DEF456", "XYZ789"]}
+    _apply_change(s, {"field_path": "schedule.vehicles[]", "operation": "replace",
+                      "from_value": {"rego": "DEF456"}, "to_value": {"rego": "NEW1"}})
+    assert [v["rego"] for v in s["vehicles"]] == ["XYZ789", "NEW1"]
+    _apply_change(s, {"field_path": "schedule.vehicles[NEW1].garaged_address", "operation": "set",
+                      "to_value": "9 New St"})
+    assert s["vehicles"][1]["garaged_address"] == "9 New St"
+    _apply_change(s, {"field_path": "schedule.drivers[]", "operation": "add",
+                      "to_value": {"name": "Jo", "licence_number": "MOCK10003"}})
+    _apply_change(s, {"field_path": "schedule.drivers[]", "operation": "remove",
+                      "from_value": {"licence_number": "MOCK10001"}})
+    assert [d["name"] for d in s["drivers"]] == ["Sam Fictional", "Jo"]
+    assert "drivers[]" not in s and "vehicles[]" not in s

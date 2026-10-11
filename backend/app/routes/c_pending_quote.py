@@ -72,6 +72,12 @@ async def _pending(store, tenant_id: str, policy_id: str) -> dict[str, Any]:
         )
         if abandoned:
             return {"pending": False, "reason": "abandoned"}
+        boundary = await _find_latest_by_type_and_envelope(
+            safe, "AdviceBoundaryClassified", envelope_id,
+        )
+        if boundary and boundary.get("tier") == "X":
+            return {"pending": True, "state": "declined",
+                    "envelope_id": envelope_id, "reason": "declined"}
         review = await _find_latest_by_type_and_envelope(
             safe, "RequestNeedsHumanReview", envelope_id,
         )
@@ -124,7 +130,7 @@ async def pending_quote(
     )
     if not body.get("pending"):
         return {k: v for k, v in body.items() if k in ("pending", "reason")}
-    if body.get("state") in ("with_broker", "awaiting_broker_review"):
+    if body.get("state") in ("with_broker", "awaiting_broker_review", "declined"):
         return {
             "pending": True,
             "state": body["state"],

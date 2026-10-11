@@ -32,6 +32,7 @@ from app.kernel.contracts.models import Actor, ContextEnvelope, InvocationBudget
 from app.kernel.endorsement import execute_endorsement
 from app.kernel.mocks import e_sign, payment_rail
 from app.kernel.mocks.carrier_channel import submit_endorsement
+from app.kernel.advice_boundary import classify
 from app.kernel.policy_field_guard import UnmatchedPolicyField, validate_requested_changes
 from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
@@ -130,6 +131,32 @@ async def _find_existing_envelope_by_idempotency(
     return (row.get("payload") or {}).get("envelope_id")
 
 
+async def _park_for_broker(
+    store, *, tenant_id: str, envelope_id: str, policy: dict,
+    stage: str, mismatch: dict, gate_reason: str, review: bool = True,
+) -> None:
+    """Park the envelope with a visible broker card. Never prices."""
+    if review:
+        await scene.emit_request_needs_human_review(
+            store, tenant_id=tenant_id, envelope_id=envelope_id,
+            policy_id=policy["policy_id"], stage=stage, mismatch=mismatch,
+        )
+    ref_type = scene.NEEDS_HUMAN_REVIEW if review else scene.ADVICE_CLASSIFIED
+    try:
+        await queue_enqueue(
+            store, tenant_id=tenant_id, envelope_id=envelope_id,
+            class_key="request_info",
+            proposal_ref=(await scene.last_event_id_for_envelope(
+                store, tenant_id, ref_type, envelope_id,
+            )) or "",
+            matter_id=None, client_id=policy["client_id"],
+            gate_reason=gate_reason, confidence=None,
+            routed_to_role="account_executive",
+        )
+    except Exception:
+        pass
+
+
 async def _park_if_unmatched(
     store, *, tenant_id: str, envelope_id: str, policy: dict,
     changes: list | None, stage: str,
@@ -139,24 +166,34 @@ async def _park_if_unmatched(
         validate_requested_changes(policy, changes)
         return False
     except UnmatchedPolicyField as e:
-        await scene.emit_request_needs_human_review(
-            store, tenant_id=tenant_id, envelope_id=envelope_id,
-            policy_id=policy["policy_id"], stage=stage, mismatch=e.as_payload(),
+        await _park_for_broker(
+            store, tenant_id=tenant_id, envelope_id=envelope_id, policy=policy,
+            stage=stage, mismatch=e.as_payload(), gate_reason="unmatched_policy_field",
         )
-        try:
-            await queue_enqueue(
-                store, tenant_id=tenant_id, envelope_id=envelope_id,
-                class_key="request_info",
-                proposal_ref=(await scene.last_event_id_for_envelope(
-                    store, tenant_id, scene.NEEDS_HUMAN_REVIEW, envelope_id,
-                )) or "",
-                matter_id=None, client_id=policy["client_id"],
-                gate_reason="unmatched_policy_field", confidence=None,
-                routed_to_role="account_executive",
-            )
-        except Exception:
-            pass
         return True
+
+
+async def _park_if_not_f_or_g(
+    store, *, tenant_id: str, envelope_id: str, policy: dict,
+    raw_message: str, changes: list | None,
+) -> bool:
+    """Thin F/G/P/X boundary (rules only). P → broker review, X → declined."""
+    verdict = classify(raw_message, {"requested_changes": changes or []}, policy)
+    await scene.emit_advice_boundary_classified(
+        store, tenant_id=tenant_id, envelope_id=envelope_id,
+        policy_id=policy["policy_id"], verdict=verdict,
+    )
+    if verdict["tier"] in ("F", "G"):
+        return False
+    is_p = verdict["tier"] == "P"
+    await _park_for_broker(
+        store, tenant_id=tenant_id, envelope_id=envelope_id, policy=policy,
+        stage="advice_boundary", review=is_p,
+        mismatch={"field_path": "advice_boundary", "attempted_value": None,
+                  "reason": verdict["reason"], "rule_id": verdict["rule_id"]},
+        gate_reason="personal_advice_required" if is_p else "out_of_scope",
+    )
+    return True
 
 
 async def _run_intake_placement_async(
@@ -193,6 +230,12 @@ async def _run_intake_placement_async(
             store, tenant_id=tenant_id, envelope_id=envelope_id_str,
             policy=policy, changes=intake_payload.get("proposed_changes"),
             stage="intake",
+        ):
+            return
+        if await _park_if_not_f_or_g(
+            store, tenant_id=tenant_id, envelope_id=envelope_id_str,
+            policy=policy, raw_message=raw_message,
+            changes=intake_payload.get("proposed_changes"),
         ):
             return
         proposed_class = (

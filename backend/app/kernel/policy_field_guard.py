@@ -32,6 +32,7 @@ def _slug(s: str) -> str:
 
 
 _ALIASES = {
+    "driver_id": ("driver_id",),
     "rego": ("rego", "registration", "registration_number", "plate"),
     "vin": ("vin",),
     "licence_number": ("licence_number", "license_number", "licence"),
@@ -90,11 +91,30 @@ def _check_limit(schedule: dict, ch: dict) -> None:
         raise UnmatchedPolicyField(fp, ch.get("to_value"), f"no cover_types entry for {slug!r}")
 
 
+_ELEMENT = re.compile(r"^schedule\.(vehicles|drivers)\[([^\]]+)\]\.(.+)$")
+_KEYS = {"vehicles": ("rego", "vin"), "drivers": ("licence_number", "name", "driver_id")}
+
+
+def _check_element(schedule: dict, ch: dict, m: re.Match) -> None:
+    list_key, ref, field = m.group(1), m.group(2), m.group(3)
+    items = schedule.get(list_key) or []
+    fp = ch.get("field_path") or ""
+    if ref.isdigit():
+        if int(ref) >= len(items):
+            raise UnmatchedPolicyField(fp, ref, f"no schedule.{list_key}[{ref}]")
+    elif _norm(ref) not in {i for it in items for i in _ident(it, _KEYS[list_key])}:
+        raise UnmatchedPolicyField(fp, ref, f"no matching entry in schedule.{list_key}")
+    if "address" in field:
+        _check_address(schedule, ch)
+
+
 def validate_requested_changes(policy: dict, changes: list[dict] | None) -> None:
     schedule = (policy or {}).get("schedule") or {}
     for ch in changes or []:
         fp = ch.get("field_path") or ""
-        if fp.startswith("schedule.vehicles"):
+        if (m := _ELEMENT.match(fp)):
+            _check_element(schedule, ch, m)
+        elif fp.startswith("schedule.vehicles"):
             _check_listed(schedule, "vehicles", ch, ("rego", "vin"))
         elif fp.startswith("schedule.drivers"):
             _check_listed(schedule, "drivers", ch, ("licence_number", "name"))

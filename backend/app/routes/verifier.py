@@ -166,6 +166,7 @@ async def verify(token: str, request: Request) -> dict[str, Any]:
         "insurer_display": cert.get("insurer_display"),
         "product": cert.get("product"),
         "cover_types": cert.get("cover_types") or [],
+        "vehicles": cert.get("vehicles") or [],
         "excess": cert.get("excess"),
         "territorial_limits": cert.get("territorial_limits"),
         "effective_from": cert.get("effective_from"),

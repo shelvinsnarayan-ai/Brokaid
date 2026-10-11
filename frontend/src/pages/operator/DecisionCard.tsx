@@ -51,6 +51,7 @@ export function DecisionCard() {
   const [error, setError] = useState<string | null>(null);
   const [_, setTick] = useState(0);
   const [showWhy, setShowWhy] = useState(false);
+  const [packetReady, setPacketReady] = useState(false);
   const toast = useOperatorStore((s) => s.toast);
   const session = useOperatorStore((s) => s.session);
 
@@ -89,6 +90,13 @@ export function DecisionCard() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   });
+
+  useEffect(() => {
+    if (!envelope_id) return;
+    fetch(`${API}/api/o/envelope/${envelope_id}/change-packet?probe=1`, { credentials: "include" })
+      .then((r) => setPacketReady(r.ok))
+      .catch(() => setPacketReady(false));
+  }, [envelope_id]);
 
   if (error) return <div className="k-empty" data-testid="decision-card-error">Error: {error}</div>;
   if (!data) return <div className="k-empty" data-testid="decision-card-loading">Loading decision card…</div>;
@@ -145,10 +153,16 @@ export function DecisionCard() {
           {mismatch ? (
             <div data-testid="dcard-mismatch" style={{ fontSize: 12 }}>
               <p style={{ marginTop: 0, color: "var(--alert)" }}>
-                Parked: the request doesn't match what the policy holds. Nothing was quoted.
+                {(proposal as any).payload?.stage === "advice_boundary"
+                  ? "Parked: this needs personal advice from a broker. Nothing was quoted."
+                  : "Parked: the request doesn't match what the policy holds. Nothing was quoted."}
               </p>
-              <p>Field · <code data-testid="dcard-mismatch-field">{mismatch.field_path}</code></p>
-              <p>Client said · <code data-testid="dcard-mismatch-value">{JSON.stringify(mismatch.attempted_value)}</code></p>
+              {(proposal as any).payload?.stage !== "advice_boundary" && (
+                <>
+                  <p>Field · <code data-testid="dcard-mismatch-field">{mismatch.field_path}</code></p>
+                  <p>Client said · <code data-testid="dcard-mismatch-value">{JSON.stringify(mismatch.attempted_value)}</code></p>
+                </>
+              )}
               <p>Check · <span data-testid="dcard-mismatch-reason">{mismatch.reason}</span></p>
             </div>
           ) : (
@@ -194,6 +208,22 @@ export function DecisionCard() {
 
         <div className="dcard-col" data-testid="dcard-evidence">
           <h3>Evidence</h3>
+          <div className="dcard-packet" style={{ marginBottom: 12, fontSize: 12 }}>
+            {packetReady ? (
+              <a href={`${API}/api/o/envelope/${card.envelope_id}/change-packet`} target="_blank" rel="noreferrer"
+                className="k-btn" data-testid="dcard-change-packet">
+                Change packet
+              </a>
+            ) : (
+              <button type="button" className="k-btn" disabled aria-disabled="true"
+                title="Available once the client has signed" data-testid="dcard-change-packet-disabled">
+                Change packet
+              </button>
+            )}
+            <span style={{ marginLeft: 8, color: "var(--slate)" }} data-testid="dcard-change-packet-note">
+              {packetReady ? "Not sent to iAdviser. Key manually." : "Not sent to iAdviser. Key manually. Available once the client has signed."}
+            </span>
+          </div>
           <KEvidence items={evidence} />
           {objectCites && (
             <div style={{ marginTop: 8, fontSize: 12 }}>

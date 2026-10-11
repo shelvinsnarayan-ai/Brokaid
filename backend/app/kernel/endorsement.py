@@ -23,6 +23,7 @@ per the R5a-2b-α scanner allow-list).
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -100,6 +101,85 @@ def _sync_cover_types_to_limits(schedule: dict[str, Any]) -> None:
                 ct["limit_any_one"] = limits[key]
 
 
+_REF_KEYS = {
+    "vehicles": ("rego", "registration", "registration_number", "plate", "vin"),
+    "drivers": ("driver_id", "licence_number", "license_number", "name"),
+}
+_ELEMENT_PATH = re.compile(r"^(?:schedule\.)?(vehicles|drivers)\[([^\]]*)\]\.?(.*)$")
+
+
+def _norm_ref(v: Any) -> str:
+    return re.sub(r"[^A-Z0-9]", "", str(v).upper())
+
+
+def _list_refs(v: Any, list_key: str = "vehicles") -> set[str]:
+    if isinstance(v, dict):
+        return {_norm_ref(v[k]) for k in _REF_KEYS[list_key] if v.get(k)}
+    return {_norm_ref(v)} if v else set()
+
+
+def _vehicle_refs(v: Any) -> set[str]:
+    return _list_refs(v, "vehicles")
+
+
+def _normalise_vehicle(v: Any) -> dict[str, Any]:
+    if not isinstance(v, dict):
+        return {"rego": str(v)}
+    out = dict(v)
+    for k in ("registration", "registration_number", "plate"):
+        if k in out and "rego" not in out:
+            out["rego"] = out.pop(k)
+    return out
+
+
+def _apply_list_change(schedule: dict[str, Any], change: dict[str, Any]) -> None:
+    """vehicles/drivers: add appends · remove drops the match · replace = atomic
+    swap · `[<ref>].<field>` set updates that element's field."""
+    m = _ELEMENT_PATH.match(change.get("field_path") or "")
+    list_key, elem_ref, field = m.group(1), m.group(2), m.group(3)
+    items = schedule.setdefault(list_key, [])
+    op = (change.get("operation") or "set").lower()
+    norm = _normalise_vehicle if list_key == "vehicles" else (lambda v: dict(v) if isinstance(v, dict) else {"name": str(v)})
+    if elem_ref and field:
+        idx = int(elem_ref) if elem_ref.isdigit() else next(
+            (i for i, it in enumerate(items) if _norm_ref(elem_ref) in _list_refs(it, list_key)), None)
+        if idx is None or idx >= len(items):
+            raise EndorsementLineageIncomplete(f"{list_key}[{elem_ref}] not on policy schedule")
+        items[idx][field] = change.get("to_value")
+        return
+    if op in ("remove", "replace"):
+        ref = change.get("from_value")
+        if ref is None and op == "remove":
+            ref = change.get("to_value")
+        refs = _list_refs(ref, list_key)
+        kept = [it for it in items if not (_list_refs(it, list_key) & refs)]
+        if not refs or len(kept) == len(items):
+            raise EndorsementLineageIncomplete(f"{list_key} entry {ref!r} not on policy schedule")
+        items[:] = kept
+    if op in ("add", "replace"):
+        new = norm(change.get("to_value"))
+        if not any(_list_refs(it, list_key) & _list_refs(new, list_key) for it in items):
+            items.append(new)
+
+
+def vehicle_mutations(changes: list[dict[str, Any]], schedule_after: dict[str, Any]) -> dict[str, Any]:
+    added, removed = [], []
+    for ch in changes:
+        m = _ELEMENT_PATH.match(ch.get("field_path") or "")
+        if not m or m.group(1) != "vehicles" or m.group(3):
+            continue
+        op = (ch.get("operation") or "").lower()
+        if op in ("remove", "replace"):
+            ref = ch.get("from_value") if ch.get("from_value") is not None else ch.get("to_value")
+            removed.append(_normalise_vehicle(ref).get("rego") or _normalise_vehicle(ref).get("vin"))
+        if op in ("add", "replace"):
+            added.append(_normalise_vehicle(ch.get("to_value")).get("rego"))
+    if not added and not removed:
+        return {}
+    return {"added": added, "removed": removed,
+            "vehicles_after": [v.get("rego") for v in schedule_after.get("vehicles") or []]}
+
+
 def _apply_change(schedule: dict[str, Any], change: dict[str, Any]) -> dict[str, Any]:
     """Naïve dot-path setter used by the mocked scene. Applies a
     `field_path` + `to_value` write into the policy schedule.
@@ -108,6 +188,9 @@ def _apply_change(schedule: dict[str, Any], change: dict[str, Any]) -> dict[str,
     extraction discipline: same behaviour end-to-end.
     """
     raw = change.get("field_path") or ""
+    if _ELEMENT_PATH.match(raw):
+        _apply_list_change(schedule, change)
+        return schedule
     if raw.startswith("schedule."):
         raw = raw[len("schedule."):]
     path = raw.split(".") if raw else []
@@ -243,6 +326,7 @@ async def execute_endorsement(
             "policy_id": policy_id,
             "schedule_after": schedule,
             "endorsement_id": endorsement_id,
+            **({"vehicle_mutations": vm} if (vm := vehicle_mutations(requested_changes, schedule)) else {}),
         },
         idempotency_key=f"policy:updated:{envelope_id}",
     )

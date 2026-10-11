@@ -16,7 +16,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { MockedBadge } from "@brokaid/mocks";
-import { fmtDate, fmtDateTime } from "../lib/format";
+import { fmtAud, fmtDate, fmtDateTime } from "../lib/format";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -311,7 +311,21 @@ function CertBody({ cert, muted }: { cert: Payload; muted?: boolean }) {
           <ul>
             {cert.cover_types.map((c: any, i: number) => (
               <li key={c?.type ?? i}>
-                {c.type} — limit any one {c.limit_any_one} {c.currency}
+                {c.type} — limit any one {fmtAud(c.limit_any_one)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {cert.vehicles?.length > 0 && (
+        <div className="brokaid-verify__cover-list" data-testid="verify-vehicles">
+          <p className="brokaid-verify__label">Vehicles</p>
+          <ul>
+            {cert.vehicles.map((v: any, i: number) => (
+              <li key={v?.rego ?? i} data-testid={`verify-vehicle-${i}`}>
+                {v.rego} · {[v.year, v.make, v.model].filter(Boolean).join(" ")}
+                {v.driver_assigned ? ` · primary driver ${v.driver_assigned}` : ""}
               </li>
             ))}
           </ul>

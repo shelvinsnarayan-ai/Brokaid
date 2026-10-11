@@ -26,6 +26,7 @@ from __future__ import annotations
 import hashlib
 import uuid
 from datetime import datetime, timezone
+import re
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
@@ -175,7 +176,8 @@ async def submit_endorsement(
     base_premium = _dec(policy_current.get("premium_amount"))
     currency = policy_current.get("premium_currency") or "AUD"
     vehicle_ops = [c for c in requested_changes
-                   if (c.get("field_path") or "").startswith("schedule.vehicles")]
+                   if re.match(r"^schedule\.vehicles\[\]?$", c.get("field_path") or "")
+                   or (c.get("field_path") or "") == "schedule.vehicles"]
 
     if vehicle_ops:
         current_count = len((policy_current.get("schedule") or {}).get("vehicles") or [])

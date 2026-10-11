@@ -17,7 +17,7 @@ const API = import.meta.env.VITE_API_BASE || "";
 
 interface PendingQuote {
   pending: boolean;
-  state?: "with_broker" | "quote_ready" | "awaiting_broker_review";
+  state?: "with_broker" | "quote_ready" | "awaiting_broker_review" | "declined";
   envelope_id?: string;
   policy_id?: string;
   submission_summary?: string;
@@ -101,6 +101,18 @@ export function ClientPendingQuote() {
         title="No pending quote"
         body={data.reason === "already_executed" ? "This change has already been executed." : "There's nothing waiting for you on this policy right now."}
       />
+      <Link to="/c/cover" className="brokaid-btn brokaid-btn--secondary">← Back to cover</Link>
+    </section>
+  );
+  if (data.state === "declined") return (
+    <section className="brokaid-tab" data-testid="pending-quote-declined">
+      <header className="brokaid-tab__head">
+        <p className="brokaid-tab__eyebrow">Contact your broker</p>
+        <h1 className="brokaid-tab__title">We can't handle this one here</h1>
+        <p className="brokaid-tab__lede">
+          This isn't something we can handle through the portal — please contact your broker directly.
+        </p>
+      </header>
       <Link to="/c/cover" className="brokaid-btn brokaid-btn--secondary">← Back to cover</Link>
     </section>
   );

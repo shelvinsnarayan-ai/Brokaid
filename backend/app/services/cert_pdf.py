@@ -15,7 +15,7 @@ No agent internal names appear.
 from __future__ import annotations
 
 import io
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 import qrcode
@@ -192,6 +192,22 @@ def render_certificate_pdf(
         c.setFillColorRGB(*STEEL)
         c.drawString(margin, y, "See policy schedule for full cover terms.")
         y -= 5 * mm
+
+    # --- Vehicles (motor policies only)
+    vehicles = certificate.get("vehicles") or []
+    if vehicles:
+        y -= 6 * mm
+        c.setFont("Helvetica", 8)
+        c.setFillColorRGB(*STEEL)
+        c.drawString(margin, y, "VEHICLES")
+        y -= 5 * mm
+        c.setFont("Helvetica", 11)
+        c.setFillColorRGB(*NAVY)
+        for v in vehicles:
+            desc = " ".join(str(x) for x in (v.get("year"), v.get("make"), v.get("model")) if x)
+            line = f"• {v.get('rego') or '—'} · {desc or '—'} · primary driver {v.get('driver_assigned') or '—'}"
+            c.drawString(margin, y, line[:110])
+            y -= 5 * mm
 
     # --- Special requirements
     special = (req.get("special_requirements") or "").strip()
