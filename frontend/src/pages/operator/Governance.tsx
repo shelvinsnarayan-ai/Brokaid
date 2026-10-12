@@ -28,7 +28,7 @@ function RegistryCard() {
   const [rows, setRows] = useState<RegRow[]>([]);
   const [counts, setCounts] = useState<Record<string, Count>>({});
   useEffect(() => {
-    fetch(`${API}/api/o/registry`, { credentials: "include" }).then((r) => r.json())
+    fetch(`${API}/api/o/registry`, { credentials: "include" }).then((r) => (r.ok ? r.json() : ({} as any)))
       .then((d) => { setRows(d.agents || []); setCounts(d.counts || {}); }).catch(() => {});
   }, []);
   return (
@@ -186,12 +186,15 @@ export function Governance() {
   const [packages, setPackages] = useState<Opt[]>([]);
   const [spendData, setSpend] = useState<Spend | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [denied, setDenied] = useState(false);
   const load = useCallback(async () => {
-    const [k, s] = await Promise.all([
-      fetch(`${API}/api/o/kill-switch`, { credentials: "include" }).then((r) => r.json()),
-      fetch(`${API}/api/o/spend`, { credentials: "include" }).then((r) => r.json()),
+    const [kr, sr] = await Promise.all([
+      fetch(`${API}/api/o/kill-switch`, { credentials: "include" }),
+      fetch(`${API}/api/o/spend`, { credentials: "include" }),
     ]);
-    setRows(k.switches || []); setAgents(k.agents || []); setPackages(k.packages || []); setSpend(s);
+    if (!kr.ok || !sr.ok) { setDenied(true); return; }
+    const k = await kr.json();
+    setRows(k.switches || []); setAgents(k.agents || []); setPackages(k.packages || []); setSpend(await sr.json());
   }, []);
   useEffect(() => { void load(); }, [load]);
   const done = (m: string) => { setMsg(m); void load(); };
@@ -201,6 +204,7 @@ export function Governance() {
     try { await post("/api/o/kill-switch/release", { switch_id: s.switch_id, reason }); done("Kill switch released"); }
     catch (e) { done(String(e)); }
   }
+  if (denied) return <p data-testid="governance-denied" style={muted}>Agent operations are for the Operator role.</p>;
   return (
     <div data-testid="governance-page" style={{ maxWidth: 1100 }}>
       <p style={muted}>CONTROL · GOVERNANCE</p>

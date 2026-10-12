@@ -41,7 +41,7 @@ function countdown(deadline: string | null, now: Date): string {
 
 export function Queue() {
   const nav = useNavigate();
-  const isPrincipal = useOperatorStore((s) => s.session?.session.active_role) === "principal";
+  const isPrincipal = useOperatorStore((s) => s.session?.session.active_role) === "operator";
   const toast = useOperatorStore((s) => s.toast);
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState(0);

@@ -122,8 +122,11 @@ async def _ensure_operator_mongo(
                 assert existing is not None
                 user_id = existing["user_id"]
 
-        # Role — idempotent via unique (user_id, tenant_id, role).
+        # Role — idempotent: check first (no unique index on this collection).
         try:
+            if await safe_db.user_brokerage_roles.find_one(
+                    {"user_id": user_id, "role": spec["role"]}):
+                return user_id
             await safe_db.user_brokerage_roles.insert_one({
                 "user_id": user_id,
                 "tenant_id": tenant_id,

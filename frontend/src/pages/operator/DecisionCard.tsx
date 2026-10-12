@@ -133,8 +133,8 @@ export function DecisionCard() {
   const isClaim = card.class_key === "claim_admin";
   const claimId = isClaim ? (proposal.payload?.claim_id as string | undefined) : undefined;
   const isCompliance = session?.session.active_role === "compliance";
-  // R0.6: engine detail (scores) is Operator-only; Ada (principal) is the demo Operator.
-  const isOperator = session?.session.active_role === "principal";
+  // R0.6: engine detail (scores) is Operator-only (role=operator).
+  const isOperator = session?.session.active_role === "operator";
   const noEvidence = evidence.length === 0;
 
   return (

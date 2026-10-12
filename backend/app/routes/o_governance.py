@@ -16,8 +16,8 @@ router = APIRouter(prefix="/api/o")
 
 
 def require_operator_role(session: Session = Depends(require_operator_session)) -> Session:
-    """R0.6: agent operations are Operator-only (principal on the demo tenant)."""
-    if session.active_role != "principal":
+    """R0.6: agent operations are Operator-only (role=operator; not principal)."""
+    if session.active_role != "operator":
         raise HTTPException(status_code=403, detail="operator_role_required")
     return session
 

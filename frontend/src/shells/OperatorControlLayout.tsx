@@ -10,25 +10,33 @@ import { AppFooter } from "../components/AppFooter";
 import "../styles/app-footer.css";
 import { useOperatorStore } from "../state/operatorStore";
 
-// R0.6 (Addendum 2 §8.1): working roles see the work; Principal and Operator
-// groups are shown to the principal (Ada is the demo Operator).
+// R0.6 (Addendum 2 §8.1): working roles see the work; Principal group for
+// principal + operator; Operator group for the operator role only.
 const NAV_GROUPS = [
-  { title: null, principalOnly: false, items: [
+  { title: null, roles: null as string[] | null, items: [
     { to: "/o/queue",       label: "Today",        kbd: "g q" },
     { to: "/o/clients",     label: "Clients",      kbd: "g c" },
   ] },
-  { title: "Principal", principalOnly: true, items: [
+  { title: "Principal", roles: ["principal", "operator"], items: [
     { to: "/o",             label: "Overview",     kbd: "g o" },
     { to: "/o/brief",       label: "Daily Brief",  kbd: "g b" },
     { to: "/o/shadow-mode", label: "Shadow Mode",  kbd: "g s" },
   ] },
-  { title: "Operator", principalOnly: true, items: [
+  { title: "Operator", roles: ["operator"], items: [
     { to: "/o/governance",  label: "Agent operations", kbd: "g g" },
     { to: "/o/export",      label: "Export",       kbd: "g e" },
     { to: "/o/chase",       label: "Chase",        kbd: "g h" },
   ] },
 ];
-const OPERATOR_ONLY = ["/o/brief", "/o/shadow-mode", "/o/governance", "/o/export", "/o/chase"];
+const ROUTE_ROLES: [string, string[]][] = [
+  ["/o/governance", ["operator"]], ["/o/export", ["operator"]], ["/o/chase", ["operator"]],
+  ["/o/brief", ["principal", "operator"]], ["/o/shadow-mode", ["principal", "operator"]],
+];
+const allowed = (p: string, role: string | undefined) => {
+  if (p === "/o" || p === "/o/") return role === "principal" || role === "operator";
+  const hit = ROUTE_ROLES.find(([prefix]) => p.startsWith(prefix));
+  return !hit || hit[1].includes(role || "");
+};
 
 export function OperatorControlLayout() {
   const navigate = useNavigate();
@@ -38,15 +46,15 @@ export function OperatorControlLayout() {
   const [showHelp, setShowHelp] = useState(false);
   const [gPrefix, setGPrefix] = useState(false);
   const location = useLocation();
-  const isPrincipal = session?.session.active_role === "principal";
-  const NAV = NAV_GROUPS.filter((g) => isPrincipal || !g.principalOnly);
+  const role = session?.session.active_role;
+  const isPrincipal = role === "principal" || role === "operator";
+  const NAV = NAV_GROUPS.filter((g) => !g.roles || g.roles.includes(role || ""));
 
   useEffect(() => { if (!session) void load(); }, [session, load]);
   useEffect(() => {
-    if (!session || isPrincipal) return;
-    const p = location.pathname;
-    if (p === "/o" || p === "/o/" || OPERATOR_ONLY.some((x) => p.startsWith(x))) navigate("/o/queue", { replace: true });
-  }, [session, isPrincipal, location.pathname, navigate]);
+    if (!session) return;
+    if (!allowed(location.pathname, role)) navigate("/o/queue", { replace: true });
+  }, [session, role, location.pathname, navigate]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -69,7 +77,7 @@ export function OperatorControlLayout() {
           s: "/o/shadow-mode", e: "/o/export", h: "/o/chase", g: "/o/governance",
         };
         const dest = map[e.key.toLowerCase()];
-        if (dest && !isPrincipal && (dest === "/o" || OPERATOR_ONLY.includes(dest))) { setGPrefix(false); return; }
+        if (dest && !allowed(dest, role)) { setGPrefix(false); return; }
         if (dest) { e.preventDefault(); navigate(dest); }
         setGPrefix(false);
         return;
@@ -78,7 +86,7 @@ export function OperatorControlLayout() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [navigate, gPrefix, isPrincipal]);
+  }, [navigate, gPrefix, role]);
 
   async function logout() {
     document.cookie = "brokaid_session=; Max-Age=0; path=/";

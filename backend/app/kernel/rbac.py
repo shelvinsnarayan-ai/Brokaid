@@ -19,6 +19,7 @@ from app.kernel.trail_dispatch import append_via_dispatch
 
 LOGIN_CAPABLE_ROLES = {
     "principal", "deputy", "ae", "accounts", "compliance",
+    "operator",  # R0.6: agent operations (governance, registry, reset, kill switch, spend)
 }
 DATA_ONLY_ROLES = {
     "pod_lead", "account_manager", "claims_manager", "tenant_admin", "auditor",

@@ -36,6 +36,7 @@ OPERATORS = [
     {"email": "accounts-a@burmac.example",   "display_name": "Dee Accounts",    "role": "accounts"},
     {"email": "accounts-b@burmac.example",   "display_name": "Ev Accounts",     "role": "accounts"},
     {"email": "compliance@burmac.example",   "display_name": "Fin Compliance",  "role": "compliance"},
+    {"email": "operator@harbourline.example", "display_name": "Olly Operator",  "role": "operator"},
     # Data-only role example — cannot log in.
     {"email": "auditor@burmac.example",      "display_name": "Gil Auditor",     "role": "auditor"},
 ]

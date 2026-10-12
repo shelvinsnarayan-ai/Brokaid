@@ -24,7 +24,7 @@ import { BrandWordmark } from "../components/BrandWordmark";
 const API = import.meta.env.VITE_API_BASE || "";
 
 interface Persona {
-  slug: "ada" | "cass" | "kai";
+  slug: "ada" | "cass" | "kai" | "olly";
   name: string;
   seat: string;
   body: string;
@@ -36,8 +36,8 @@ const PERSONAS: Persona[] = [
   {
     slug: "ada",
     name: "Ada Principal",
-    seat: "Operator seat",
-    body: "Sees the whole queue, drives compliance and endorsement scenes.",
+    seat: "Principal seat",
+    body: "Sees the whole queue, the overview and shadow mode.",
     email: "principal@burmac.example",
     route: "/o",
   },
@@ -56,6 +56,14 @@ const PERSONAS: Persona[] = [
     body: "Requests a change, pays, signs, sees the certificate.",
     email: "owner@fictionalclient.example",
     route: "/c",
+  },
+  {
+    slug: "olly",
+    name: "Olly Operator",
+    seat: "Operator seat",
+    body: "Agent operations: registry, kill switches, spend, demo reset.",
+    email: "operator@harbourline.example",
+    route: "/o",
   },
 ];
 
@@ -137,7 +145,7 @@ export function Login() {
             isBusy ? "is-busy" : "",
           ].filter(Boolean).join(" ");
           return (
-            <li key={p.slug} className="brokaid-landing__persona-wrap">
+            <li key={p.slug} className="brokaid-landing__persona-wrap" data-testid={`persona-${p.slug}`}>
               <button
                 type="button"
                 className={cls}
