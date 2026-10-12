@@ -28,7 +28,7 @@ export function ClientCover() {
         <p className="brokaid-tab__eyebrow">Cover</p>
         <h1 className="brokaid-tab__title">Your cover</h1>
         <p className="brokaid-tab__lede">
-          Managed policies are placed and serviced by BurMac. Tracked
+          Managed policies are placed and serviced by Harbourline. Tracked
           policies are held elsewhere and recorded here for completeness.
         </p>
       </header>

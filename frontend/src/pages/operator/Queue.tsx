@@ -9,7 +9,7 @@ import { KEmpty } from "../../components/ledger/KEmpty";
 import { KKbd } from "../../components/ledger/KKbd";
 import { KNumber } from "../../components/ledger/KNumber";
 import { useOperatorStore } from "../../state/operatorStore";
-import { labelFor } from "../../lib/labels";
+import { confidenceWord, labelFor } from "../../lib/labels";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -35,14 +35,13 @@ function countdown(deadline: string | null, now: Date): string {
   const h = Math.floor(abs / 3_600_000);
   const m = Math.floor((abs % 3_600_000) / 60_000);
   const s = Math.floor((abs % 60_000) / 1000);
-  const sign = t < 0 ? "-" : "";
-  if (h > 0) return `${sign}${h}h ${m}m`;
-  if (m > 0) return `${sign}${m}m ${s}s`;
-  return `${sign}${s}s`;
+  const span = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+  return t < 0 ? `overdue by ${span}` : span;
 }
 
 export function Queue() {
   const nav = useNavigate();
+  const isPrincipal = useOperatorStore((s) => s.session?.session.active_role) === "principal";
   const toast = useOperatorStore((s) => s.toast);
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState(0);
@@ -176,7 +175,7 @@ export function Queue() {
                 <td title={c.class_key} data-raw={c.class_key} data-testid={`queue-class-${i}`}>{labelFor(c.class_key)}</td>
                 <td>{c.client_display ?? "—"}</td>
                 <td style={{ color: "var(--bone-muted)", fontSize: 12 }} title={c.gate_reason ?? ""} data-raw={c.gate_reason ?? ""} data-testid={`queue-reason-${i}`}>{labelFor(c.gate_reason)}</td>
-                <td className="k-num"><KNumber value={c.confidence} format="raw" /></td>
+                <td className="k-num" data-testid={`queue-confidence-${i}`}>{isPrincipal ? <KNumber value={c.confidence} format="raw" /> : confidenceWord(c.confidence)}</td>
                 <td className="k-num" data-testid={`queue-countdown-${i}`}>{countdown(c.sla_deadline, now)}</td>
                 <td title={c.routed_to_role ?? ""} data-raw={c.routed_to_role ?? ""}>{labelFor(c.routed_to_role)}</td>
               </tr>

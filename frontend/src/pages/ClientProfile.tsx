@@ -4,7 +4,6 @@
  */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MockedBadge } from "@brokaid/mocks";
 import { isPreviewMode, useMeStore, usePack } from "../state/meStore";
 
 export function ClientProfile() {
@@ -73,7 +72,6 @@ export function ClientProfile() {
                   <>
                     {" "}
                     · previewing {preview}{" "}
-                    <MockedBadge label="signal" variant="client" />
                   </>
                 )}
               </span>

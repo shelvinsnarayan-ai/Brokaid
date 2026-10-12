@@ -2,7 +2,7 @@
 
 Two named tenants with fixed UUIDs, a frozen clock, byte-identical
 genesis + last_hash across every run. Fully isolated from the
-Burmac / Harbour Marine demo seeds (`seed_all`).
+Harbourline / Harbour Marine demo seeds (`seed_all`).
 
 Content
 -------

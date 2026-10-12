@@ -12,12 +12,57 @@ interface Switch {
   enabled_at: string; released_at: string | null; release_reason: string | null;
 }
 interface Opt { ref: string; label: string }
+interface RegRow { package: string; assistant: string; class: string; autonomy: string; autonomy_label: string; data_basis: string }
+interface Count { value: number; data_basis: string }
+
+const COUNT_LABEL: Record<string, string> = {
+  ledger_events: "Ledger events", open_queue_items: "Open queue items", matters: "Matters",
+  things: "Things", refused_agent_calls: "Refused assistant calls", tenants: "Tenants",
+};
+
+function Basis({ b }: { b: string }) {
+  return <span style={{ fontSize: 10, color: "var(--slate)", border: "1px solid var(--line, #1E2E5A)", padding: "0 6px", marginLeft: 6 }} data-testid="data-basis">{b}</span>;
+}
+
+function RegistryCard() {
+  const [rows, setRows] = useState<RegRow[]>([]);
+  const [counts, setCounts] = useState<Record<string, Count>>({});
+  useEffect(() => {
+    fetch(`${API}/api/o/registry`, { credentials: "include" }).then((r) => r.json())
+      .then((d) => { setRows(d.agents || []); setCounts(d.counts || {}); }).catch(() => {});
+  }, []);
+  return (
+    <section style={card} data-testid="gov-registry">
+      <h2 style={{ fontSize: 16 }}>Registry</h2>
+      <div style={{ display: "flex", gap: 20, flexWrap: "wrap", margin: "8px 0 14px" }} data-testid="gov-registry-counts">
+        {Object.entries(counts).map(([k, c]) => (
+          <div key={k} data-testid={`gov-count-${k}`}>
+            <div style={muted}>{COUNT_LABEL[k] || k}</div>
+            <div style={{ fontSize: 20, fontFamily: "var(--font-mono)" }}>{c.value.toLocaleString("en-AU")}<Basis b={c.data_basis} /></div>
+          </div>
+        ))}
+      </div>
+      <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }} data-testid="gov-registry-table">
+        <thead><tr style={{ textAlign: "left", ...muted }}><th>Package</th><th>Assistant</th><th>Class</th><th>Autonomy</th></tr></thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} style={{ borderTop: "1px solid var(--line, #1E2E5A)" }}>
+              <td>{r.package}</td><td>{r.assistant}</td><td>{r.class}</td>
+              <td title={r.autonomy_label}>{r.autonomy} · {r.autonomy_label}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p style={muted}>Calls from an assistant that isn't listed here are refused and logged.</p>
+    </section>
+  );
+}
 interface Spend {
   tokens_used: number; invocations: number; cost_usd: number; cap_usd: number | null;
   pct_of_cap: number | null; alerts_fired: number[];
 }
 
-const card: React.CSSProperties = { border: "1px solid var(--line, #33415a)", padding: 16, marginBottom: 20 };
+const card: React.CSSProperties = { border: "1px solid var(--line, #1E2E5A)", padding: 16, marginBottom: 20 };
 const muted: React.CSSProperties = { fontSize: 12, color: "var(--slate)" };
 
 async function post(path: string, body: unknown) {
@@ -43,8 +88,8 @@ function SpendCard({ s }: { s: Spend | null }) {
         {s.cap_usd ? `cap US$${s.cap_usd.toFixed(2)} (${pct}%)` : "no dollar cap set"}
       </p>
       {s.cap_usd && (
-        <div style={{ height: 6, background: "var(--line, #33415a)", marginTop: 8 }} data-testid="gov-spend-bar">
-          <div style={{ width: `${Math.min(pct, 100)}%`, height: 6, background: pct >= 80 ? "#d9534f" : "#3fa37a" }} />
+        <div style={{ height: 6, background: "var(--line, #1E2E5A)", marginTop: 8 }} data-testid="gov-spend-bar">
+          <div style={{ width: `${Math.min(pct, 100)}%`, height: 6, background: pct >= 80 ? "#C0392B" : "#3fa37a" }} />
         </div>
       )}
       {s.alerts_fired.length > 0 && <p style={muted} data-testid="gov-spend-alerts">Alerts fired: {s.alerts_fired.map((p) => `${p}%`).join(", ")}</p>}
@@ -97,7 +142,7 @@ function SwitchRows({ rows, onRelease }: { rows: Switch[]; onRelease: (s: Switch
       <thead><tr style={{ textAlign: "left", ...muted }}><th>Status</th><th>Blocks</th><th>Tenant</th><th>Reason</th><th>Engaged</th><th /></tr></thead>
       <tbody>
         {rows.map((s) => (
-          <tr key={s.switch_id} data-testid={`gov-switch-${s.switch_id}`} style={{ borderTop: "1px solid var(--line, #33415a)", opacity: s.enabled ? 1 : 0.55 }}>
+          <tr key={s.switch_id} data-testid={`gov-switch-${s.switch_id}`} style={{ borderTop: "1px solid var(--line, #1E2E5A)", opacity: s.enabled ? 1 : 0.55 }}>
             <td>{s.enabled ? "ENGAGED" : "released"}</td>
             <td>{s.scope_label}</td>
             <td>{s.tenant_id ? s.tenant_id.slice(0, 8) : "all"}</td>
@@ -162,6 +207,7 @@ export function Governance() {
       <h1 style={{ fontSize: 28, marginBottom: 16 }}>Governance</h1>
       {msg && <p data-testid="gov-message" style={{ ...muted, marginBottom: 12 }}>{msg}</p>}
       <SpendCard s={spendData} />
+      <RegistryCard />
       <section style={card} data-testid="gov-kill-switches">
         <h2 style={{ fontSize: 16 }}>Kill switches</h2>
         <p style={muted}>An engaged switch stops matching assistant work before any model call. Takes effect within 10 seconds.</p>

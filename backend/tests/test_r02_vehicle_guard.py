@@ -108,9 +108,9 @@ def test_apply_vehicle_and_driver_changes():
             _op("add", {"registration": "XYZ789", "make": "Toyota", "model": "Hilux", "year": 2024})]
     for c in swap:
         _apply_change(s, c)
-    assert [v["rego"] for v in s["vehicles"]] == ["DEF456", "XYZ789"]
+    assert [v["rego"] for v in s["vehicles"]] == ["DEF-456", "XYZ789"]
     assert vehicle_mutations(swap, s) == {"added": ["XYZ789"], "removed": ["ABC123"],
-                                          "vehicles_after": ["DEF456", "XYZ789"]}
+                                          "vehicles_after": ["DEF-456", "XYZ789"]}
     _apply_change(s, {"field_path": "schedule.vehicles[]", "operation": "replace",
                       "from_value": {"rego": "DEF456"}, "to_value": {"rego": "NEW1"}})
     assert [v["rego"] for v in s["vehicles"]] == ["XYZ789", "NEW1"]

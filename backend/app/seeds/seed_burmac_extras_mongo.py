@@ -429,7 +429,7 @@ DEMO_TOKENS = [
         "interest_type": "additional_insured",
         "special": (
             "Payload signature invalid — this certificate should not be "
-            "accepted. Contact BurMac to reissue."
+            "accepted. Contact Harbourline to reissue."
         ),
     },
     {

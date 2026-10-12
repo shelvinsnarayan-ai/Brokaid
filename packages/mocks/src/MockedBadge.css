@@ -4,7 +4,7 @@
   gap: 0.35em;
   padding: 4px 10px;
   border-radius: 999px;
-  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -38,7 +38,7 @@
 .brokaid-mocked--client::before {
   content: "\00B7"; /* middle dot, decorative only */
   color: var(--coral, #e8623a);
-  font-family: "DM Mono", ui-monospace, monospace;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 14px;
   line-height: 1;
   speak: never;

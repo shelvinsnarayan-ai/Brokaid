@@ -1,17 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 150" role="img" aria-label="brokAId lockup">
-  <rect width="640" height="150" fill="#12181C"/>
+  <rect width="640" height="150" fill="#0B1530"/>
   <g transform="translate(16,8) scale(1.12)">
-  <g fill="none" stroke="#F1EEE7" stroke-width="7" stroke-linecap="round">
+  <g fill="none" stroke="#E6EAF2" stroke-width="7" stroke-linecap="round">
     <path d="M60 10 A50 50 0 0 1 110 60"/>
     <path d="M110 60 A50 50 0 0 1 60 110"/>
     <path d="M60 110 A50 50 0 0 1 10 60"/>
   </g>
-  <g fill="none" stroke="#D9934A" stroke-width="7" stroke-linecap="round">
+  <g fill="none" stroke="#F2B01E" stroke-width="7" stroke-linecap="round">
     <path d="M10 60 A50 50 0 0 1 60 10"/>
   </g>
-  <circle cx="60" cy="60" r="21" fill="none" stroke="#F1EEE7" stroke-width="5"/>
-  <circle cx="60" cy="60" r="7.5" fill="#F1EEE7"/>
+  <circle cx="60" cy="60" r="21" fill="none" stroke="#E6EAF2" stroke-width="5"/>
+  <circle cx="60" cy="60" r="7.5" fill="#E6EAF2"/>
 </g>
   <text x="182" y="98" font-family="Jura, sans-serif" font-size="62" font-weight="300"
-        fill="#F1EEE7">brok<tspan fill="#D9934A">AI</tspan>d</text>
+        fill="#E6EAF2">brok<tspan fill="#F2B01E">AI</tspan>d</text>
 </svg>

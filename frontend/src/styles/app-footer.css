@@ -55,12 +55,12 @@
   padding: 3px 8px;
   border-radius: 2px;
   background: rgba(13, 17, 26, 0.85);
-  border: 1px solid rgba(232, 226, 214, 0.14);
-  color: var(--bone-muted, #a8a49b);
+  border: 1px solid rgba(230,234,242, 0.14);
+  color: var(--bone-muted, #8C97B5);
   z-index: 5;
   pointer-events: none;
 }
 
 .brokaid-app-footer--ledger .brokaid-app-footer__sha {
-  color: var(--bone, #e8e2d6);
+  color: var(--bone, #E6EAF2);
 }

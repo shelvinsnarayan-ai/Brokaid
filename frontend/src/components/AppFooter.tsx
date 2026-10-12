@@ -24,6 +24,18 @@ type BuildInfo = {
 type Variant = "harbour" | "ledger";
 
 export function AppFooter({ variant }: { variant: Variant }) {
+  if (variant === "harbour") {
+    return (
+      <footer className="brokaid-app-footer brokaid-app-footer--harbour" role="contentinfo" data-testid="app-footer">
+        <span>brokAId · Harbourline Insurance Brokers Pty Ltd (fictional) · general advice only</span>
+      </footer>
+    );
+  }
+  return <OperatorFooter />;
+}
+
+function OperatorFooter() {
+  const variant: Variant = "ledger";
   const [info, setInfo] = useState<BuildInfo | null>(null);
 
   useEffect(() => {
@@ -42,7 +54,7 @@ export function AppFooter({ variant }: { variant: Variant }) {
   const sha = info?.short_sha ?? "…";
   const env = info?.env ?? "";
   const cls =
-    variant === "harbour" ? "brokaid-app-footer brokaid-app-footer--harbour" : "brokaid-app-footer brokaid-app-footer--ledger";
+    "brokaid-app-footer brokaid-app-footer--" + variant;
   return (
     <footer
       className={cls}

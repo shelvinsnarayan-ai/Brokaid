@@ -3,7 +3,6 @@
  * backend returns it (i.e. AUTH_DEV_MODE=true and RESEND unavailable).
  */
 import { useState } from "react";
-import { MockedBadge } from "@brokaid/mocks";
 import { BrandWordmark } from "../components/BrandWordmark";
 
 const API = import.meta.env.VITE_API_BASE || "";
@@ -93,7 +92,6 @@ export function ClientLogin() {
 
       {devToken && (
         <div className="brokaid-devbox" data-testid="client-login-dev-token">
-          <MockedBadge label="e-sign" />
           <div>
             <strong>Dev token</strong> (no email provider — dev-mode fallback):
           </div>

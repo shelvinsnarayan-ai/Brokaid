@@ -8,7 +8,6 @@
  */
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { MockedBadge } from "@brokaid/mocks";
 import { EmptyState } from "../components/EmptyState";
 import { useAuthority, usePack } from "../state/meStore";
 import { fmtAud } from "../lib/format";
@@ -192,7 +191,6 @@ export function ClientPendingQuote() {
               {cover || "—"}
             </h2>
           </div>
-          <MockedBadge label="carrier" variant="client" testId="quote-mocked-badge" />
         </div>
 
         <p className="brokaid-quote-card__summary" data-testid="quote-summary">

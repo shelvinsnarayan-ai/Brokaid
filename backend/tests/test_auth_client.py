@@ -13,7 +13,7 @@ async def test_request_dev_mode_returns_token(app_client, seeded):
     _, client = app_client
     r = await client.post(
         "/api/auth/client/request",
-        json={"email": CLIENT_EMAIL, "brokerage_slug": "burmac-brokerage"},
+        json={"email": CLIENT_EMAIL, "brokerage_slug": "harbourline-brokerage"},
     )
     assert r.status_code == 200
     body = r.json()
@@ -27,7 +27,7 @@ async def test_verify_token_creates_session(app_client, seeded):
     _, client = app_client
     r = await client.post(
         "/api/auth/client/request",
-        json={"email": CLIENT_EMAIL, "brokerage_slug": "burmac-brokerage"},
+        json={"email": CLIENT_EMAIL, "brokerage_slug": "harbourline-brokerage"},
     )
     token = r.json()["dev_token"]
 
@@ -42,7 +42,7 @@ async def test_verify_twice_second_attempt_400(app_client, seeded):
     _, client = app_client
     r = await client.post(
         "/api/auth/client/request",
-        json={"email": CLIENT_EMAIL, "brokerage_slug": "burmac-brokerage"},
+        json={"email": CLIENT_EMAIL, "brokerage_slug": "harbourline-brokerage"},
     )
     token = r.json()["dev_token"]
 

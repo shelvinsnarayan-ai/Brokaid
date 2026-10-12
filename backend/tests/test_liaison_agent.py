@@ -31,7 +31,7 @@ FIXTURES = json.loads(
 
 DEFAULT_CONTEXT: dict[str, Any] = {
     "client_display_name": "Harbour Marine Services Pty Ltd",
-    "linked_broker_name": "BurMac Insurance Broking",
+    "linked_broker_name": "Harbourline Insurance Brokers",
     "matter_kind": "general",
     "recent_events_summary": "(no recent events)",
     "policy_summary": None,

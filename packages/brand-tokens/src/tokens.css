@@ -13,30 +13,39 @@
 
 :root {
   /* Ledger */
-  --ink: #12181c;
-  --bone: #f1eee7;
-  --bone-muted: #a0a3a7;
-  --copper: #b9752f;
-  --copper-light: #d9934a;
-  --slate: #5a5c60;
-  --slate-strong: #45474b;
+  --ink: #0B1530;
+  --bone: #E6EAF2;
+  --bone-muted: #8C97B5;
+  --copper: #F2B01E;
+  --copper-light: #F2B01E;
+  --slate: #6B7690;
+  --slate-strong: #3A4A66;
 
   /* Harbour */
-  --harbour: #0b3b4b;
-  --sea: #1f8a9e;
-  --sea-strong: #146e80;
-  --sand: #f4efe6;
-  --coral: #e8623a;
+  --harbour: #0F1F3D;
+  --sea: #3E6D9C;
+  --sea-strong: #2F5A85;
+  --sand: #F6F7FA;
+  --coral: #F2B01E;
+
+  /* Meridian v1.1 (R0.6): legacy names kept, values remapped */
+  --steel: #3E6D9C;
+  --saffron: #F2B01E;
+  --cloud: #F6F7FA;
+  --navy: #0F1F3D;
+  --deep-surface: #122045;
+  --line-light: #DDE2EA;
+  --line-deep: #1E2E5A;
 
   /* Utility (shared) */
-  --verify: #2e7d5a;
-  --alert: #c94a3d;
+  --verify: #1F7A4D;
+  --alert: #C0392B;
 
   /* Type */
-  --font-display-harbour: "Outfit", system-ui, sans-serif;
-  --font-display-ledger: "Jura", system-ui, sans-serif;
-  --font-ui: "Instrument Sans", system-ui, sans-serif;
-  --font-mono: "DM Mono", ui-monospace, monospace;
+  --font-display-harbour: "Sora", system-ui, sans-serif;
+  --font-display-ledger: "Sora", system-ui, sans-serif;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
   --tap-min: 44px;
 }
@@ -51,7 +60,7 @@
 .surface-ledger h2,
 .surface-ledger h3 {
   font-family: var(--font-display-ledger);
-  font-weight: 300;
+  font-weight: 600;
   line-height: 1.2;
   color: var(--bone);
 }

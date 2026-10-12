@@ -8,25 +8,25 @@
  */
 
 export const LEDGER = {
-  ink: "#12181C",
-  bone: "#F1EEE7",
-  boneMuted: "#A0A3A7",
-  copper: "#B9752F",
-  copperLight: "#D9934A",
-  slate: "#5A5C60",
-  slateStrong: "#45474B",
-  verify: "#2E7D5A",
-  alert: "#C94A3D",
+  ink: "#0B1530",
+  bone: "#E6EAF2",
+  boneMuted: "#8C97B5",
+  copper: "#F2B01E",
+  copperLight: "#F2B01E",
+  slate: "#6B7690",
+  slateStrong: "#3A4A66",
+  verify: "#1F7A4D",
+  alert: "#C0392B",
 } as const;
 
 export const HARBOUR = {
-  harbour: "#0B3B4B",
-  sea: "#1F8A9E",
-  seaStrong: "#146E80",
-  sand: "#F4EFE6",
-  coral: "#E8623A",
-  verify: "#2E7D5A",
-  alert: "#C94A3D",
+  harbour: "#0F1F3D",
+  sea: "#3E6D9C",
+  seaStrong: "#2F5A85",
+  sand: "#F6F7FA",
+  coral: "#F2B01E",
+  verify: "#1F7A4D",
+  alert: "#C0392B",
 } as const;
 
 export type LedgerToken = keyof typeof LEDGER;

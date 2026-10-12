@@ -8,10 +8,10 @@
  */
 
 export const FONT_FAMILY = {
-  displayHarbour: '"Outfit", system-ui, sans-serif',
-  displayLedger: '"Jura", system-ui, sans-serif',
-  ui: '"Instrument Sans", system-ui, sans-serif',
-  mono: '"DM Mono", ui-monospace, monospace',
+  displayHarbour: '"Sora", system-ui, sans-serif',
+  displayLedger: '"Sora", system-ui, sans-serif',
+  ui: '"Inter", system-ui, sans-serif',
+  mono: '"IBM Plex Mono", ui-monospace, monospace',
 } as const;
 
 export const FONT_SIZE = {

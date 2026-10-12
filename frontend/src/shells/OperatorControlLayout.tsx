@@ -3,23 +3,32 @@
  * overlay ('?'). Wraps all /o/* routes for phase 7.
  */
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BrandWordmark } from "../components/BrandWordmark";
 import { KKbd } from "../components/ledger/KKbd";
 import { AppFooter } from "../components/AppFooter";
 import "../styles/app-footer.css";
 import { useOperatorStore } from "../state/operatorStore";
 
-const NAV = [
-  { to: "/o",             label: "Overview",     kbd: "g o" },
-  { to: "/o/queue",       label: "Queue",        kbd: "g q" },
-  { to: "/o/brief",       label: "Daily Brief",  kbd: "g b" },
-  { to: "/o/clients",     label: "Clients",      kbd: "g c" },
-  { to: "/o/shadow-mode", label: "Shadow Mode",  kbd: "g s" },
-  { to: "/o/export",      label: "Export",       kbd: "g e" },
-  { to: "/o/chase",       label: "Chase",        kbd: "g h" },
-  { to: "/o/governance",  label: "Governance",   kbd: "g g" },
+// R0.6 (Addendum 2 §8.1): working roles see the work; Principal and Operator
+// groups are shown to the principal (Ada is the demo Operator).
+const NAV_GROUPS = [
+  { title: null, principalOnly: false, items: [
+    { to: "/o/queue",       label: "Today",        kbd: "g q" },
+    { to: "/o/clients",     label: "Clients",      kbd: "g c" },
+  ] },
+  { title: "Principal", principalOnly: true, items: [
+    { to: "/o",             label: "Overview",     kbd: "g o" },
+    { to: "/o/brief",       label: "Daily Brief",  kbd: "g b" },
+    { to: "/o/shadow-mode", label: "Shadow Mode",  kbd: "g s" },
+  ] },
+  { title: "Operator", principalOnly: true, items: [
+    { to: "/o/governance",  label: "Agent operations", kbd: "g g" },
+    { to: "/o/export",      label: "Export",       kbd: "g e" },
+    { to: "/o/chase",       label: "Chase",        kbd: "g h" },
+  ] },
 ];
+const OPERATOR_ONLY = ["/o/brief", "/o/shadow-mode", "/o/governance", "/o/export", "/o/chase"];
 
 export function OperatorControlLayout() {
   const navigate = useNavigate();
@@ -28,8 +37,16 @@ export function OperatorControlLayout() {
   const toasts = useOperatorStore((s) => s.toasts);
   const [showHelp, setShowHelp] = useState(false);
   const [gPrefix, setGPrefix] = useState(false);
+  const location = useLocation();
+  const isPrincipal = session?.session.active_role === "principal";
+  const NAV = NAV_GROUPS.filter((g) => isPrincipal || !g.principalOnly);
 
   useEffect(() => { if (!session) void load(); }, [session, load]);
+  useEffect(() => {
+    if (!session || isPrincipal) return;
+    const p = location.pathname;
+    if (p === "/o" || p === "/o/" || OPERATOR_ONLY.some((x) => p.startsWith(x))) navigate("/o/queue", { replace: true });
+  }, [session, isPrincipal, location.pathname, navigate]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -52,6 +69,7 @@ export function OperatorControlLayout() {
           s: "/o/shadow-mode", e: "/o/export", h: "/o/chase", g: "/o/governance",
         };
         const dest = map[e.key.toLowerCase()];
+        if (dest && !isPrincipal && (dest === "/o" || OPERATOR_ONLY.includes(dest))) { setGPrefix(false); return; }
         if (dest) { e.preventDefault(); navigate(dest); }
         setGPrefix(false);
         return;
@@ -60,7 +78,7 @@ export function OperatorControlLayout() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [navigate, gPrefix]);
+  }, [navigate, gPrefix, isPrincipal]);
 
   async function logout() {
     document.cookie = "brokaid_session=; Max-Age=0; path=/";
@@ -70,11 +88,12 @@ export function OperatorControlLayout() {
   return (
     <div className="ledger-app surface-ledger" data-testid="operator-control-root">
       <header className="ledger-topbar" data-testid="operator-topbar">
-        <Link to="/o" className="ledger-topbar__brand" data-testid="brand-mark" aria-label="brokAId — go to overview">
+        <Link to={isPrincipal ? "/o" : "/o/queue"} className="ledger-topbar__brand" data-testid="brand-mark" aria-label="brokAId — go to start">
+          <img src="/brand/mark-ring-reversed.svg" height={22} width={22} alt="" data-testid="brand-ring-mark" style={{ marginRight: 8 }} />
           <BrandWordmark variant="ledger-reverse" height={22} />
         </Link>
         <div className="ledger-topbar__tenant" data-testid="operator-tenant">
-          {session ? "BurMac Insurance Brokers" : "loading…"}
+          {session ? <>Harbourline Insurance Brokers <span className="ledger-topbar__demo" data-testid="operator-demo-badge">Demo</span></> : "loading…"}
         </div>
         <div className="ledger-topbar__user">
           <button
@@ -99,7 +118,10 @@ export function OperatorControlLayout() {
 
       <div className="ledger-shell">
         <nav className="ledger-rail" data-testid="operator-rail">
-          {NAV.map((n) => (
+          {NAV.map((g) => (
+            <div key={g.title || "work"} className="ledger-rail__group" data-testid={`rail-group-${(g.title || "work").toLowerCase()}`}>
+            {g.title && <div className="ledger-rail__group-title">{g.title}</div>}
+            {g.items.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
@@ -110,6 +132,8 @@ export function OperatorControlLayout() {
               <span>{n.label}</span>
               <span className="ledger-rail__kbd">{n.kbd}</span>
             </NavLink>
+            ))}
+            </div>
           ))}
           <div className="ledger-rail__hint">
             Press <KKbd>?</KKbd> for the full keyboard map.<br/>

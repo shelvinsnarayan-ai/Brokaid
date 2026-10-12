@@ -15,7 +15,6 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { MockedBadge } from "@brokaid/mocks";
 import { fmtDate } from "../lib/format";
 
 const API = import.meta.env.VITE_API_BASE || "";
@@ -441,7 +440,6 @@ export function ClientCertificateNew() {
               >
                 {issued.insurer_display}
               </h2>
-              <MockedBadge label="carrier" variant="client" />
             </div>
             <dl className="brokaid-cert-preview__grid">
               <dt>Holder</dt>

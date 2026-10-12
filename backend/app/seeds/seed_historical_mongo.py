@@ -144,7 +144,7 @@ async def seed_queue_cards_mongo(
                     "envelope_id": env_id,
                     "class_key": spec["class_key"],
                     "output": {
-                        "summary": f"Proposed action for {spec['class_key']} — awaiting operator review.",
+                        "summary": f"Proposed action for {spec['class_key']} — waiting for a broker.",
                         "fields": {"mocked_capabilities": ["carrier"]},
                     },
                     "confidence": {"components": components,

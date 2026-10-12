@@ -14,7 +14,7 @@
 }
 
 .ledger-chase__title {
-  font-family: var(--font-display-ledger, "Jura", system-ui, sans-serif);
+  font-family: var(--font-display-ledger, "Sora", system-ui, sans-serif);
   font-weight: 300;
   font-size: 32px;
   line-height: 1.2;
@@ -49,8 +49,8 @@
   gap: 14px;
   padding: 18px 18px 20px;
   border-radius: 6px;
-  background: rgba(232, 226, 214, 0.04);
-  border: 1px solid rgba(232, 226, 214, 0.12);
+  background: rgba(230,234,242, 0.04);
+  border: 1px solid rgba(230,234,242, 0.12);
   min-height: 120px;
 }
 
@@ -62,7 +62,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(191, 122, 62, 0.14);
+  background: rgba(242,176,30, 0.14);
   color: var(--copper);
 }
 
@@ -72,7 +72,7 @@
 }
 
 .ledger-chase-card__label {
-  font-family: var(--font-ui, "Instrument Sans", system-ui, sans-serif);
+  font-family: var(--font-ui, "Inter", system-ui, sans-serif);
   font-weight: 600;
   font-size: 16px;
   color: var(--bone);
@@ -90,9 +90,9 @@
   display: inline-block;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(191, 122, 62, 0.22);
+  background: rgba(242,176,30, 0.22);
   color: var(--bone);
-  font-family: var(--font-mono, "DM Mono", ui-monospace, monospace);
+  font-family: var(--font-mono, "IBM Plex Mono", ui-monospace, monospace);
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;

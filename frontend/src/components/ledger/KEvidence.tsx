@@ -1,3 +1,4 @@
+import { labelFor } from "../../lib/labels";
 import { fmtDateTime } from "../../lib/format";
 interface EvidenceItem {
   event_id: string;
@@ -22,7 +23,7 @@ export function KEvidence({ items, testId }: { items: EvidenceItem[]; testId?: s
         return (
           <div key={it.event_id} className="k-evidence__item">
             <div className="k-evidence__meta">
-              {it.type} · {fmtDateTime(it.ts)} · {it.event_id.slice(0, 8)}…
+              {labelFor(it.type)} · {fmtDateTime(it.ts)}
               {isCarrier && (
                 <span
                   className="k-chip k-chip--warn"
@@ -43,10 +44,14 @@ export function KEvidence({ items, testId }: { items: EvidenceItem[]; testId?: s
               ) : isSubmission ? (
                 <>
                   <strong>Submission drafted.</strong>{" "}
-                  {(it.payload as any)?.submission_summary || JSON.stringify(it.payload).slice(0, 200)}
+                  {(it.payload as any)?.submission_summary || "Summary not available"}
                 </>
+              ) : (it.payload as any)?.label ? (
+                <>{(it.payload as any).label}</>
               ) : (
-                JSON.stringify(it.payload || {}, null, 0).slice(0, 260)
+                Object.entries(it.payload || {})
+                  .filter(([, v]) => typeof v === "string" || typeof v === "number")
+                  .slice(0, 4).map(([, v]) => String(v)).join(" · ").slice(0, 200)
               )}
             </div>
           </div>

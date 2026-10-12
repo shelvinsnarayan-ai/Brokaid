@@ -1,7 +1,6 @@
 /**
  * Money tab — MOCKED banner (finance surface hasn't shipped yet).
  */
-import { MockedBadge } from "@brokaid/mocks";
 import { EmptyState } from "../components/EmptyState";
 import { usePack } from "../state/meStore";
 
@@ -11,7 +10,7 @@ export function ClientMoney() {
     <section className="brokaid-tab" data-testid="tab-money-root">
       <header className="brokaid-tab__head brokaid-tab__head--mocked">
         <p className="brokaid-tab__eyebrow">
-          Money <MockedBadge label="payment" variant="client" />
+          Money
         </p>
         <h1 className="brokaid-tab__title">Invoices & statements</h1>
       </header>

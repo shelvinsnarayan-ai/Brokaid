@@ -66,7 +66,7 @@ export function KpiDetail() {
 
       <h2 style={{ fontFamily: "var(--font-display-ledger)", fontWeight: 300, fontSize: 18 }}>Meta</h2>
       <pre style={{
-        background: "rgba(232,226,214,0.03)", border: "1px solid rgba(232,226,214,0.08)",
+        background: "rgba(230,234,242,0.03)", border: "1px solid rgba(230,234,242,0.08)",
         padding: 12, borderRadius: 3, fontSize: 12, overflowX: "auto",
         fontFamily: "var(--font-mono)", color: "var(--bone)",
       }} data-testid="kpi-detail-meta">

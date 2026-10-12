@@ -6,7 +6,7 @@
     "start": "vite --host 0.0.0.0 --port 3000",
     "build": "vite build",
     "preview": "vite preview",
-    "prebuild": "node scripts/generate-pwa-icons.mjs"
+    "prebuild": "node scripts/generate-pwa-icons.mjs && node ../ci/deny_list_source.js"
   },
   "dependencies": {
     "@brokaid/brand-tokens": "file:../packages/brand-tokens",

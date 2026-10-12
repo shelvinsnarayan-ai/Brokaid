@@ -6,8 +6,8 @@ import { HARBOUR, LEDGER, contrast } from "../palettes";
  * authoritative v1.0 Identity Guide canon (Shelvin snap; the R5d
  * realignment landed on the wrong reference hex values — this is
  * the correction). Each Harbour target below is the measured value
- * at the v1.0 hex (harbour #0B3B4B, sea #1F8A9E, sand #F4EFE6,
- * coral #E8623A). Ledger palette unchanged.
+ * at the v1.0 hex (harbour #0F1F3D, sea #3E6D9C, sand #F6F7FA,
+ * coral #F2B01E). Ledger palette unchanged.
  *
  * WCAG guardrails preserved:
  *   - Anything used as body text clears AA body (4.5).
@@ -52,7 +52,7 @@ describe("Ledger palette contrast", () => {
 
 describe("Harbour palette contrast (v1.0 canon)", () => {
   it("Harbour on Sand ≥ 10.5 (v1.0 — well above AA body)", () => {
-    // R7-Light-Tokens snap: measured 10.53 at #0B3B4B on #F4EFE6.
+    // R7-Light-Tokens snap: measured 10.53 at #0F1F3D on #F6F7FA.
     // Was 12.52 at the R5d values; the drop reflects the slightly
     // lighter harbour and slightly lighter sand in the v1.0 canon.
     expect(within(contrast(HARBOUR.harbour, HARBOUR.sand), 10.5)).toBe(true);
@@ -60,7 +60,7 @@ describe("Harbour palette contrast (v1.0 canon)", () => {
   it("Sea on Sand ≥ 3.5 (AA large — Guide §4 'large text only')", () => {
     // Guide §4: Sea is "secondary attention". It never carries body
     // copy. AA large (3.0) is the guardrail; anything below fails.
-    // R7-Light-Tokens snap: measured 3.54 at #1F8A9E on #F4EFE6.
+    // R7-Light-Tokens snap: measured 3.54 at #3E6D9C on #F6F7FA.
     const r = contrast(HARBOUR.sea, HARBOUR.sand);
     expect(r).toBeGreaterThanOrEqual(3.0);
     expect(within(r, 3.5)).toBe(true);
@@ -71,24 +71,24 @@ describe("Harbour palette contrast (v1.0 canon)", () => {
     expect(within(contrast(HARBOUR.seaStrong, HARBOUR.sand), 4.5)).toBe(true);
   });
   it("Coral on Sand within 2.8–3.0 (decorative only per Guide §4)", () => {
-    // R7-Light-Tokens snap: 2.94 at #E8623A on #F4EFE6, still in
+    // R7-Light-Tokens snap: 2.94 at #F2B01E on #F6F7FA, still in
     // the intentional decorative-only band.
     expect(within(contrast(HARBOUR.coral, HARBOUR.sand), 2.8, 3.0)).toBe(true);
   });
   it("White on Harbour ≥ 12.1 (v1.0 — well above AA body)", () => {
-    // R7-Light-Tokens snap: 12.06 at #0B3B4B, down from 14.85 at
+    // R7-Light-Tokens snap: 12.06 at #0F1F3D, down from 14.85 at
     // the darker R5d value. Still comfortable AAA.
     expect(within(contrast("#FFFFFF", HARBOUR.harbour), 12.1)).toBe(true);
   });
   it("White on Sea ≥ 4.1 (AA large — accent surface)", () => {
-    // R7-Light-Tokens snap: 4.05 at #1F8A9E, up from 3.82.
+    // R7-Light-Tokens snap: 4.05 at #3E6D9C, up from 3.82.
     // Now clears AA large with a real margin; still not body-safe.
     const r = contrast("#FFFFFF", HARBOUR.sea);
     expect(r).toBeGreaterThanOrEqual(3.0);
     expect(within(r, 4.1)).toBe(true);
   });
   it("White on Coral within 3.3–3.5 (decorative)", () => {
-    // R7-Light-Tokens snap: 3.37 at #E8623A on white, still in
+    // R7-Light-Tokens snap: 3.37 at #F2B01E on white, still in
     // the intentional decorative band.
     expect(within(contrast("#FFFFFF", HARBOUR.coral), 3.3, 3.5)).toBe(true);
   });

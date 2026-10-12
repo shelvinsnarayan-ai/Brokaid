@@ -25,6 +25,7 @@ from app.seeds.seed_users import (
     CLIENTS, DEV_PASSWORD, FICTIONAL_CLIENT_ID,
     OPERATORS, TENANT_NAME, TENANT_SLUG,
     BROKERAGE_SLUG, BROKERAGE_NAME, LICENSEE,
+    LEGACY_TENANT_SLUG,
 )
 
 
@@ -47,6 +48,25 @@ async def _ensure_tenant_mongo(safe_db) -> str:
             row = await safe_db.system("tenants").find_one({"slug": TENANT_SLUG})
             assert row is not None
             return row["tenant_id"]
+
+
+async def _repoint_legacy_logins(db, tenant_id: str) -> int:
+    """R0.6 G3: move fictional demo logins (*.example) off the legacy tenant."""
+    # tenant-safe: system-only — cross-tenant user repoint, seed-time only.
+    legacy = await db.tenants.find_one({"slug": LEGACY_TENANT_SLUG})
+    if not legacy or legacy["tenant_id"] == tenant_id:
+        return 0
+    res = await db.users.update_many(
+        {"tenant_id": legacy["tenant_id"], "email": {"$regex": r"\.example$"}},
+        {"$set": {"tenant_id": tenant_id, "repointed_from": legacy["tenant_id"]}},
+    )
+    moved = [u["user_id"] async for u in db.users.find({"repointed_from": legacy["tenant_id"]}, {"user_id": 1})]
+    await db.user_brokerage_roles.update_many(
+        {"tenant_id": legacy["tenant_id"], "user_id": {"$in": moved}}, {"$set": {"active": False}})
+    await db.user_client_links.update_many(
+        {"tenant_id": legacy["tenant_id"], "user_id": {"$in": moved}},
+        {"$set": {"tenant_id": f"archived:{legacy['tenant_id']}"}})
+    return res.modified_count
 
 
 async def _ensure_brokerage_mongo(safe_db, tenant_id: str) -> str:
@@ -155,6 +175,7 @@ async def seed_mongo(db: AsyncIOMotorDatabase) -> dict:
     `seed_users.seed()` for the parity test."""
     safe_db = wrap(db)
     tenant_id = await _ensure_tenant_mongo(safe_db)
+    await _repoint_legacy_logins(db, tenant_id)
     brokerage_id = await _ensure_brokerage_mongo(safe_db, tenant_id)
     ops = []
     principal_id = None

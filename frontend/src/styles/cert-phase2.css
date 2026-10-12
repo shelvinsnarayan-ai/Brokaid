@@ -299,11 +299,11 @@
   background: var(--alert, #C0392B);
 }
 .brokaid-verify__banner--warn {
-  background: color-mix(in oklab, var(--copper, #BF7A3E) 12%, #ffffff);
-  border-left-color: var(--copper, #BF7A3E);
+  background: color-mix(in oklab, var(--copper, #F2B01E) 12%, #ffffff);
+  border-left-color: var(--copper, #F2B01E);
 }
 .brokaid-verify__banner--warn .brokaid-verify__banner-tick {
-  background: var(--copper, #BF7A3E);
+  background: var(--copper, #F2B01E);
 }
 .brokaid-verify__banner--muted {
   background: color-mix(in oklab, var(--harbour) 5%, #ffffff);

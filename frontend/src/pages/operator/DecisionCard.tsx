@@ -13,6 +13,16 @@ import { useOperatorStore } from "../../state/operatorStore";
 import { labelFor } from "../../lib/labels";
 import { fmtDateTime, fmtSydDate, fmtSydTime } from "../../lib/format";
 
+const confidenceWord = (s: number | null | undefined) =>
+  s == null ? "Not scored" : s >= 0.85 ? "High" : s >= 0.6 ? "Medium" : "Low";
+const confidenceReason = (components: any, noEvidence: boolean) => {
+  if (noEvidence) return "nothing is cited, so a broker has to check it from scratch";
+  const entries = Object.entries((components || {}) as Record<string, number>).filter(([, v]) => typeof v === "number");
+  if (!entries.length) return "based on the cited evidence";
+  const [weak] = entries.sort((a, b) => a[1] - b[1])[0];
+  return `weakest signal is ${weak.replace(/_/g, " ")}`;
+};
+
 const resolvedVerb = (r: { event_type: string | null; verdict: string | null }) => {
   const v = (r.verdict || r.event_type || "").toLowerCase();
   if (v.includes("reject")) return "Rejected";
@@ -52,7 +62,7 @@ function countdown(deadline: string | null): string {
   const abs = Math.abs(t);
   const h = Math.floor(abs / 3_600_000);
   const m = Math.floor((abs % 3_600_000) / 60_000);
-  return `${t < 0 ? "-" : ""}${h}h ${m}m`;
+  return t < 0 ? `overdue by ${h}h ${m}m` : `${h}h ${m}m`;
 }
 
 export function DecisionCard() {
@@ -96,7 +106,7 @@ export function DecisionCard() {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
       if (tag === "input" || tag === "textarea" || e.metaKey || e.ctrlKey) return;
-      if (e.key === "a" && data && !data.resolution) { e.preventDefault(); approveWithConfirm(); }
+      if (e.key === "a" && data && !data.resolution && data.evidence.length > 0) { e.preventDefault(); approveWithConfirm(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -123,6 +133,9 @@ export function DecisionCard() {
   const isClaim = card.class_key === "claim_admin";
   const claimId = isClaim ? (proposal.payload?.claim_id as string | undefined) : undefined;
   const isCompliance = session?.session.active_role === "compliance";
+  // R0.6: engine detail (scores) is Operator-only; Ada (principal) is the demo Operator.
+  const isOperator = session?.session.active_role === "principal";
+  const noEvidence = evidence.length === 0;
 
   return (
     <section data-testid="decision-card-page">
@@ -159,7 +172,7 @@ export function DecisionCard() {
         <div className="dcard-col" data-testid="dcard-proposal">
           <h3>Proposal</h3>
           <div style={{ marginBottom: 8, color: "var(--slate)", fontSize: 11 }}>
-            {labelFor(proposal.type)} · {proposal.event_id.slice(0, 8)}… · {fmtDateTime(proposal.ts)}
+            {labelFor(proposal.type)}{isOperator ? ` · ${proposal.event_id.slice(0, 8)}…` : ""} · {fmtDateTime(proposal.ts)}
           </div>
           {mismatch ? (
             <div data-testid="dcard-mismatch" style={{ fontSize: 12 }}>
@@ -171,14 +184,16 @@ export function DecisionCard() {
               {(proposal as any).payload?.stage !== "advice_boundary" && (
                 <>
                   <p>Field · <code data-testid="dcard-mismatch-field">{mismatch.field_path}</code></p>
-                  <p>Client said · <code data-testid="dcard-mismatch-value">{JSON.stringify(mismatch.attempted_value)}</code></p>
+                  <p>Client said · <code data-testid="dcard-mismatch-value">{typeof mismatch.attempted_value === "object" ? Object.values(mismatch.attempted_value ?? {}).join(" ") : String(mismatch.attempted_value)}</code></p>
                 </>
               )}
               <p>Check · <span data-testid="dcard-mismatch-reason">{mismatch.reason}</span></p>
             </div>
           ) : (
             <p style={{ marginTop: 0 }}>
-              {proposal.payload?.output?.summary || <em style={{ color: "var(--slate)" }}>(no summary field)</em>}
+              {proposal.payload?.output?.summary
+                ? String(proposal.payload.output.summary).replace(/\b[a-z]+(?:_[a-z0-9]+)+\b/g, (k) => labelFor(k).toLowerCase()).replace("awaiting operator review", "waiting for a broker")
+                : <em style={{ color: "var(--slate)" }}>No summary given</em>}
             </p>
           )}
           {card.client_display && (
@@ -188,14 +203,20 @@ export function DecisionCard() {
           )}
           {data.resolution ? (
             <p className="dcard-resolved" data-testid="dcard-resolved-badge"
-              style={{ fontSize: 12, color: "var(--slate)", border: "1px solid var(--line, #33415a)", padding: "6px 10px", display: "inline-block" }}>
+              style={{ fontSize: 12, color: "var(--slate)", border: "1px solid var(--line, #1E2E5A)", padding: "6px 10px", display: "inline-block" }}>
               Resolved · {resolvedVerb(data.resolution)} by {data.resolution.actor_name || "broker"} on {fmtSydDate(data.resolution.resolved_at)} at {fmtSydTime(data.resolution.resolved_at)} AEST
             </p>
           ) : (
           <div className="dcard-actions">
+            {noEvidence ? (
+              <p style={{ fontSize: 12, color: "var(--alert)", margin: "0 0 8px" }} data-testid="dcard-no-evidence">
+                No cited evidence — this can't be approved from here. Edit it, decline it, or send it to the principal.
+              </p>
+            ) : (
             <button className="k-btn k-btn--primary" onClick={approveWithConfirm} data-testid="dcard-approve">
               <KKbd>a</KKbd> Approve
             </button>
+            )}
             <button className="k-btn" onClick={() => {
               const raw = window.prompt("Edits (JSON, e.g. {\"limit\": 500000}):", "{}");
               if (raw !== null) { try { void action("edit", { edits: JSON.parse(raw) }); } catch { toast("bad JSON", "alert"); } }
@@ -260,7 +281,11 @@ export function DecisionCard() {
 
         <div className="dcard-col" data-testid="dcard-confidence">
           <h3>Confidence</h3>
-          {mismatch ? (
+          {!isOperator && !mismatch ? (
+            <p style={{ fontSize: 13 }} data-testid="dcard-confidence-word">
+              <strong>{confidenceWord(confidence.scalar)}</strong> — {confidenceReason(confidence.components, noEvidence)}
+            </p>
+          ) : mismatch ? (
             <p style={{ fontSize: 12, color: "var(--slate)" }} data-testid="dcard-not-scored">
               Not scored — parked by the policy-field check before any quote was drafted.
             </p>
@@ -280,19 +305,19 @@ export function DecisionCard() {
               source={confidence.source}
             />
           )}
-          <div style={{ marginTop: 12, padding: 10, background: "rgba(232,226,214,0.03)", borderRadius: 3 }}>
+          <div style={{ marginTop: 12, padding: 10, background: "rgba(230,234,242,0.03)", borderRadius: 3 }}>
             <div style={{ fontSize: 11, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
               Gate reason
             </div>
             <div style={{ fontSize: 12 }} data-testid="dcard-gate-reason">{labelFor(card.gate_reason)}</div>
-            <div style={{ marginTop: 8, fontSize: 11, color: "var(--slate)" }}>
-              HITL since {fmtDateTime(card.hitl_since)} · confidence {" "}
-              <KNumber value={card.confidence} format="raw" />
+            <div style={{ marginTop: 8, fontSize: 11, color: "var(--slate)" }} data-testid="dcard-waiting-since">
+              Waiting since {fmtDateTime(card.hitl_since)}
+              {isOperator && (<> · engine detail <KNumber value={card.confidence} format="raw" /></>)}
             </div>
           </div>
           {isTrust && (
             <div style={{ marginTop: 12, padding: 10, border: "1px solid var(--copper)", borderRadius: 3, fontSize: 12 }} data-testid="dcard-two-person-note">
-              <strong>Two-person rule.</strong> This trust_money card needs approvals from two
+              <strong>Two-person rule.</strong> This trust-money card needs approvals from two
               distinct accounts users. First approval will hold in "pending".
             </div>
           )}

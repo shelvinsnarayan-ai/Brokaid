@@ -15,6 +15,8 @@ import { BrandMark } from "../components/BrandMark";
 import { BrandWordmark } from "../components/BrandWordmark";
 import { PreviewBanner } from "../components/PreviewBanner";
 import { TabBar } from "../components/TabBar";
+import { DemoBanner } from "../components/DemoBanner";
+import { YouMenu } from "../components/YouMenu";
 import "../styles/app-footer.css";
 
 export function ClientLayout() {
@@ -47,9 +49,11 @@ export function ClientLayout() {
               alt="brokAId"
             />
           </Link>
+          <YouMenu />
         </header>
         <PreviewBanner />
         <main className="brokaid-client-layout__main">
+          <DemoBanner />
           <Outlet />
         </main>
         <div className="brokaid-client-layout__footer-row">

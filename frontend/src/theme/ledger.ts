@@ -15,9 +15,9 @@ export const LEDGER_DENSITY = {
 } as const;
 
 export const LEDGER_TYPO = {
-  display: "'Jura', system-ui, sans-serif",
-  ui: "'Instrument Sans', system-ui, sans-serif",
-  mono: "'DM Mono', ui-monospace, monospace",
+  display: "'Sora', system-ui, sans-serif",
+  ui: "'Inter', system-ui, sans-serif",
+  mono: "'IBM Plex Mono', ui-monospace, monospace",
 } as const;
 
 export type Delta = { value: number | null; kind: "up" | "down" | "flat" | "none" };

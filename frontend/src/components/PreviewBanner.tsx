@@ -16,7 +16,7 @@ export function PreviewBanner() {
       data-testid="preview-banner"
     >
       <span className="brokaid-preview-banner__pill">
-        MOCKED · PREVIEW
+        PREVIEW
       </span>
       Rendering as <strong>{pack.display_name}</strong>. This client is
       actually registered in <strong>{me.linked_client.jurisdiction_code}</strong>.

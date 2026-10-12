@@ -1,3 +1,4 @@
+import { labelFor } from "../../lib/labels";
 /**
  * /o/clients — list all clients for the tenant.
  */
@@ -43,7 +44,7 @@ export function Clients() {
                 data-testid={`clients-row-${c.client_id}`}
               >
                 <td><Link to={`/o/clients/${c.client_id}`} style={{ color: "var(--copper)" }}>{c.display_name}</Link></td>
-                <td>{c.industry}</td>
+                <td>{labelFor(c.industry)}</td>
                 <td>{c.domicile}</td>
                 <td>{c.jurisdiction_code}</td>
                 <td className="k-num">{c.policy_count}</td>

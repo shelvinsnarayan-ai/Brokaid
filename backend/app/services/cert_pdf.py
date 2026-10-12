@@ -123,7 +123,7 @@ def render_certificate_pdf(
     c.setFillColorRGB(*STEEL)
     c.drawString(
         margin, y,
-        "Issued by BurMac Insurance Brokers Pty Ltd (fictional) on behalf of the insured.",
+        "Issued by Harbourline Insurance Brokers Pty Ltd (fictional) on behalf of the insured.",
     )
 
     # --- Insurer + MOCKED pill

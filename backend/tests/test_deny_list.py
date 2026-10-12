@@ -25,6 +25,8 @@ BANNED_TOKENS = (
 ALLOWLIST = {
     "backend/tests/test_jurisdiction.py",
     "backend/tests/test_deny_list.py",
+    "ci/deny_list_source.js",
+    "ci/deny_list_dom.py",
     "backend/tests/__pycache__",
     "docs/SEEDS_ARE_FICTIONAL.md",
     "packages/kernel/jurisdiction/AU.json",

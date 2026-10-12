@@ -1,11 +1,10 @@
 /**
  * PolicyCard — Managed vs Tracked visual language.
- *   - Managed: Harbour+Sea accent, "Managed by BurMac Brokerage".
+ *   - Managed: Harbour+Sea accent, "Managed by Harbourline".
  *   - Tracked: muted, Slate accent, dashed border, "Tracked policy —
  *     held elsewhere".
  * `mocked_insurer` renders a `MockedBadge label="carrier"` (rule 5).
  */
-import { MockedBadge } from "@brokaid/mocks";
 import { AmountDisplay } from "./AmountDisplay";
 
 export interface Policy {
@@ -32,7 +31,7 @@ export function PolicyCard({ policy }: { policy: Policy }) {
   const renewalDays = daysUntil(policy.expiry);
   const micro = isTracked
     ? "Tracked policy — held elsewhere"
-    : "Managed by BurMac Brokerage";
+    : "Managed by Harbourline";
   return (
     <article
       className={`brokaid-policy-card brokaid-policy-card--${policy.status}`}
@@ -46,9 +45,6 @@ export function PolicyCard({ policy }: { policy: Policy }) {
         >
           {policy.status}
         </span>
-        {policy.mocked_insurer && (
-          <MockedBadge label="carrier" variant="client" />
-        )}
       </header>
       <h3 className="brokaid-policy-card__title">{policy.product}</h3>
       <div className="brokaid-policy-card__micro">{micro}</div>

@@ -188,6 +188,18 @@ class Brain:
             idempotency_key=f"aginv:start:{envelope_id}:{agent_name}",
         )
 
+        # a1. Registry (R0.6 G1) — unregistered agents are refused + logged
+        from app.kernel import registry
+        if not registry.is_registered(agent_name):
+            logging.getLogger("brokaid.registry").warning("refused unregistered agent %s", agent_name)
+            await self._emit(
+                tenant_id, type="AgentInvocationRefused", actor=self.ACTOR,
+                payload={"envelope_id": envelope_id, "agent_name": agent_name,
+                         "reason": "not_registered"},
+                idempotency_key=f"aginv:refused:{envelope_id}:{agent_name}",
+            )
+            raise registry.UnregisteredAgent(agent_name)
+
         # a2. Kill switch (R0.5) — no model call when a switch matches --
         if _is_mongo(self.store):
             from app.kernel import governance

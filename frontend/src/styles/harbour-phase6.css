@@ -194,7 +194,7 @@
   display: grid;
   gap: 12px;
   border: 1px solid color-mix(in oklab, var(--harbour) 8%, transparent);
-  box-shadow: 0 2px 12px rgba(11, 59, 75, 0.06);
+  box-shadow: 0 2px 12px rgba(15,31,61, 0.06);
 }
 .brokaid-policy-card--managed {
   border-left: 4px solid var(--sea);
@@ -244,7 +244,7 @@
 }
 .brokaid-chip--managed  { background: var(--sea-strong); color: #FFFFFF; }
 .brokaid-chip--tracked  { background: transparent; color: var(--slate-strong); border: 1px solid var(--slate-strong); }
-.brokaid-chip--pending  { background: transparent; color: var(--copper, #BF7A3E); border: 1px solid var(--copper, #BF7A3E); }
+.brokaid-chip--pending  { background: transparent; color: var(--copper, #F2B01E); border: 1px solid var(--copper, #F2B01E); }
 .brokaid-chip--lapsed   { background: transparent; color: var(--alert); border: 1px solid var(--alert); }
 .brokaid-chip--muted    { background: color-mix(in oklab, var(--harbour) 6%, transparent); color: var(--harbour); }
 
@@ -304,11 +304,11 @@
 /* --- Preview banner ----------------------------------------------- */
 .brokaid-preview-banner {
   padding: 10px 16px;
-  background: color-mix(in oklab, var(--coral, #E8623A) 12%, #FFFFFF);
+  background: color-mix(in oklab, var(--coral, #F2B01E) 12%, #FFFFFF);
   color: var(--harbour);
   font-family: var(--font-ui);
   font-size: 13px;
-  border-bottom: 1px solid color-mix(in oklab, var(--coral, #E8623A) 40%, transparent);
+  border-bottom: 1px solid color-mix(in oklab, var(--coral, #F2B01E) 40%, transparent);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -319,7 +319,7 @@
   font-size: 11px;
   padding: 3px 10px;
   border-radius: 999px;
-  background: var(--coral, #E8623A);
+  background: var(--coral, #F2B01E);
   color: #FFFFFF;
   letter-spacing: 0.1em;
   font-weight: 600;
@@ -416,7 +416,7 @@
 .brokaid-form__msg { font-size: 13px; color: var(--verify); }
 .brokaid-form__err { font-size: 13px; color: var(--alert); }
 
-.brokaid-devbox { padding: 16px; margin-top: 16px; background: color-mix(in oklab, var(--coral, #E8623A) 8%, #FFFFFF); border-radius: 12px; display: grid; gap: 8px; font-size: 13px; color: var(--harbour); }
+.brokaid-devbox { padding: 16px; margin-top: 16px; background: color-mix(in oklab, var(--coral, #F2B01E) 8%, #FFFFFF); border-radius: 12px; display: grid; gap: 8px; font-size: 13px; color: var(--harbour); }
 .brokaid-devbox code { display: block; padding: 8px 12px; background: color-mix(in oklab, var(--harbour) 6%, transparent); border-radius: 6px; word-break: break-all; font-family: var(--font-mono); font-size: 11px; }
 .brokaid-devbox button { background: var(--sea-strong); color: #FFFFFF; border: none; padding: 10px 16px; border-radius: 999px; min-height: 44px; }
 
@@ -424,3 +424,41 @@
 .brokaid-enrol__qr { background: #FFFFFF; padding: 20px; border-radius: 16px; max-width: 320px; }
 .brokaid-enrol__qr svg { width: 100%; height: auto; }
 .brokaid-enrol__uri code { font-family: var(--font-mono); font-size: 11px; }
+
+/* --- R0.6 Meridian client chrome ------------------------------------ */
+.surface-harbour { background: var(--cloud); color: var(--navy); }
+.brokaid-client-header { display: flex; align-items: center; justify-content: space-between; }
+@media (max-width: 767px) { .brokaid-tabbar { grid-template-columns: repeat(5, 1fr); background: #FFFFFF; border-top: 1px solid var(--line-light); } }
+@media (min-width: 768px) { .brokaid-tabbar__do-disc { margin-top: 0; width: 36px; height: 36px; } .brokaid-tabbar__do { flex-direction: row; } }
+.brokaid-tabbar__item { color: #6B7690; border: 0; background: none; cursor: pointer; }
+.brokaid-tabbar__item.is-active { color: var(--navy); border-top-color: var(--saffron); background: transparent; }
+.brokaid-tabbar__do-disc { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px;
+  border-radius: 999px; background: var(--saffron); color: var(--navy); margin-top: -22px; box-shadow: 0 4px 14px rgba(15,31,61,.18); }
+.brokaid-sheet { position: fixed; inset: 0; z-index: 200; background: rgba(15,31,61,.38); display: flex; align-items: flex-end; justify-content: center; }
+.brokaid-sheet__panel { background: #FFFFFF; width: 100%; max-width: 520px; border-radius: 14px 14px 0 0; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); animation: brokaid-sheet-up .18s ease-out; }
+@keyframes brokaid-sheet-up { from { transform: translateY(24px); } to { transform: none; } }
+.brokaid-sheet__title { font-family: var(--font-display-harbour); font-weight: 600; font-size: 18px; margin: 0 0 12px; color: var(--navy); }
+.brokaid-sheet__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.brokaid-sheet__verb { width: 100%; text-align: left; min-height: 48px; padding: 0 14px; border: 1px solid var(--line-light); border-radius: 10px; background: var(--cloud); color: var(--navy); font: 500 15px var(--font-ui); cursor: pointer; transition: background-color .15s; }
+.brokaid-sheet__verb:hover { background: #FFF6DE; }
+.brokaid-sheet__close { margin-top: 12px; background: none; border: 0; color: #6B7690; font: 500 14px var(--font-ui); cursor: pointer; }
+.brokaid-you { position: relative; }
+.brokaid-you__avatar { width: 36px; height: 36px; border-radius: 999px; border: 0; background: var(--navy); color: #FFFFFF; font: 600 13px var(--font-ui); cursor: pointer; }
+.brokaid-you__menu { position: absolute; right: 0; top: 44px; z-index: 50; list-style: none; margin: 0; padding: 6px; min-width: 200px; background: #FFFFFF; border: 1px solid var(--line-light); border-radius: 10px; box-shadow: 0 8px 24px rgba(15,31,61,.14); }
+.brokaid-you__menu button { width: 100%; text-align: left; padding: 10px 12px; border: 0; background: none; color: var(--navy); font: 400 14px var(--font-ui); border-radius: 8px; cursor: pointer; }
+.brokaid-you__menu button:hover { background: var(--cloud); }
+.brokaid-demo-banner { margin: 0 0 16px; border-radius: 10px; display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 16px; background: #FFF6DE; color: var(--navy); font: 500 13px var(--font-ui); border-bottom: 1px solid #F2D27A; }
+.brokaid-demo-banner button { border: 0; background: none; color: var(--navy); font: 600 13px var(--font-ui); cursor: pointer; text-decoration: underline; }
+.brokaid-things { display: grid; gap: 8px; margin: 24px 0; }
+.brokaid-things__group { font: 600 13px var(--font-ui); letter-spacing: .04em; text-transform: uppercase; color: #6B7690; margin: 16px 0 8px; }
+.brokaid-thing { background: #FFFFFF; border: 1px solid var(--line-light); border-radius: 14px; padding: 16px; margin-bottom: 10px; }
+.brokaid-thing__status { margin: 0; font: 600 13px var(--font-ui); color: var(--verify); }
+.brokaid-thing--not_covered .brokaid-thing__status { color: var(--alert); }
+.brokaid-thing--held_elsewhere .brokaid-thing__status { color: #6B7690; }
+.brokaid-thing__name { font-family: var(--font-display-harbour); font-weight: 600; font-size: 18px; margin: 4px 0; color: var(--navy); }
+.brokaid-thing__for { margin: 0 0 10px; color: #3A4A66; font-size: 14px; }
+.brokaid-thing__numbers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 10px; }
+.brokaid-thing__numbers dt { font-size: 11px; color: #6B7690; }
+.brokaid-thing__numbers dd { margin: 0; font: 500 14px var(--font-mono); color: var(--navy); }
+.brokaid-thing__actions { display: flex; gap: 14px; flex-wrap: wrap; }
+.brokaid-thing__actions a { color: var(--steel); font: 600 14px var(--font-ui); }

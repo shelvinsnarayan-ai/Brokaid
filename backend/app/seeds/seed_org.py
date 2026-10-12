@@ -2,7 +2,7 @@
 
 Idempotent. Brokerage already seeded in phase 4 (`seed_users.py`);
 this file records the licensee metadata and emits ledger events
-under the BurMac tenant.
+under the demo tenant.
 """
 from __future__ import annotations
 

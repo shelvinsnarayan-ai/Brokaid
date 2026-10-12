@@ -26,6 +26,18 @@ const LABELS: Record<string, string> = {
   EnvelopeAbandoned: "Request abandoned",
   account_executive: "Account executive",
   principal: "Principal",
+  hitl_predicate_matched: "Needs a broker's check",
+  "hitl_predicate matched": "Needs a broker's check",
+  quote_ready_operator_confirmation_required: "Quote ready — broker to confirm",
+  premium_shift_gt_10pct: "Premium moves more than 10%",
+  sum_insured_delta_gt_25pct: "Sum insured changes more than 25%",
+  non_standard_wording: "Non-standard wording",
+  ambiguous_reply: "Client's reply is unclear",
+  coverage_language_detected: "Mentions what's covered",
+  coverage_language_guard: "Mentions what's covered",
+  compliance_check_pending: "Compliance check pending",
+  new_business: "New business",
+  operator_class_shadow_authoritative: "Awaiting broker approval",
   compliance: "Compliance",
 };
 
@@ -33,6 +45,9 @@ const humanise = (s: string) => {
   const t = s.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/[_.]+/g, " ").trim().toLowerCase();
   return t.charAt(0).toUpperCase() + t.slice(1);
 };
+
+export const confidenceWord = (s: number | null | undefined) =>
+  s == null ? "Not scored" : s >= 0.85 ? "High" : s >= 0.6 ? "Medium" : "Low";
 
 export function labelFor(key: string | null | undefined): string {
   if (!key) return "—";

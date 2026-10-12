@@ -41,6 +41,16 @@ class ActionBody(BaseModel):
     target_kind: str | None = "workflow"
 
 
+def _cite_label(kind, ref: str) -> str:
+    """Plain words for a structured citation (no field paths on screen)."""
+    tail = ref.split(":", 1)[-1].split(".")[-1].replace("[]", "").replace("[0]", "")
+    words = tail.replace("_", " ").replace("-", " ").strip()
+    for agent in ("intake ", "placement "):
+        words = words.removeprefix(agent)
+    src = {"risk_schema": "Policy schedule", "event": "Client request"}.get(kind or "", "Source")
+    return f"{src} — {words}"
+
+
 def _utc_iso(v):
     from datetime import datetime, timezone
     if isinstance(v, datetime):
@@ -87,7 +97,23 @@ async def get_card(
                     "ts": p_ev["ts"], "type": p_ev["type"],
                     "actor": p_ev["actor"], "payload": p_ev["payload"],
                 }
-        citation_refs = list((proposal.get("payload") or {}).get("citations", []))
+        if not proposal:
+            # R0.6: spine cards cite through the latest agent output on the envelope.
+            p_ev = await safe.events.find_one(
+                {"type": "AgentOutputProduced", "payload.envelope_id": envelope_id}, sort=[("seq", -1)])
+            if p_ev:
+                proposal = {"event_id": p_ev["event_id"], "ts": p_ev["ts"], "type": p_ev["type"],
+                            "actor": p_ev["actor"], "payload": p_ev["payload"]}
+        raw_cites = list((proposal.get("payload") or {}).get("citations", []))
+        citation_refs = [c for c in raw_cites if isinstance(c, str)]
+        for c in raw_cites:
+            if isinstance(c, dict) and c.get("ref"):
+                evidence.append({
+                    "event_id": f"cite:{c['ref']}", "ts": proposal["ts"], "type": "Citation",
+                    "actor": proposal["actor"],
+                    "payload": {"kind": c.get("kind"), "ref": c["ref"],
+                                "label": _cite_label(c.get("kind"), c["ref"])},
+                })
         if citation_refs:
             async for e in safe.events.find(
                 {"event_id": {"$in": citation_refs}}

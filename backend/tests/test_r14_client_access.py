@@ -16,7 +16,20 @@ BASE = os.environ.get("REACT_APP_BACKEND_URL") or dotenv_values(ROOT / "frontend
 BENV = dotenv_values(ROOT / "backend/.env")
 MOTOR = "00000000-0000-4000-8000-000000000104"
 # Envelope that already went approve → paid → sign (R0.3 vehicle-swap demo).
-SIGNED_ENV = os.environ.get("R14_ENVELOPE_ID", "04905919-4e4f-45e5-8271-83257e4a9d36")
+def _paid_envelope() -> str | None:
+    """Latest envelope on Kai's motor policy that already has payment.advised."""
+    if os.environ.get("R14_ENVELOPE_ID"):
+        return os.environ["R14_ENVELOPE_ID"]
+    if not BENV.get("MONGO_URL"):
+        return None
+    db = MongoClient(BENV["MONGO_URL"])[BENV["DB_NAME"]]
+    kai = db.users.find_one({"email": "owner@fictionalclient.example"}) or {}
+    ev = db.events.find_one({"type": "payment.advised", "tenant_id": kai.get("tenant_id"),
+                             "payload.policy_id": "00000000-0000-4000-8000-000000000104"}, sort=[("seq", -1)])
+    return (ev or {}).get("payload", {}).get("envelope_id")
+
+
+SIGNED_ENV = _paid_envelope() or "00000000-0000-0000-0000-000000000000"
 BOOKKEEPER, OWNER = "bookkeeper@fictionalclient.example", "owner@fictionalclient.example"
 
 pytestmark = pytest.mark.skipif(not BASE or not BENV.get("MONGO_URL"), reason="live API/DB not configured")

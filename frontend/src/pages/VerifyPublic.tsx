@@ -15,7 +15,6 @@
  */
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { MockedBadge } from "@brokaid/mocks";
 import { fmtAud, fmtDate, fmtDateTime } from "../lib/format";
 
 const API = import.meta.env.VITE_API_BASE || "";
@@ -220,7 +219,7 @@ function ValidCard({ cert }: { cert: Payload }) {
         <div>
           <p className="brokaid-verify__banner-title">Certificate verified</p>
           <p className="brokaid-verify__banner-sub">
-            This certificate is current and issued by BurMac Insurance Brokers
+            This certificate is current and issued by Harbourline Insurance Brokers
             (fictional).
           </p>
         </div>
@@ -276,7 +275,6 @@ function CertBody({ cert, muted }: { cert: Payload; muted?: boolean }) {
             {cert.insurer_display}
           </p>
         </div>
-        <MockedBadge label="carrier" variant="client" />
       </div>
 
       <div className="brokaid-verify__grid">

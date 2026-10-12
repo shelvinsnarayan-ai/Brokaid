@@ -138,6 +138,7 @@ def create_app(
     from app.routes.o_change_packet import router as o_change_packet_router
     from app.routes.o_claims import router as o_claims_router
     from app.routes.o_governance import router as o_governance_router
+    from app.routes.c_things import router as c_things_router
     from app.routes.o_placement import router as o_placement_router
     from app.routes.o_shadow_mode import router as o_shadow_mode_router
     from app.routes.policies import router as policies_router
@@ -154,7 +155,7 @@ def create_app(
         client_360_router, client_preferences_router,
         compliance_router, daily_brief_router, jurisdictions_router,
         kpi_router, matters_router,
-        o_change_packet_router, o_claims_router, o_governance_router, o_placement_router, o_shadow_mode_router,
+        o_change_packet_router, o_claims_router, o_governance_router, c_things_router, o_placement_router, o_shadow_mode_router,
         policies_router, queue_router, trail_router, verifier_router,
     ):
         api_router.include_router(r)

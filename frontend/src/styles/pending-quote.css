@@ -1,12 +1,12 @@
 /* Phase-9 pending quote card — Harbour surface. */
 
 .brokaid-quote-card {
-  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(244,239,230,0.7));
-  border: 1px solid rgba(11, 59, 75, 0.14);
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(246,247,250,0.7));
+  border: 1px solid rgba(15,31,61, 0.14);
   border-radius: 6px;
   padding: 20px;
   margin: 16px 0;
-  box-shadow: 0 2px 12px rgba(11, 59, 75, 0.08);
+  box-shadow: 0 2px 12px rgba(15,31,61, 0.08);
 }
 
 .brokaid-quote-card__head {
@@ -35,7 +35,7 @@
   overflow-wrap: anywhere;
 }
 .brokaid-quote-card__summary {
-  color: #1c3542;
+  color: #0F1F3D;
   font-size: 15px;
   line-height: 1.55;
   margin: 4px 0 16px;
@@ -46,7 +46,7 @@
   gap: 14px;
   margin: 8px 0 16px;
   padding: 12px 14px;
-  background: rgba(31, 138, 158, 0.06);
+  background: rgba(62,109,156, 0.06);
   border-radius: 4px;
 }
 @media (max-width: 640px) {
@@ -70,8 +70,8 @@
   font-family: var(--font-display-harbour);
   font-weight: 700;
   font-size: 20px;
-  /* Phase-18 axe fix: swapped from var(--coral) — coral (#E8623A)
-     on sand (#F4EFE6) = 2.94, below the WCAG AA large-text 3.0
+  /* Phase-18 axe fix: swapped from var(--coral) — coral (#F2B01E)
+     on sand (#F6F7FA) = 2.94, below the WCAG AA large-text 3.0
      threshold. Harbour on sand = 10.53. Emphasis is preserved via
      weight (700) + display font + size; coral stays decorative
      everywhere else per the phase-0 lock. */
@@ -80,17 +80,17 @@
 .brokaid-quote-card__terms {
   margin: 8px 0 12px;
   font-size: 14px;
-  color: #223b46;
+  color: #3A4A66;
 }
 .brokaid-quote-card__conditions {
   margin: 6px 0 0;
   padding-left: 18px;
   font-size: 13px;
-  color: #3e5460;
+  color: #3A4A66;
 }
 .brokaid-quote-card__markets {
   font-size: 13px;
-  color: #3e5460;
+  color: #3A4A66;
   margin: 8px 0 12px;
 }
 .brokaid-quote-card__actions {

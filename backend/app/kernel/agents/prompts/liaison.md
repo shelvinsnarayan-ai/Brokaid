@@ -74,7 +74,7 @@ Client: `"When does my Marine Liability renew again?"`
 ```
 {
   "response_draft": "Your Marine Liability policy renews in September 2027, one year from the current inception date.",
-  "broker_attribution": "Your broker, BurMac Insurance Broking, has your renewal on the September planning list.",
+  "broker_attribution": "Your broker, Harbourline Insurance Brokers, has your renewal on the September planning list.",
   "next_step": "Keep an eye on this channel — we'll send you the renewal pack a few weeks before.",
   "citations": [{"event_ref": "policies.expiry", "field_path": "policies.expiry"}],
   "detected_coverage_question": false
@@ -86,7 +86,7 @@ Client: `"Am I covered if a subcontractor damages a boat on delivery?"`
 ```
 {
   "response_draft": "That's a cover question I'll need to bounce over to your broker rather than answer directly. I've flagged it on your file.",
-  "broker_attribution": "Your broker, BurMac Insurance Broking, will get you a written answer on this.",
+  "broker_attribution": "Your broker, Harbourline Insurance Brokers, will get you a written answer on this.",
   "next_step": "Watch this thread for their reply, usually within a business day.",
   "citations": [],
   "detected_coverage_question": true

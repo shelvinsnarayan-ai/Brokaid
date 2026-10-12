@@ -112,7 +112,7 @@ async def test_qr_payload_decodes_to_spec(app_client, scene_seeded):
         "tenant", "cert_id", "issued_at", "chain_tip"
     }
     assert payload["cert_id"] == cert_id
-    assert payload["tenant"] == "burmac"
+    assert payload["tenant"] == "harbourline"
     assert isinstance(payload["chain_tip"], str) and len(payload["chain_tip"]) == 64
 
 

@@ -17,11 +17,14 @@ from dotenv import load_dotenv
 from app.auth import passwords
 from app.kernel.trail import create_tenant
 
-TENANT_SLUG = "burmac"
-TENANT_NAME = "BurMac Insurance Brokers"
-BROKERAGE_SLUG = "burmac-brokerage"
-BROKERAGE_NAME = "BurMac Insurance Brokers Pty Ltd"
-LICENSEE = "BurMac Financial Services Pty Ltd (ACN 000-000-000)"
+# R0.6 G3: demo tenant is Harbourline (fresh from genesis). The legacy
+# tenant (slug "burmac") is left intact; its demo logins are repointed.
+TENANT_SLUG = "harbourline"
+TENANT_NAME = "Harbourline Insurance Brokers"
+BROKERAGE_SLUG = "harbourline-brokerage"
+BROKERAGE_NAME = "Harbourline Insurance Brokers Pty Ltd"
+LICENSEE = "Harbourline Financial Services Pty Ltd (ACN 000-000-000)"
+LEGACY_TENANT_SLUG = "burmac"
 FICTIONAL_CLIENT_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
 DEV_PASSWORD = "dev-password-not-for-production"
 

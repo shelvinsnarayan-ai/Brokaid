@@ -62,13 +62,6 @@ interface ClaimDetailShape {
   timeline: TimelineRow[];
 }
 
-function MockedBadge({ label }: { label: string }) {
-  return (
-    <span className="brokaid-mocked-pill" data-testid={`mocked-${label}`}>
-      MOCKED · {label.toUpperCase()}
-    </span>
-  );
-}
 
 function UrgencyPill({ urgency }: { urgency: string | null }) {
   if (!urgency) return null;
@@ -250,8 +243,7 @@ export function ClaimsNew() {
         </div>
 
         <p className="brokaid-fnol__mocked-note">
-          The insurer lodgement in this build is <MockedBadge label="insurer" /> —
-          real submission wires later.
+          Your broker lodges this with the insurer and keeps you posted.
         </p>
       </form>
     </section>
@@ -326,7 +318,6 @@ export function ClaimDetail() {
           <li key={t.seq} className="brokaid-claim-timeline__item">
             <div className="brokaid-claim-timeline__meta">
               <span className="brokaid-claim-timeline__kind">{t.kind}</span>
-              {t.mocked ? <MockedBadge label="insurer" /> : null}
               <span className="brokaid-claim-timeline__ts">
                 {formatClaimTs(t.ts)}
               </span>

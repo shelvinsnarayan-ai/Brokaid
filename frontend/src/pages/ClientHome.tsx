@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState } from "../components/EmptyState";
-import { PolicyCard, type Policy } from "../components/PolicyCard";
+import { ThingGroups, type Thing } from "../components/ThingCard";
 import { useMeStore, usePack } from "../state/meStore";
 import { fmtAud } from "../lib/format";
 
@@ -25,16 +25,16 @@ interface NextAction {
 export function ClientHome() {
   const me = useMeStore((s) => s.me);
   const pack = usePack();
-  const [policies, setPolicies] = useState<Policy[]>([]);
+  const [things, setThings] = useState<Thing[]>([]);
   const [nextAction, setNextAction] = useState<NextAction | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await fetch(`${API}/api/c/policies`, {
+      const res = await fetch(`${API}/api/c/things`, {
         credentials: "include",
       });
-      if (!cancelled && res.ok) setPolicies((await res.json()).policies);
+      if (!cancelled && res.ok) setThings((await res.json()).things);
     })();
     async function loadNextAction() {
       const res = await fetch(`${API}/api/c/next-action`, {
@@ -108,11 +108,7 @@ export function ClientHome() {
         />
       )}
 
-      <section className="brokaid-cards" data-testid="home-policy-cards">
-        {policies.map((p) => (
-          <PolicyCard key={p.policy_id} policy={p} />
-        ))}
-      </section>
+      <ThingGroups things={things} />
 
       <Link
         to="/c/ask"
