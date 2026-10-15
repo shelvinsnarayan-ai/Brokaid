@@ -20,6 +20,7 @@ type ThreadItem =
       next_step?: string | null;
       verified?: boolean;
       ts?: string;
+      reply_id?: string | null;
     }
   | { who: "broker_pending"; text: string; ts?: string };
 
@@ -44,6 +45,8 @@ export function ClientAsk() {
   const listRef = useRef<HTMLOListElement | null>(null);
 
   const [replyBy, setReplyBy] = useState<string | null>(null);
+  // Replies unread when this visit began (snapshot before marking seen); this visit only.
+  const [fresh, setFresh] = useState<Set<string>>(new Set());
   const loadThread = async () => {
     try {
       const r = await fetch(`${API}/api/c/ask/thread`, { credentials: "include" });
@@ -53,7 +56,11 @@ export function ClientAsk() {
         setReplyBy(b.reply_by_text || null);
         const u = useUnreadStore.getState();
         await u.refresh();
-        if (useUnreadStore.getState().count) await u.markSeen();
+        const ids = useUnreadStore.getState().threads.flatMap((t) => t.reply_ids || []);
+        if (ids.length) {
+          setFresh((prev) => new Set([...prev, ...ids]));
+          await u.markSeen();
+        }
       }
     } catch {
       // best effort
@@ -176,12 +183,15 @@ export function ClientAsk() {
               </li>
             );
           }
+          const isNew = !!m.reply_id && fresh.has(m.reply_id);
           return (
             <li
               key={key}
-              className="brokaid-ask__msg brokaid-ask__msg--broker"
+              className={`brokaid-ask__msg brokaid-ask__msg--broker${isNew ? " brokaid-ask__msg--new" : ""}`}
               data-testid={`ask-msg-broker-${i}`}
+              data-new={isNew ? "true" : undefined}
             >
+              {isNew && <span className="brokaid-sr-only" data-testid={`ask-new-${i}`}>New</span>}
               {m.attribution && (
                 <div
                   className="brokaid-ask__attribution"

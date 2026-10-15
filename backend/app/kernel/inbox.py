@@ -109,6 +109,7 @@ async def load_threads(store, tenant_id: str, *, client_id: str | None = None,
     threads: dict[str, dict] = {}
     async with use_tenant(tenant_id):
         names = {c["client_id"]: c["display_name"] async for c in safe.clients.find({})}
+        flags = {(f["kind"], f["ref"]) async for f in safe.test_flags.find({})}
         evs = [e async for e in safe.events.find(q).sort("seq", 1)]
         reply_ids = [e["payload"]["reply_id"] for e in evs if e["type"] == "BrokerReplied"]
         bodies = {m["reply_id"]: m async for m in safe.thread_messages.find({"reply_id": {"$in": reply_ids}})}
@@ -121,6 +122,9 @@ async def load_threads(store, tenant_id: str, *, client_id: str | None = None,
             "thread_id": tid, "client_id": p.get("client_id"), "client": names.get(p.get("client_id"), "Unknown client"),
             "subject": None, "messages": [], "reply_by": None, "kept": None, "test": False, "answered": False})
         typ = e["type"]
+        t["test"] = t["test"] or ("thread", tid) in flags
+        if not include_tests and typ in ("BrokerReplied", "PromiseKept") and ("reply", p.get("reply_id")) in flags:
+            continue
         if typ == "ClientQuestionAsked":
             at = _utc(p.get("received_at") or ts)
             t["subject"] = t["subject"] or p.get("message")

@@ -466,3 +466,6 @@
 .brokaid-unread { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 8px; border-radius: 999px; background: var(--saffron, #F2B01E); color: var(--navy, #0B1B3A); font: 700 11px/1 var(--font-ui); vertical-align: middle; }
 .brokaid-unread-dot { position: absolute; top: 0; right: 0; width: 10px; height: 10px; border-radius: 999px; background: var(--saffron, #F2B01E); box-shadow: 0 0 0 2px #FFFFFF; }
 .brokaid-tabbar__do-disc, .brokaid-you__avatar { position: relative; }
+/* R0.10a — replies that were unread when this visit began */
+.brokaid-ask__msg--new { box-shadow: inset 3px 0 0 var(--saffron, #F2B01E), 0 0 0 1px rgba(242, 176, 30, 0.35); background: rgba(242, 176, 30, 0.06); }
+.brokaid-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

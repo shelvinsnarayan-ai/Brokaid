@@ -123,7 +123,8 @@ async def thread(
                 items.append((m["at"], {"who": "client", "text": m["text"], "thread_id": t["thread_id"]}))
             elif m["who"] == "broker":
                 items.append((m["at"], {"who": "broker", "text": m["text"], "attribution": m.get("author"),
-                                        "next_step": None, "verified": False, "thread_id": t["thread_id"]}))
+                                        "next_step": None, "verified": False, "thread_id": t["thread_id"],
+                                        "reply_id": m.get("reply_id")}))
         if not t["answered"] and t["reply_by"]:
             waiting.append(t["reply_by"])
             items.append((t["last_at"], {"who": "broker_pending", "thread_id": t["thread_id"],
@@ -162,9 +163,9 @@ async def unread(request: Request, include_tests: bool = False,
     out = []
     for t in threads:
         since = seen.get(t["thread_id"])
-        n = sum(1 for m in t["messages"] if m.get("reply_id") and (since is None or m["at"] > since))
-        if n:
-            out.append({"thread_id": t["thread_id"], "unread": n})
+        ids = [m["reply_id"] for m in t["messages"] if m.get("reply_id") and (since is None or m["at"] > since)]
+        if ids:
+            out.append({"thread_id": t["thread_id"], "unread": len(ids), "reply_ids": ids})
     return {"count": sum(t["unread"] for t in out), "threads": out}
 
 

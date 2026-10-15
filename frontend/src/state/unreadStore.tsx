@@ -5,7 +5,7 @@ const API = import.meta.env.VITE_API_BASE || "";
 
 interface UnreadState {
   count: number;
-  threads: { thread_id: string; unread: number }[];
+  threads: { thread_id: string; unread: number; reply_ids?: string[] }[];
   refresh: () => Promise<void>;
   markSeen: () => Promise<void>;
 }
