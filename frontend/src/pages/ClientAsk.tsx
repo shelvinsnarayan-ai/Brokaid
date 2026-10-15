@@ -42,20 +42,23 @@ export function ClientAsk() {
   const [err, setErr] = useState<string | null>(null);
   const listRef = useRef<HTMLOListElement | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const r = await fetch(`${API}/api/c/ask/thread`, {
-          credentials: "include",
-        });
-        if (r.ok) {
-          const b = await r.json();
-          setThread(b.thread || []);
-        }
-      } catch {
-        // best effort
+  const [replyBy, setReplyBy] = useState<string | null>(null);
+  const loadThread = async () => {
+    try {
+      const r = await fetch(`${API}/api/c/ask/thread`, { credentials: "include" });
+      if (r.ok) {
+        const b = await r.json();
+        setThread(b.thread || []);
+        setReplyBy(b.reply_by_text || null);
       }
-    })();
+    } catch {
+      // best effort
+    }
+  };
+  useEffect(() => {
+    void loadThread();
+    const t = window.setInterval(() => void loadThread(), 30000);
+    return () => window.clearInterval(t);
   }, []);
 
   useEffect(() => {
@@ -105,14 +108,7 @@ export function ClientAsk() {
           },
         ]);
       } else {
-        setThread((t) => [
-          ...t,
-          {
-            who: "broker_pending",
-            text: "Your broker is drafting a response. Please keep an eye on this thread.",
-            ts: new Date().toISOString(),
-          },
-        ]);
+        await loadThread();
       }
     } catch (e: any) {
       setErr(String(e));
@@ -131,6 +127,12 @@ export function ClientAsk() {
           questions get routed to a human for a written reply.
         </p>
       </header>
+
+      {replyBy && (
+        <p className="brokaid-tab__lede" data-testid="ask-reply-by">
+          Your broker will reply by {replyBy}.
+        </p>
+      )}
 
       <ol
         className="brokaid-ask"
@@ -165,7 +167,7 @@ export function ClientAsk() {
                 className="brokaid-ask__msg brokaid-ask__msg--pending"
                 data-testid={`ask-msg-pending-${i}`}
               >
-                <div className="brokaid-ask__meta">Drafting…</div>
+                <div className="brokaid-ask__meta">Waiting for your broker</div>
                 <div className="brokaid-ask__body">{m.text}</div>
               </li>
             );

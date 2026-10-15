@@ -72,6 +72,12 @@
   .ledger-shell { grid-template-columns: 1fr; }
   .ledger-rail { display: none }
 }
+@media (max-width: 767px) {
+  .ledger-topbar { grid-template-columns: auto 1fr; gap: 8px; height: auto; min-height: 44px; padding: 6px 12px; }
+  .ledger-topbar__tenant, .ledger-topbar__cmd { display: none; }
+  .ledger-topbar__user { justify-self: end; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+  .ledger-main { min-width: 0; overflow-wrap: anywhere; }
+}
 
 .ledger-rail {
   border-right: 1px solid rgba(230,234,242, 0.08);

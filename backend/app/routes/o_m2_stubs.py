@@ -6,19 +6,18 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
+from pydantic import BaseModel, Field, field_validator
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 from app.auth.sessions import Session
 from app.db.tenant_safe import wrap
-from app.kernel import spend
+from app.kernel import inbox as inbox_k, spend
 from app.kernel.tenant_ctx import use_tenant
 from app.middleware.session import require_operator_session
 
 router = APIRouter(prefix="/api/o")
-ASK_TYPES = ["ClientQuestionAsked", "ClientMessageReleased", "ClientMessageHITL", "ClientMessageRewriteRequired"]
-THREAD_STATUS = {"ClientQuestionAsked": "Awaiting broker reply", "ClientMessageReleased": "Answered",
-                 "ClientMessageHITL": "Reply with broker for review", "ClientMessageRewriteRequired": "Reply being rewritten"}
+PROMISE_BASIS = "queue + inbox reply-by"
 
 
 def require_governing(session: Session = Depends(require_operator_session)) -> Session:
@@ -51,17 +50,23 @@ async def _weekly(request: Request, tenant_id: str) -> dict:
             {"type": {"$in": ["Approval", "OperatorApproval"]}, "ts": {"$gte": start}})
     overdue = sum(1 for r in open_rows if r.get("sla_deadline") and _utc(r["sla_deadline"]) < now)
     kept = sum(1 for r in done if not r.get("sla_deadline") or _utc(r["resolved_at"]) <= _utc(r["sla_deadline"]))
+    open_q = len(open_rows) - overdue
+    threads = [t for t in await inbox_k.load_threads(request.app.state.mongo_db, tenant_id) if t["reply_by"]]
+    t_status = [inbox_k.status_for(t, now) for t in threads]
+    overdue += t_status.count("Overdue")
+    open_q += t_status.count("Awaiting reply") + t_status.count("Due today")
+    kept += sum(1 for t in threads if t["kept"] and not t["kept"]["late"] and t["kept"]["kept_at"] >= start)
     s = await spend.summary(request.app.state.mongo_db, tenant_id)
     return {
         "week_from": _ddmmyyyy(start), "week_to": _ddmmyyyy(now),
         "metrics": [
-            {"key": "promises_kept", "label": "Promises kept this week", **_n(kept)},
-            {"key": "promises_open", "label": "Open promises", **_n(len(open_rows) - overdue)},
-            {"key": "promises_overdue", "label": "Overdue promises", **_n(overdue)},
+            {"key": "promises_kept", "label": "Promises kept this week", **_n(kept, PROMISE_BASIS)},
+            {"key": "promises_open", "label": "Open promises", **_n(open_q, PROMISE_BASIS)},
+            {"key": "promises_overdue", "label": "Overdue promises", **_n(overdue, PROMISE_BASIS)},
             {"key": "approvals", "label": "Approvals this week", **_n(approvals)},
             {"key": "spend", "label": "Spend ESTIMATE (sprint to date, USD)", **_n(round(s["cost_usd"], 2), "estimate")},
         ],
-        "note": "Promises are counted from queue reply-by times until the promises engine lands.",
+        "note": "Promises are counted from queue reply-by times and client-thread reply-by times (+1 business day). Kept means answered on time. The full promises engine comes later.",
     }
 
 
@@ -128,25 +133,49 @@ async def renewals(request: Request, session: Session = Depends(require_operator
     return {"renewals": rows, "count": _n(len(rows))}
 
 
+def _thread_row(t: dict, now: datetime) -> dict:
+    return {"thread_id": t["thread_id"], "client": t["client"], "subject": t["subject"],
+            "last_message": t["last_message"], "last_at": t["last_at"].isoformat(),
+            "reply_by": t["reply_by"].isoformat() if t["reply_by"] else None,
+            "reply_by_text": inbox_k.fmt_short(t["reply_by"]) if t["reply_by"] else "No reply-by",
+            "reply_by_basis": inbox_k.BASIS, "status": inbox_k.status_for(t, now),
+            "messages": _n(len([m for m in t["messages"] if m["who"] != "pending"]))}
+
+
 @router.get("/inbox")
-async def inbox(request: Request, session: Session = Depends(require_operator_session)) -> dict:
-    safe = wrap(request.app.state.mongo_db)
-    threads: dict[tuple, dict] = {}
-    async with use_tenant(session.tenant_id):
-        names = {c["client_id"]: c["display_name"] async for c in safe.clients.find({})}
-        async for e in safe.events.find({"type": {"$in": ASK_TYPES}}).sort("seq", 1):
-            p = e.get("payload") or {}
-            key = (p.get("client_id"), p.get("matter_id") or p.get("envelope_id"))
-            t = threads.setdefault(key, {"thread_id": key[1], "client": names.get(key[0], "Unknown client"),
-                                         "subject": p.get("message"), "messages": _n(0)})
-            t["messages"]["value"] += 1
-            t["last_type"], t["last_ts"] = e["type"], _utc(e["ts"])
-            if p.get("message"):
-                t["last_message"] = p["message"]
-    rows = []
-    for t in sorted(threads.values(), key=lambda t: t["last_ts"], reverse=True):
-        waiting = t["last_type"] != "ClientMessageReleased"
-        rows.append({**{k: v for k, v in t.items() if k not in ("last_type", "last_ts")},
-                     "last_at": t["last_ts"].isoformat(), "status": THREAD_STATUS[t["last_type"]],
-                     "promise": f"Reply by {_ddmmyyyy(t['last_ts'] + timedelta(days=1))}" if waiting else "Kept"})
-    return {"threads": rows, "count": _n(len(rows))}
+async def inbox(request: Request, include_tests: bool = False,
+                session: Session = Depends(require_operator_session)) -> dict:
+    now = datetime.now(timezone.utc)
+    rows = await inbox_k.load_threads(request.app.state.mongo_db, session.tenant_id, include_tests=include_tests)
+    out = [_thread_row(t, now) for t in inbox_k.sort_threads(rows, now)]
+    return {"threads": out, "count": _n(len(out))}
+
+
+@router.get("/inbox/{thread_id}")
+async def inbox_thread(thread_id: str, request: Request,
+                       session: Session = Depends(require_operator_session)) -> dict:
+    now = datetime.now(timezone.utc)
+    t = await inbox_k.get_thread(request.app.state.mongo_db, session.tenant_id, thread_id)
+    msgs = [{"who": m["who"], "text": m["text"], "at": m["at"].isoformat(), "author": m.get("author")}
+            for m in t["messages"]]
+    return {**_thread_row(t, now), "conversation": msgs,
+            "can_reply": session.active_role in inbox_k.REPLY_ROLES,
+            "kept": ({"kept_at": t["kept"]["kept_at"].isoformat(), "late": t["kept"]["late"]} if t["kept"] else None)}
+
+
+class ReplyBody(BaseModel):
+    body: str = Field(max_length=inbox_k.MAX_BODY)
+    idempotency_key: str = Field(min_length=8, max_length=200)
+
+    @field_validator("body")
+    @classmethod
+    def _not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("reply cannot be empty")
+        return v.strip()
+
+
+@router.post("/inbox/{thread_id}/reply")
+async def inbox_reply(thread_id: str, body: ReplyBody, request: Request,
+                      session: Session = Depends(require_operator_session)) -> dict:
+    return await inbox_k.reply(request.app.state.mongo_db, session, thread_id, body.body, body.idempotency_key)

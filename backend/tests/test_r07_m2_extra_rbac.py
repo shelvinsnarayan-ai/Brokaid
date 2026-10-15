@@ -76,7 +76,7 @@ def test_weekly_pack_metric_shape():
     assert keys == ["promises_kept", "promises_open", "promises_overdue", "approvals", "spend"]
     for m in body["metrics"]:
         assert isinstance(m["value"], (int, float))
-        assert m["data_basis"] in ("registry", "estimate")
+        assert m["data_basis"] in ("registry", "estimate", "queue + inbox reply-by")
     # spend is explicitly estimate
     spend = next(m for m in body["metrics"] if m["key"] == "spend")
     assert spend["data_basis"] == "estimate"
@@ -101,8 +101,8 @@ def test_inbox_row_shape():
     threads = _as("ae@harbourline.example").get("/api/o/inbox").json()["threads"]
     assert len(threads) >= 3
     seen_status = {t["status"] for t in threads}
-    assert {"Awaiting broker reply", "Answered"} <= seen_status
+    assert {"Overdue", "Answered"} <= seen_status
     for t in threads:
-        assert t.get("client") and t.get("status") and t.get("promise")
+        assert t.get("client") and t.get("status") and t.get("reply_by_text")
         # status should be human sentence, not snake_case key
         assert "_" not in t["status"]

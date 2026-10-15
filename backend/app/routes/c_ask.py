@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
@@ -9,7 +10,7 @@ from pydantic import BaseModel
 
 from app.auth.sessions import Session
 from app.db.tenant_safe import wrap as _wrap_safe
-from app.kernel import claims_scene
+from app.kernel import claims_scene, inbox
 from app.kernel.agents.liaison import EmergentLLMProviderLiaison
 from app.kernel.release import try_release
 from app.kernel.tenant_ctx import use_tenant
@@ -55,6 +56,7 @@ async def send_message(
         envelope_id=envelope_id, client_id=client["client_id"],
         message=body.message,
     )
+    await inbox.record_promise(store, tenant_id, envelope_id, client["client_id"], datetime.now(timezone.utc))
 
     liaison = EmergentLLMProviderLiaison()
     draft = await liaison.draft(
@@ -104,60 +106,28 @@ async def send_message(
 
 @router.get("/thread")
 async def thread(
-    request: Request, session: Session = Depends(require_session),
+    request: Request, include_tests: bool = False, session: Session = Depends(require_session),
 ) -> dict[str, Any]:
+    """Client view of every Ask thread, in time order. Open threads show the reply-by promise."""
     store = _store(request)
-    tenant_id = session.tenant_id
-    client = await claims_scene.load_client_for_user(
-        store, tenant_id, session.user_id,
-    )
+    client = await claims_scene.load_client_for_user(store, session.tenant_id, session.user_id)
     if not client:
         raise HTTPException(status_code=404, detail="client_not_linked")
-    ask_types = (
-        "ClientQuestionAsked", "ClientMessageReleased",
-        "ClientMessageHITL", "ClientMessageRewriteRequired",
-    )
-    safe = _wrap_safe(store)
-    rows: list[dict[str, Any]] = []
-    async with use_tenant(tenant_id):
-        cursor = safe.events.find({
-            "type": {"$in": list(ask_types)},
-            "payload.client_id": client["client_id"],
-        }).sort("seq", 1).limit(40)
-        async for r in cursor:
-            rows.append({
-                "type": r["type"], "ts": r.get("ts"),
-                "payload": r.get("payload") or {},
-            })
-
-    thread_out = []
-    for r in rows:
-        p = r["payload"]
-        if not isinstance(p, dict):
-            p = dict(p) if p else {}
-        ts = r["ts"]
-        ts_iso = (
-            ts.isoformat(timespec="microseconds")
-            if hasattr(ts, "isoformat") else str(ts)
-        )
-        if r["type"] == "ClientQuestionAsked":
-            thread_out.append({
-                "who": "client", "text": p.get("message"), "ts": ts_iso,
-            })
-        elif r["type"] == "ClientMessageReleased":
-            thread_out.append({
-                "who": "broker", "text": p.get("message"),
-                "attribution": None, "next_step": None,
-                "verified": (
-                    (p.get("classifier_verdict") or {}).get("advice_classification")
-                    == "factual"
-                ),
-                "ts": ts_iso,
-            })
-        else:
-            thread_out.append({
-                "who": "broker_pending",
-                "text": "Your broker is drafting a response. Please keep an eye on this thread.",
-                "ts": ts_iso,
-            })
-    return {"thread": thread_out}
+    threads = await inbox.load_threads(store, session.tenant_id, client_id=client["client_id"],
+                                       include_tests=include_tests)
+    items: list[tuple] = []
+    waiting = []
+    for t in threads:
+        for m in t["messages"]:
+            if m["who"] == "client":
+                items.append((m["at"], {"who": "client", "text": m["text"], "thread_id": t["thread_id"]}))
+            elif m["who"] == "broker":
+                items.append((m["at"], {"who": "broker", "text": m["text"], "attribution": m.get("author"),
+                                        "next_step": None, "verified": False, "thread_id": t["thread_id"]}))
+        if not t["answered"] and t["reply_by"]:
+            waiting.append(t["reply_by"])
+            items.append((t["last_at"], {"who": "broker_pending", "thread_id": t["thread_id"],
+                                         "text": f"Your broker will reply by {inbox.fmt_long(t['reply_by'])}."}))
+    items.sort(key=lambda x: x[0])
+    out = [{**d, "ts": at.isoformat()} for at, d in items]
+    return {"thread": out, "reply_by_text": inbox.fmt_long(min(waiting)) if waiting else None}

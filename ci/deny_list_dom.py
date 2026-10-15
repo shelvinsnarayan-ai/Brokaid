@@ -28,7 +28,7 @@ AE_ONLY = [("confidence decimal", r"\b[01]\.\d{2,3}\b")]
 MOTOR = "00000000-0000-4000-8000-000000000104"
 CLIENT_ROUTES = ["/c", "/c/cover", "/c/money", "/c/claims", "/c/ask", "/c/profile",
                  f"/c/cover/{MOTOR}/certificate/new", f"/c/cover/{MOTOR}/request-change", "/c/claims/new"]
-AE_ROUTES = ["/o/queue", "/o/clients", "/o/renewals", "/o/inbox"]
+AE_ROUTES = ["/o/queue", "/o/clients", "/o/renewals", "/o/inbox", "/o/inbox/seed-ask-kai-2"]
 
 
 def source_hint(text: str) -> str:

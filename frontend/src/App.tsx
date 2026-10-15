@@ -25,6 +25,7 @@ import { DailyBrief } from "./pages/operator/DailyBrief";
 import { WeeklyPack } from "./pages/operator/WeeklyPack";
 import { Renewals } from "./pages/operator/Renewals";
 import { Inbox } from "./pages/operator/Inbox";
+import { InboxThread } from "./pages/operator/InboxThread";
 import { KpiDetail } from "./pages/operator/KpiDetail";
 import { Clients as OperatorClients } from "./pages/operator/Clients";
 import { Client360 } from "./pages/operator/Client360";
@@ -101,6 +102,7 @@ export function App() {
           <Route path="weekly-pack" element={<WeeklyPack />} />
           <Route path="renewals" element={<Renewals />} />
           <Route path="inbox" element={<Inbox />} />
+          <Route path="inbox/:thread_id" element={<InboxThread />} />
           <Route path="kpi/:id" element={<KpiDetail />} />
           <Route path="clients" element={<OperatorClients />} />
           <Route path="clients/:id" element={<Client360 />} />
