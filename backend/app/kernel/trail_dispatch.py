@@ -25,6 +25,12 @@ async def append_via_dispatch(
             idempotency_key=idempotency_key,
             mocked=mocked,
         )
+    try:  # R0.11A: one notification subscriber; never blocks the ledger write
+        from app.kernel import notify
+        await notify.on_event(store, tenant_id, type, payload, ev.event_id)
+    except Exception as e:  # noqa: BLE001
+        import logging
+        logging.getLogger("brokaid.notify").warning("notify failed for %s (non-fatal): %r", type, e)
     return {
         "event_id": ev.event_id, "seq": ev.seq,
         "event_hash": ev.event_hash,

@@ -6,6 +6,7 @@ const P: Record<string, string> = {
   claim: "M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5",
   money: "M3 7h18v12H3zM3 11h18M7 15h3",
   user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1-4 4-6 8-6s7 2 8 6",
+  bell: "M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0",
 };
 
 export function Icon({ name, size = 20 }: { name: keyof typeof P | string; size?: number }) {

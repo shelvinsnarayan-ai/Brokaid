@@ -2,6 +2,8 @@
  * OperatorControlLayout — top bar + left rail + keyboard shortcuts
  * overlay ('?'). Wraps all /o/* routes for phase 7.
  */
+import { Bell } from "../components/alerts/Bell";
+import { useAlertsPoll } from "../state/alertsStore";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BrandWordmark } from "../components/BrandWordmark";
@@ -41,6 +43,7 @@ const allowed = (p: string, role: string | undefined) => {
 };
 
 export function OperatorControlLayout() {
+  useAlertsPoll();
   const navigate = useNavigate();
   const session = useOperatorStore((s) => s.session);
   const load = useOperatorStore((s) => s.loadSession);
@@ -116,6 +119,7 @@ export function OperatorControlLayout() {
           </button>
           {session && (
             <>
+              <Bell base="/o" />
               <span data-testid="operator-user-label">
                 <KKbd testId="user-role">{session.session.active_role}</KKbd>{" "}
                 <strong>{session.user.display_name}</strong>

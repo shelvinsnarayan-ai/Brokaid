@@ -25,6 +25,7 @@ import { DailyBrief } from "./pages/operator/DailyBrief";
 import { WeeklyPack } from "./pages/operator/WeeklyPack";
 import { Renewals } from "./pages/operator/Renewals";
 import { Inbox } from "./pages/operator/Inbox";
+import { AlertsPage } from "./components/alerts/AlertsPage";
 import { InboxThread } from "./pages/operator/InboxThread";
 import { KpiDetail } from "./pages/operator/KpiDetail";
 import { Clients as OperatorClients } from "./pages/operator/Clients";
@@ -79,6 +80,7 @@ export function App() {
           <Route path="claims/:claim_id" element={<ClaimDetail />} />
           <Route path="notifications" element={<ClientNotifications />} />
           <Route path="ask" element={<ClientAsk />} />
+          <Route path="alerts" element={<AlertsPage surface="client" />} />
           <Route path="profile" element={<ClientProfile />} />
           {import.meta.env.BROKAID_AUTH_DEV_MODE ? (
             <Route
@@ -102,6 +104,7 @@ export function App() {
           <Route path="weekly-pack" element={<WeeklyPack />} />
           <Route path="renewals" element={<Renewals />} />
           <Route path="inbox" element={<Inbox />} />
+          <Route path="alerts" element={<AlertsPage surface="operator" />} />
           <Route path="inbox/:thread_id" element={<InboxThread />} />
           <Route path="kpi/:id" element={<KpiDetail />} />
           <Route path="clients" element={<OperatorClients />} />

@@ -469,3 +469,39 @@
 /* R0.10a — replies that were unread when this visit began */
 .brokaid-ask__msg--new { box-shadow: inset 3px 0 0 var(--saffron, #F2B01E), 0 0 0 1px rgba(242, 176, 30, 0.35); background: rgba(242, 176, 30, 0.06); }
 .brokaid-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* R0.11A — bell + alerts (client: Harbour light; operator overrides below) */
+.brokaid-client-header__actions { display: flex; align-items: center; gap: 10px; }
+.brokaid-bell { position: relative; }
+.brokaid-bell__btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--line-light, #E3E8F0); background: transparent; color: var(--navy, #0B1B3A); cursor: pointer; transition: background-color .15s; }
+.brokaid-bell__btn:hover { background: rgba(242, 176, 30, 0.12); }
+.brokaid-bell__count { position: absolute; top: -4px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--saffron, #F2B01E); color: var(--navy, #0B1B3A); font: 700 11px/18px var(--font-ui); text-align: center; }
+.brokaid-bell__panel { position: absolute; right: 0; top: 44px; width: 360px; max-height: 70vh; overflow: auto; z-index: 60; background: #FFFFFF; color: var(--navy, #0B1B3A); border: 1px solid var(--line-light, #E3E8F0); border-radius: 12px; box-shadow: 0 16px 40px rgba(11, 27, 58, 0.16); }
+.brokaid-bell__head, .brokaid-bell__foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 14px; font-size: 13px; }
+.brokaid-bell__foot { border-top: 1px solid var(--line-light, #E3E8F0); flex-wrap: wrap; }
+.brokaid-bell__foot a { color: inherit; }
+.brokaid-bell__link { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; font: inherit; font-size: 13px; cursor: pointer; }
+.brokaid-bell__link:disabled { opacity: .45; cursor: default; text-decoration: none; }
+.brokaid-alerts__list { list-style: none; margin: 0; padding: 0; }
+.brokaid-alert { display: grid; gap: 2px; width: 100%; text-align: left; padding: 12px 14px; border: 0; border-top: 1px solid var(--line-light, #E3E8F0); background: transparent; color: inherit; font: 400 14px var(--font-ui); cursor: pointer; transition: background-color .15s; }
+.brokaid-alert:hover { background: rgba(242, 176, 30, 0.08); }
+.brokaid-alert.is-unread { box-shadow: inset 3px 0 0 var(--saffron, #F2B01E); }
+.brokaid-alert.is-unread .brokaid-alert__title { font-weight: 700; }
+.brokaid-alert__body { font-size: 13px; opacity: .8; overflow-wrap: anywhere; }
+.brokaid-alert__time { font-size: 12px; opacity: .6; }
+.brokaid-alerts__empty { padding: 16px 14px; font-size: 13px; opacity: .7; }
+.brokaid-alerts { max-width: 760px; padding: 8px 0 24px; }
+.brokaid-alerts__head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
+.brokaid-alerts__eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; opacity: .7; margin: 0; }
+.brokaid-alerts__title { font-size: 28px; margin: 4px 0 0; }
+.brokaid-alerts__prefs { margin-top: 28px; }
+.brokaid-alerts__prefs h2 { font-size: 16px; margin-bottom: 8px; }
+.brokaid-alerts__prefs ul { list-style: none; padding: 0; margin: 0 0 8px; }
+.brokaid-pref { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line-light, #E3E8F0); }
+.brokaid-pref label { display: grid; }
+.brokaid-pref__note { font-size: 12px; opacity: .7; }
+.surface-ledger .brokaid-bell__btn { border-color: rgba(230, 234, 242, 0.12); color: var(--bone, #E6EAF2); width: 32px; height: 32px; }
+.surface-ledger .brokaid-bell__panel { background: #111827; color: var(--bone, #E6EAF2); border-color: rgba(230, 234, 242, 0.12); }
+.surface-ledger .brokaid-bell__foot, .surface-ledger .brokaid-alert, .surface-ledger .brokaid-pref { border-color: rgba(230, 234, 242, 0.1); }
+@media (max-width: 767px) {
+  .brokaid-bell__panel { position: fixed; left: 8px; right: 8px; top: 64px; width: auto; }
+}

@@ -7,6 +7,7 @@ from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
 from app.seeds.seed_things_mongo import NARAYAN
 
+RENEWAL_DEMO = "00000000-0000-4000-8000-000000000150"
 THREADS = [
     ("seed-ask-kai-1", None, [
         ("ClientQuestionAsked", "client", "When does my public liability policy expire?"),
@@ -41,4 +42,13 @@ async def seed_mongo(db, tenant_id: str, client_id: str) -> int:
                     message="Can you send a copy of our home building certificate to the bank?",
                     received_at=datetime.now(timezone.utc) - timedelta(days=4))
     await inbox.backfill(db, tenant_id)
+    async with use_tenant(tenant_id):  # R0.11A: one Kai policy renewing within 30 days (demo)
+        if not await safe.policies.find_one({"policy_id": RENEWAL_DEMO}):
+            now = datetime.now(timezone.utc)
+            await safe.policies.insert_one({
+                "policy_id": RENEWAL_DEMO, "client_id": client_id, "status": "managed",
+                "product": "Tools and equipment", "insurer_display": "Fictional Carrier A",
+                "inception": now - timedelta(days=344), "expiry": now + timedelta(days=21),
+                "premium_amount": 640.0, "premium_currency": "AUD", "premium_status": "current",
+                "schedule": {}, "imported_from": None, "fictional": True})
     return n

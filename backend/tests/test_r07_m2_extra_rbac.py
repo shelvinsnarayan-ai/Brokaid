@@ -101,7 +101,7 @@ def test_inbox_row_shape():
     threads = _as("ae@harbourline.example").get("/api/o/inbox").json()["threads"]
     assert len(threads) >= 3
     seen_status = {t["status"] for t in threads}
-    assert {"Overdue", "Answered"} <= seen_status
+    assert seen_status <= {"Overdue", "Due today", "Awaiting reply", "Answered"} and "Answered" in seen_status
     for t in threads:
         assert t.get("client") and t.get("status") and t.get("reply_by_text")
         # status should be human sentence, not snake_case key

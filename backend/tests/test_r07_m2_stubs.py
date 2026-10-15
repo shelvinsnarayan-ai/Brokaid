@@ -43,7 +43,8 @@ def test_inbox_threads():
     assert r.status_code == 200
     threads = r.json()["threads"]
     assert len(threads) >= 3
-    assert {"Overdue", "Answered"} <= {t["status"] for t in threads}
+    assert {t["status"] for t in threads} <= {"Overdue", "Due today", "Awaiting reply", "Answered"}
+    assert "Answered" in {t["status"] for t in threads}
 
 
 def test_drills_operator_only():

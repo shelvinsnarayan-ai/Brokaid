@@ -20,6 +20,8 @@ import { YouMenu } from "../components/YouMenu";
 import "../styles/app-footer.css";
 import { useEffect } from "react";
 import { useUnreadStore } from "../state/unreadStore";
+import { useAlertsPoll } from "../state/alertsStore";
+import { Bell } from "../components/alerts/Bell";
 
 function useUnreadPoll() {
   const refresh = useUnreadStore((s) => s.refresh);
@@ -35,6 +37,7 @@ function useUnreadPoll() {
 
 export function ClientLayout() {
   useUnreadPoll();
+  useAlertsPoll();
   return (
     <AuthGuard>
       <div
@@ -64,7 +67,10 @@ export function ClientLayout() {
               alt="brokAId"
             />
           </Link>
-          <YouMenu />
+          <div className="brokaid-client-header__actions">
+            <Bell base="/c" />
+            <YouMenu />
+          </div>
         </header>
         <PreviewBanner />
         <main className="brokaid-client-layout__main">

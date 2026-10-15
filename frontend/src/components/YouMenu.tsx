@@ -8,7 +8,7 @@ const ITEMS = [
   { id: "people", label: "People", to: "/c/profile" },
   { id: "documents", label: "Documents", to: "/c/cover" },
   { id: "messages", label: "Messages", to: "/c/ask" },
-  { id: "notifications", label: "Notifications", to: "/c/profile" },
+  { id: "notifications", label: "Notifications", to: "/c/alerts#settings" },
   { id: "settings", label: "Settings", to: "/c/profile" },
   { id: "fsg", label: "FSG", to: "/c/profile" },
   { id: "privacy", label: "Privacy", to: "/c/profile" },
