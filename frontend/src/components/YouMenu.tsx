@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMeStore } from "../state/meStore";
+import { UnreadCount, UnreadDot, useUnreadStore } from "../state/unreadStore";
 
 const ITEMS = [
   { id: "people", label: "People", to: "/c/profile" },
@@ -19,17 +20,19 @@ export function YouMenu() {
   const navigate = useNavigate();
   const me = useMeStore((s) => s.me);
   const logout = useMeStore((s) => s.logout);
+  const unread = useUnreadStore((s) => s.count);
   const initials = (me?.user?.display_name || "You").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   return (
     <div className="brokaid-you">
       <button type="button" className="brokaid-you__avatar" onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu" aria-expanded={open} data-testid="you-avatar">{initials}</button>
+        aria-haspopup="menu" aria-expanded={open} data-testid="you-avatar">{initials}<UnreadDot n={unread} testid="you-avatar-unread-dot" /></button>
       {open && (
         <ul className="brokaid-you__menu" role="menu" data-testid="you-menu">
           {ITEMS.map((i) => (
             <li key={i.id}>
               <button type="button" role="menuitem" data-testid={`you-${i.id}`}
-                onClick={() => { setOpen(false); navigate(i.to); }}>{i.label}</button>
+                onClick={() => { setOpen(false); navigate(i.to); }}>{i.label}
+                {i.id === "messages" && <UnreadCount n={unread} testid="you-messages-unread" />}</button>
             </li>
           ))}
           <li>

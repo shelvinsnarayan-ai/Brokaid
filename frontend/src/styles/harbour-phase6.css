@@ -462,3 +462,7 @@
 .brokaid-thing__numbers dd { margin: 0; font: 500 14px var(--font-mono); color: var(--navy); }
 .brokaid-thing__actions { display: flex; gap: 14px; flex-wrap: wrap; }
 .brokaid-thing__actions a { color: var(--steel); font: 600 14px var(--font-ui); }
+/* R0.9 — unread broker replies (saffron, small) */
+.brokaid-unread { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 8px; border-radius: 999px; background: var(--saffron, #F2B01E); color: var(--navy, #0B1B3A); font: 700 11px/1 var(--font-ui); vertical-align: middle; }
+.brokaid-unread-dot { position: absolute; top: 0; right: 0; width: 10px; height: 10px; border-radius: 999px; background: var(--saffron, #F2B01E); box-shadow: 0 0 0 2px #FFFFFF; }
+.brokaid-tabbar__do-disc, .brokaid-you__avatar { position: relative; }

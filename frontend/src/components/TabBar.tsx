@@ -6,6 +6,7 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { DoSheet } from "./DoSheet";
 import { Icon } from "./Icon";
+import { UnreadDot, useUnreadStore } from "../state/unreadStore";
 
 const TABS = [
   { path: "/c", label: "Home", icon: "home", testId: "tab-home" },
@@ -17,6 +18,7 @@ const TABS = [
 
 export function TabBar() {
   const [open, setOpen] = useState(false);
+  const unread = useUnreadStore((s) => s.count);
   return (
     <>
       <nav className="brokaid-tabbar" role="navigation" aria-label="Client sections" data-testid="client-tabbar">
@@ -31,7 +33,7 @@ export function TabBar() {
           ) : (
             <button key="do" type="button" className="brokaid-tabbar__item brokaid-tabbar__do"
               onClick={() => setOpen(true)} aria-haspopup="dialog" data-testid="tab-do">
-              <span className="brokaid-tabbar__do-disc"><Icon name="plus" size={24} /></span>
+              <span className="brokaid-tabbar__do-disc"><Icon name="plus" size={24} /><UnreadDot n={unread} testid="tab-do-unread-dot" /></span>
               <span className="brokaid-tabbar__label">Do</span>
             </button>
           ),

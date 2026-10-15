@@ -7,6 +7,7 @@
  * marks the draft as factual. HITL responses render a placeholder.
  */
 import { useEffect, useRef, useState } from "react";
+import { useUnreadStore } from "../state/unreadStore";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -50,6 +51,9 @@ export function ClientAsk() {
         const b = await r.json();
         setThread(b.thread || []);
         setReplyBy(b.reply_by_text || null);
+        const u = useUnreadStore.getState();
+        await u.refresh();
+        if (useUnreadStore.getState().count) await u.markSeen();
       }
     } catch {
       // best effort

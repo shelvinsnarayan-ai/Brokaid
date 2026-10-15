@@ -18,8 +18,23 @@ import { TabBar } from "../components/TabBar";
 import { DemoBanner } from "../components/DemoBanner";
 import { YouMenu } from "../components/YouMenu";
 import "../styles/app-footer.css";
+import { useEffect } from "react";
+import { useUnreadStore } from "../state/unreadStore";
+
+function useUnreadPoll() {
+  const refresh = useUnreadStore((s) => s.refresh);
+  useEffect(() => {
+    void refresh();
+    const t = window.setInterval(() => void refresh(), 30000);
+    const onFocus = () => document.visibilityState === "visible" && void refresh();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => { window.clearInterval(t); window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onFocus); };
+  }, [refresh]);
+}
 
 export function ClientLayout() {
+  useUnreadPoll();
   return (
     <AuthGuard>
       <div

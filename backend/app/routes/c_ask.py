@@ -131,3 +131,53 @@ async def thread(
     items.sort(key=lambda x: x[0])
     out = [{**d, "ts": at.isoformat()} for at, d in items]
     return {"thread": out, "reply_by_text": inbox.fmt_long(min(waiting)) if waiting else None}
+
+
+# ---- R0.9 — unread broker replies (UI state only: no ledger events for "seen") ----
+class SeenBody(BaseModel):
+    thread_id: str
+
+
+async def _client_reader(request: Request, session: Session) -> tuple[Any, dict]:
+    from app.kernel.rbac import ALL_OPERATOR_ROLES
+    if session.active_role in ALL_OPERATOR_ROLES:
+        raise HTTPException(status_code=403, detail="client_only")
+    store = _store(request)
+    client = await claims_scene.load_client_for_user(store, session.tenant_id, session.user_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="client_not_linked")
+    return store, client
+
+
+@router.get("/unread")
+async def unread(request: Request, include_tests: bool = False,
+                 session: Session = Depends(require_session)) -> dict[str, Any]:
+    store, client = await _client_reader(request, session)
+    threads = await inbox.load_threads(store, session.tenant_id, client_id=client["client_id"],
+                                       include_tests=include_tests)
+    safe = _wrap_safe(store)
+    async with use_tenant(session.tenant_id):
+        seen = {s["thread_id"]: inbox._utc(s["last_seen_at"])
+                async for s in safe.ask_seen.find({"user_id": session.user_id})}
+    out = []
+    for t in threads:
+        since = seen.get(t["thread_id"])
+        n = sum(1 for m in t["messages"] if m.get("reply_id") and (since is None or m["at"] > since))
+        if n:
+            out.append({"thread_id": t["thread_id"], "unread": n})
+    return {"count": sum(t["unread"] for t in out), "threads": out}
+
+
+@router.post("/seen")
+async def seen(body: SeenBody, request: Request, session: Session = Depends(require_session)) -> dict[str, Any]:
+    store, client = await _client_reader(request, session)
+    threads = await inbox.load_threads(store, session.tenant_id, client_id=client["client_id"], include_tests=True)
+    if not any(t["thread_id"] == body.thread_id for t in threads):
+        raise HTTPException(status_code=404, detail="thread_not_found")
+    now = datetime.now(timezone.utc)
+    safe = _wrap_safe(store)
+    async with use_tenant(session.tenant_id):
+        await safe.ask_seen.update_one(
+            {"user_id": session.user_id, "thread_id": body.thread_id},
+            {"$max": {"last_seen_at": now}, "$setOnInsert": {"client_id": client["client_id"]}}, upsert=True)
+    return {"thread_id": body.thread_id, "seen": True}

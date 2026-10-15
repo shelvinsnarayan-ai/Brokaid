@@ -1,12 +1,14 @@
 /** R0.6 — Do sheet: six verbs in archetype order (Addendum 2 §5.5). */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { UnreadCount, useUnreadStore } from "../state/unreadStore";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
 export function DoSheet({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const [policyId, setPolicyId] = useState<string | null>(null);
+  const unread = useUnreadStore((s) => s.count);
   useEffect(() => {
     fetch(`${API}/api/c/policies`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : { policies: [] }))
@@ -38,6 +40,7 @@ export function DoSheet({ onClose }: { onClose: () => void }) {
               <button type="button" className="brokaid-sheet__verb" data-testid={`do-verb-${v.id}`}
                 onClick={() => { onClose(); navigate(v.to); }}>
                 {v.label}
+                {v.id === "ask" && <UnreadCount n={unread} testid="do-verb-ask-unread" />}
               </button>
             </li>
           ))}
