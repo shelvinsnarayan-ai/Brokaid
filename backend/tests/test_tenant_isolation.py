@@ -288,7 +288,7 @@ async def test_r3_middleware_binds_ctx_when_session_present(app_client, seeded):
     _, client = app_client
     r = await client.post(
         "/api/auth/dev/impersonate",
-        json={"email": "principal@burmac.example"},
+        json={"email": "principal@harbourline.example"},
     )
     assert r.status_code == 200, r.text
     # httpx.AsyncClient persists cookies across requests; the next call
@@ -315,7 +315,7 @@ async def test_r3_operator_switch_client_keeps_tenant_ctx(app_client, seeded):
     _, client = app_client
     r = await client.post(
         "/api/auth/dev/impersonate",
-        json={"email": "principal@burmac.example"},
+        json={"email": "principal@harbourline.example"},
     )
     assert r.status_code == 200, r.text
     tenant_before = r.json().get("tenant_id")
@@ -323,7 +323,7 @@ async def test_r3_operator_switch_client_keeps_tenant_ctx(app_client, seeded):
 
     r2 = await client.post(
         "/api/auth/dev/impersonate",
-        json={"email": "principal@burmac.example"},
+        json={"email": "principal@harbourline.example"},
     )
     assert r2.status_code == 200, r2.text
     tenant_now = r2.json().get("tenant_id")

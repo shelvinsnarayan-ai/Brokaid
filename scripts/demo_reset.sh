@@ -2,7 +2,7 @@
 # Demo reset for rehearsals (R0.5). Usage: scripts/demo_reset.sh [kai|all_tests|full] [operator-email]
 set -euo pipefail
 SCOPE="${1:-kai}"
-EMAIL="${2:-principal@burmac.example}"
+EMAIL="${2:-principal@harbourline.example}"
 API="${REACT_APP_BACKEND_URL:-$(grep '^REACT_APP_BACKEND_URL=' "$(dirname "$0")/../frontend/.env" | cut -d= -f2-)}"
 JAR="$(mktemp)"
 trap 'rm -f "$JAR"' EXIT

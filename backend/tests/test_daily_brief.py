@@ -15,7 +15,7 @@ async def test_daily_brief_has_numeric_shape(app_client, seeded):
     app, client = app_client
     from app.seeds.seed_all_mongo import seed_all_mongo
     await seed_all_mongo(app.state.mongo_db)
-    await _dev(client, "principal@burmac.example")
+    await _dev(client, "principal@harbourline.example")
 
     r = await client.get("/api/o/daily_brief")
     assert r.status_code == 200, r.text

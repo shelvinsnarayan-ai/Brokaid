@@ -14,7 +14,7 @@ import { chromium } from "playwright";
 import fs from "node:fs/promises";
 
 const BASE = process.env.LOCAL_BASE_URL || "http://localhost:3000";
-const OP_EMAIL = "principal@burmac.example";
+const OP_EMAIL = "principal@harbourline.example";
 const CL_EMAIL = "owner@fictionalclient.example";
 const OUT = "/app/docs/demo_screenshots";
 

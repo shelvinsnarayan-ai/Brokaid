@@ -122,3 +122,44 @@ async def get_spend(request: Request, session: Session = Depends(require_operato
 async def reset(body: ResetBody, request: Request,
                 session: Session = Depends(require_operator_role)) -> dict:
     return await demo_reset.run(_db(request), session.tenant_id, body.scope, session.user_id)
+
+
+class DrillBody(BaseModel):
+    agent: str
+    engage_s: float
+    release_s: float
+    result: Literal["pass", "fail"]
+    engaged_at: str
+    released_at: str
+
+
+@router.post("/governance/drills")
+async def record_drill(body: DrillBody, request: Request, session: Session = Depends(require_operator_role)) -> dict:
+    """R0.7 — kill-switch drill evidence (Gate 0 G6 artefact)."""
+    import uuid
+    pkg = next((r["package"] for r in registry.listing()
+                if r["assistant"] == governance.AGENT_LABELS.get(body.agent)), None)
+    drill = {"drill_id": str(uuid.uuid4()), **body.model_dump(),
+             "agent_label": governance.AGENT_LABELS.get(body.agent, body.agent),
+             "package_label": pkg, "operator_id": session.user_id}
+    await _event(request, session, "DrillRecorded", drill, f"drill:{drill['drill_id']}")
+    return {"drill": drill}
+
+
+@router.get("/governance/drills")
+async def list_drills(request: Request, session: Session = Depends(require_operator_role)) -> dict:
+    from app.db.tenant_safe import wrap
+    safe = wrap(_db(request))
+    async with use_tenant(session.tenant_id):
+        evs = [e async for e in safe.events.find({"type": "DrillRecorded"}).sort("seq", -1).limit(10)]
+        uids = list({(e["payload"] or {}).get("operator_id") for e in evs})
+        names = {u["user_id"]: u.get("display_name") or u["email"]
+                 async for u in safe.users.find({"user_id": {"$in": uids}})}
+    out = []
+    for e in evs:
+        p = e["payload"]
+        out.append({k: p.get(k) for k in ("drill_id", "agent_label", "package_label", "engage_s",
+                                          "release_s", "result", "engaged_at", "released_at")}
+                   | {"operator": names.get(p.get("operator_id"), "Operator"),
+                      "recorded_at": e["ts"].isoformat() if hasattr(e["ts"], "isoformat") else str(e["ts"])})
+    return {"drills": out}

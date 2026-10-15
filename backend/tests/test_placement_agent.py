@@ -386,7 +386,7 @@ async def test_place_endpoint_emits_all_events(app_client, seeded) -> None:
 
     # Impersonate as Ada (principal).
     r = await client.post("/api/auth/dev/impersonate",
-                          json={"email": "principal@burmac.example"})
+                          json={"email": "principal@harbourline.example"})
     assert r.status_code == 200, r.text
 
     # Fabricate an intake AgentOutputProduced event ledger entry.
@@ -443,7 +443,7 @@ async def test_client_pending_quote_returns_mocked_true(app_client, seeded) -> N
 
     # Operator run place first.
     r = await client.post("/api/auth/dev/impersonate",
-                          json={"email": "principal@burmac.example"})
+                          json={"email": "principal@harbourline.example"})
     assert r.status_code == 200
 
     from app.kernel.trail import append

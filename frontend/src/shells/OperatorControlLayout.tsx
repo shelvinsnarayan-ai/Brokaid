@@ -16,10 +16,12 @@ const NAV_GROUPS = [
   { title: null, roles: null as string[] | null, items: [
     { to: "/o/queue",       label: "Today",        kbd: "g q" },
     { to: "/o/clients",     label: "Clients",      kbd: "g c" },
+    { to: "/o/renewals",    label: "Renewals",     kbd: "g r" },
+    { to: "/o/inbox",       label: "Inbox",        kbd: "g i" },
   ] },
   { title: "Principal", roles: ["principal", "operator"], items: [
     { to: "/o",             label: "Overview",     kbd: "g o" },
-    { to: "/o/brief",       label: "Daily Brief",  kbd: "g b" },
+    { to: "/o/weekly-pack", label: "Weekly pack",  kbd: "g w" },
     { to: "/o/shadow-mode", label: "Shadow Mode",  kbd: "g s" },
   ] },
   { title: "Operator", roles: ["operator"], items: [
@@ -30,7 +32,7 @@ const NAV_GROUPS = [
 ];
 const ROUTE_ROLES: [string, string[]][] = [
   ["/o/governance", ["operator"]], ["/o/export", ["operator"]], ["/o/chase", ["operator"]],
-  ["/o/brief", ["principal", "operator"]], ["/o/shadow-mode", ["principal", "operator"]],
+  ["/o/brief", ["principal", "operator"]], ["/o/weekly-pack", ["principal", "operator"]], ["/o/shadow-mode", ["principal", "operator"]],
 ];
 const allowed = (p: string, role: string | undefined) => {
   if (p === "/o" || p === "/o/") return role === "principal" || role === "operator";
@@ -73,7 +75,7 @@ export function OperatorControlLayout() {
 
       if (gPrefix) {
         const map: Record<string, string> = {
-          o: "/o", q: "/o/queue", b: "/o/brief", c: "/o/clients",
+          o: "/o", q: "/o/queue", b: "/o/brief", c: "/o/clients", w: "/o/weekly-pack", r: "/o/renewals", i: "/o/inbox",
           s: "/o/shadow-mode", e: "/o/export", h: "/o/chase", g: "/o/governance",
         };
         const dest = map[e.key.toLowerCase()];
@@ -163,7 +165,7 @@ export function OperatorControlLayout() {
               ["Escape", "Dismiss overlay / clear prefix"],
               ["g o", "Go to Overview"],
               ["g q", "Go to Queue"],
-              ["g b", "Go to Daily Brief"],
+              ["g w", "Go to Weekly pack"],
               ["g c", "Go to Clients"],
               ["g s", "Go to Shadow Mode"],
               ["g e", "Go to Export"],

@@ -30,15 +30,15 @@ DEV_PASSWORD = "dev-password-not-for-production"
 
 
 OPERATORS = [
-    {"email": "principal@burmac.example",    "display_name": "Ada Principal",   "role": "principal"},
-    {"email": "deputy@burmac.example",       "display_name": "Ben Deputy",      "role": "deputy"},
-    {"email": "ae@burmac.example",           "display_name": "Cass Executive",  "role": "ae"},
-    {"email": "accounts-a@burmac.example",   "display_name": "Dee Accounts",    "role": "accounts"},
-    {"email": "accounts-b@burmac.example",   "display_name": "Ev Accounts",     "role": "accounts"},
-    {"email": "compliance@burmac.example",   "display_name": "Fin Compliance",  "role": "compliance"},
+    {"email": "principal@harbourline.example",    "display_name": "Ada Principal",   "role": "principal"},
+    {"email": "deputy@harbourline.example",       "display_name": "Ben Deputy",      "role": "deputy"},
+    {"email": "ae@harbourline.example",           "display_name": "Cass Executive",  "role": "ae"},
+    {"email": "accounts-a@harbourline.example",   "display_name": "Dee Accounts",    "role": "accounts"},
+    {"email": "accounts-b@harbourline.example",   "display_name": "Ev Accounts",     "role": "accounts"},
+    {"email": "compliance@harbourline.example",   "display_name": "Fin Compliance",  "role": "compliance"},
     {"email": "operator@harbourline.example", "display_name": "Olly Operator",  "role": "operator"},
     # Data-only role example — cannot log in.
-    {"email": "auditor@burmac.example",      "display_name": "Gil Auditor",     "role": "auditor"},
+    {"email": "auditor@harbourline.example",      "display_name": "Gil Auditor",     "role": "auditor"},
 ]
 
 CLIENTS = [

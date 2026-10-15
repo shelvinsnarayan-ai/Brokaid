@@ -15,7 +15,7 @@ async def test_login_wrong_password_returns_401(app_client, seeded):
     _, client = app_client
     r = await client.post(
         "/api/auth/operator/login",
-        json={"email": "principal@burmac.example", "password": "wrong"},
+        json={"email": "principal@harbourline.example", "password": "wrong"},
     )
     assert r.status_code == 401
     assert r.json()["detail"] == "invalid_credentials"
@@ -26,7 +26,7 @@ async def test_login_unknown_user_returns_401(app_client, seeded):
     _, client = app_client
     r = await client.post(
         "/api/auth/operator/login",
-        json={"email": "nobody@burmac.example", "password": DEV_PASSWORD},
+        json={"email": "nobody@harbourline.example", "password": DEV_PASSWORD},
     )
     assert r.status_code == 401
 
@@ -35,7 +35,7 @@ async def test_login_success_sets_cookie_and_flags_mfa_required(app_client, seed
     _, client = app_client
     r = await client.post(
         "/api/auth/operator/login",
-        json={"email": "principal@burmac.example", "password": DEV_PASSWORD},
+        json={"email": "principal@harbourline.example", "password": DEV_PASSWORD},
     )
     assert r.status_code == 200
     body = r.json()
@@ -51,7 +51,7 @@ async def test_enrol_then_verify_upgrades_session(app_client, seeded, pool):
     _, client = app_client
     await client.post(
         "/api/auth/operator/login",
-        json={"email": "principal@burmac.example", "password": DEV_PASSWORD},
+        json={"email": "principal@harbourline.example", "password": DEV_PASSWORD},
     )
     r = await client.post("/api/auth/operator/mfa/enrol")
     assert r.status_code == 200
@@ -62,7 +62,7 @@ async def test_enrol_then_verify_upgrades_session(app_client, seeded, pool):
     # Fetch the stored secret to compute the code.
     async with pool.acquire() as c:
         row = await c.fetchrow(
-            "SELECT mfa_secret FROM users WHERE email = 'principal@burmac.example'"
+            "SELECT mfa_secret FROM users WHERE email = 'principal@harbourline.example'"
         )
     code = totp_mod.current_code(row["mfa_secret"])
 
@@ -76,7 +76,7 @@ async def test_unverified_session_hits_operator_endpoint_returns_401(app_client,
     # Login (pre-MFA).
     await client.post(
         "/api/auth/operator/login",
-        json={"email": "compliance@burmac.example", "password": DEV_PASSWORD},
+        json={"email": "compliance@harbourline.example", "password": DEV_PASSWORD},
     )
     # Attempt a compliance action without MFA verified.
     r = await client.post(
@@ -96,7 +96,7 @@ async def test_data_only_role_login_rejected(app_client, seeded):
     _, client = app_client
     r = await client.post(
         "/api/auth/operator/login",
-        json={"email": "auditor@burmac.example", "password": DEV_PASSWORD},
+        json={"email": "auditor@harbourline.example", "password": DEV_PASSWORD},
     )
     assert r.status_code == 403
     assert r.json()["detail"] == "no_login_capable_role"

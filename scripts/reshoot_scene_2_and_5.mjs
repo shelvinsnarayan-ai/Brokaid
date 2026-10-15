@@ -21,7 +21,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const BASE = process.env.LOCAL_BASE_URL || "http://localhost:3000";
-const AE_EMAIL = "ae@burmac.example";
+const AE_EMAIL = "ae@harbourline.example";
 const OUT = "/app/docs/demo_screenshots";
 const ENV_FILE = "/tmp/burmac_envelopes.json";
 

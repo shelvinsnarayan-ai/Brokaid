@@ -28,7 +28,7 @@ AE_ONLY = [("confidence decimal", r"\b[01]\.\d{2,3}\b")]
 MOTOR = "00000000-0000-4000-8000-000000000104"
 CLIENT_ROUTES = ["/c", "/c/cover", "/c/money", "/c/claims", "/c/ask", "/c/profile",
                  f"/c/cover/{MOTOR}/certificate/new", f"/c/cover/{MOTOR}/request-change", "/c/claims/new"]
-AE_ROUTES = ["/o/queue", "/o/clients"]
+AE_ROUTES = ["/o/queue", "/o/clients", "/o/renewals", "/o/inbox"]
 
 
 def source_hint(text: str) -> str:
@@ -56,7 +56,7 @@ async def sweep(base: str) -> list[str]:
         browser = await p.chromium.launch()
         for email, routes, rules in [
             ("owner@fictionalclient.example", CLIENT_ROUTES, COMMON + CLIENT_ONLY),
-            ("ae@burmac.example", AE_ROUTES, COMMON + AE_ONLY),
+            ("ae@harbourline.example", AE_ROUTES, COMMON + AE_ONLY),
         ]:
             ctx = await browser.new_context(viewport={"width": 390, "height": 844} if "/c" in routes[0] else {"width": 1440, "height": 900})
             page = await ctx.new_page()

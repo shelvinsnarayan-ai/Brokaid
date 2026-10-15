@@ -9,7 +9,7 @@ const BASE = process.env.PHASE18_BASE_URL || "http://localhost:3000";
 const OUT =
   process.env.PHASE18_CHASE_SHOT_OUT ||
   "/app/docs/demo_screenshots/chase-ladder-preview.png";
-const OP = "principal@burmac.example";
+const OP = "principal@harbourline.example";
 
 async function main() {
   await mkdir(path.dirname(OUT), { recursive: true });

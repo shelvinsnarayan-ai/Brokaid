@@ -7,8 +7,8 @@
  * crashing.
  *
  * Persona map (emails verified against seed_users.py in R7-Landing):
- *   ada   -> principal@burmac.example  -> /o   (operator seat)
- *   cass  -> ae@burmac.example         -> /o   (executive seat)
+ *   ada   -> principal@harbourline.example  -> /o   (operator seat)
+ *   cass  -> ae@harbourline.example         -> /o   (executive seat)
  *   kai   -> owner@fictionalclient.example -> /c (client seat)
  *
  * Query param ?persona=<slug> is a visual pre-select only. No
@@ -38,7 +38,7 @@ const PERSONAS: Persona[] = [
     name: "Ada Principal",
     seat: "Principal seat",
     body: "Sees the whole queue, the overview and shadow mode.",
-    email: "principal@burmac.example",
+    email: "principal@harbourline.example",
     route: "/o",
   },
   {
@@ -46,7 +46,7 @@ const PERSONAS: Persona[] = [
     name: "Cass Executive",
     seat: "Placement seat",
     body: "AE workflow: quote → approve → issue.",
-    email: "ae@burmac.example",
+    email: "ae@harbourline.example",
     route: "/o",
   },
   {

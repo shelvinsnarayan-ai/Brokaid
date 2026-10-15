@@ -248,7 +248,7 @@ async def test_r4b_rbac_auditor_no_login(app_client, seeded):
     they can never even reach `/api/o/queue`."""
     _, client = app_client
     r = await client.post("/api/auth/dev/impersonate",
-                          json={"email": "auditor@burmac.example"})
+                          json={"email": "auditor@harbourline.example"})
     # Two acceptable outcomes: 403 (no login role) OR a follow-up 403
     # if impersonate succeeds. Either proves the RBAC boundary holds.
     if r.status_code == 200:

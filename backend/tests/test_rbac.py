@@ -24,7 +24,7 @@ async def test_data_only_auditor_cannot_login(app_client, seeded):
     _, client = app_client
     r = await client.post(
         "/api/auth/operator/login",
-        json={"email": "auditor@burmac.example", "password": DEV_PASSWORD},
+        json={"email": "auditor@harbourline.example", "password": DEV_PASSWORD},
     )
     assert r.status_code == 403
 
@@ -34,7 +34,7 @@ async def test_wrong_role_hits_compliance_endpoint_returns_403_and_emits_event(
 ):
     app, client = app_client
     # Impersonate a non-compliance user (principal).
-    await _login_and_impersonate(client, "principal@burmac.example")
+    await _login_and_impersonate(client, "principal@harbourline.example")
     r = await client.post(
         "/api/o/compliance/block",
         json={"target_kind": "matter", "target_id": "m1", "reason": "x"},
@@ -50,7 +50,7 @@ async def test_wrong_role_hits_compliance_endpoint_returns_403_and_emits_event(
 
 async def test_correct_role_passes(app_client, seeded):
     _, client = app_client
-    await _login_and_impersonate(client, "compliance@burmac.example")
+    await _login_and_impersonate(client, "compliance@harbourline.example")
     r = await client.post(
         "/api/o/compliance/block",
         json={"target_kind": "matter", "target_id": "m2", "reason": "kyc gap"},

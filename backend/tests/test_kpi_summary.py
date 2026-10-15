@@ -9,7 +9,7 @@ pytestmark = pytest.mark.asyncio
 async def _op_session(client, seeded):
     r = await client.post(
         "/api/auth/dev/impersonate",
-        json={"email": "principal@burmac.example"},
+        json={"email": "principal@harbourline.example"},
     )
     assert r.status_code == 200, r.text
 

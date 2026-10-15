@@ -1,7 +1,7 @@
 """Phase-18 RBAC negative: the auditor seat cannot log in.
 
 Asserts the DEMO_CHEATSHEET's "RBAC-negative moment" beat holds:
-`POST /api/auth/dev/impersonate {"email": "auditor@burmac.example"}`
+`POST /api/auth/dev/impersonate {"email": "auditor@harbourline.example"}`
 returns 403 with detail `no_login_capable_role`, and the auditor's
 seeded role is confirmed to be in `DATA_ONLY_ROLES` (never
 `LOGIN_CAPABLE_ROLES`).
@@ -19,7 +19,7 @@ async def test_auditor_impersonate_returns_403(app_client, seeded):
     _, client = app_client
     r = await client.post(
         "/api/auth/dev/impersonate",
-        json={"email": "auditor@burmac.example"},
+        json={"email": "auditor@harbourline.example"},
     )
     assert r.status_code == 403, (
         f"auditor must 403 on dev-impersonate; got {r.status_code} → {r.text}"

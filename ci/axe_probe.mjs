@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import AxeBuilder from "@axe-core/playwright";
 const BASE = "https://brokaid-demo.preview.emergentagent.com";
 const targets = [
-  ["/o/queue", "principal@burmac.example"],
+  ["/o/queue", "principal@harbourline.example"],
   ["/c", "owner@fictionalclient.example"],
   ["/c/cover", "owner@fictionalclient.example"],
 ];

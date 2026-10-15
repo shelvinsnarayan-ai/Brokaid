@@ -17,7 +17,7 @@ const BASE =
 const OUT =
   process.env.PHASE18_SHOT_OUT ||
   "/app/docs/demo_screenshots/rbac-negative-auditor.png";
-const AUDITOR = "auditor@burmac.example";
+const AUDITOR = "auditor@harbourline.example";
 
 async function main() {
   await mkdir(path.dirname(OUT), { recursive: true });

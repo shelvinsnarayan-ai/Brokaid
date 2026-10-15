@@ -18,7 +18,7 @@ const BASE =
   process.env.PHASE16_BASE_URL ||
   "https://brokaid-demo.preview.emergentagent.com";
 const OP_EMAIL =
-  process.env.PHASE16_LOGIN_EMAIL_OPERATOR || "principal@burmac.example";
+  process.env.PHASE16_LOGIN_EMAIL_OPERATOR || "principal@harbourline.example";
 const CL_EMAIL =
   process.env.PHASE16_LOGIN_EMAIL_CLIENT || "owner@fictionalclient.example";
 

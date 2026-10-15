@@ -15,7 +15,7 @@ async def test_clients_list_and_360(app_client, seeded):
     app, client = app_client
     from app.seeds.seed_all_mongo import seed_all_mongo
     result = await seed_all_mongo(app.state.mongo_db)
-    await _dev(client, "principal@burmac.example")
+    await _dev(client, "principal@harbourline.example")
 
     r = await client.get("/api/o/clients")
     assert r.status_code == 200, r.text
@@ -35,7 +35,7 @@ async def test_client_timeline_paginates(app_client, seeded):
     app, client = app_client
     from app.seeds.seed_all_mongo import seed_all_mongo
     result = await seed_all_mongo(app.state.mongo_db)
-    await _dev(client, "principal@burmac.example")
+    await _dev(client, "principal@harbourline.example")
     cid = result["client_id"]
 
     r = await client.get(f"/api/o/client/{cid}/timeline?limit=5")

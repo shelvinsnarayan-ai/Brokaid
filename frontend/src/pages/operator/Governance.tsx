@@ -180,6 +180,40 @@ function DemoReset({ onDone }: { onDone: (m: string) => void }) {
   );
 }
 
+interface Drill {
+  drill_id: string; agent_label: string; package_label: string | null; engage_s: number; release_s: number;
+  result: "pass" | "fail"; engaged_at: string; released_at: string; operator: string; recorded_at: string;
+}
+
+function DrillLog() {
+  const [rows, setRows] = useState<Drill[]>([]);
+  useEffect(() => {
+    void fetch(`${API}/api/o/governance/drills`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : { drills: [] })).then((d) => setRows(d.drills || []));
+  }, []);
+  return (
+    <details style={card} data-testid="gov-drill-log">
+      <summary style={{ fontSize: 16, cursor: "pointer" }} data-testid="gov-drill-log-toggle">Drill log ({rows.length})</summary>
+      <p style={{ ...muted, margin: "8px 0" }}>Last 10 kill-switch drills. Recorded by the drill script. Target: effect and release under 60 seconds.</p>
+      {!rows.length ? <p style={muted} data-testid="gov-drill-empty">No drills recorded yet.</p> : (
+        <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }} data-testid="gov-drill-table">
+          <thead><tr style={{ textAlign: "left", ...muted }}><th>Engaged</th><th>Released</th><th>Assistant</th><th>Package</th><th>Took effect</th><th>Cleared</th><th>Result</th><th>Operator</th></tr></thead>
+          <tbody>
+            {rows.map((d) => (
+              <tr key={d.drill_id} data-testid={`gov-drill-${d.drill_id}`} style={{ borderTop: "1px solid var(--line, #1E2E5A)" }}>
+                <td>{fmtDateTime(d.engaged_at)}</td><td>{fmtDateTime(d.released_at)}</td>
+                <td>{d.agent_label}</td><td>{d.package_label || "—"}</td>
+                <td>{d.engage_s.toFixed(2)} s</td><td>{d.release_s.toFixed(2)} s</td>
+                <td data-testid={`gov-drill-result-${d.drill_id}`}>{d.result === "pass" ? "Pass" : "Fail"}</td><td>{d.operator}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </details>
+  );
+}
+
 export function Governance() {
   const [rows, setRows] = useState<Switch[]>([]);
   const [agents, setAgents] = useState<Opt[]>([]);
@@ -218,6 +252,7 @@ export function Governance() {
         <SwitchRows rows={rows} onRelease={release} />
         <EngageForm agents={agents} packages={packages} onDone={done} />
       </section>
+      <DrillLog />
       <DemoReset onDone={done} />
     </div>
   );

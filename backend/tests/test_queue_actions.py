@@ -17,7 +17,7 @@ async def test_approve_non_trust_resolves_immediately(app_client, seeded):
     app, client = app_client
     from app.seeds.seed_all_mongo import seed_all_mongo
     await seed_all_mongo(app.state.mongo_db)
-    await _dev(client, "principal@burmac.example")
+    await _dev(client, "principal@harbourline.example")
 
     cards = (await client.get("/api/o/queue")).json()["cards"]
     non_trust = next(c for c in cards if c["class_key"] != "trust_money")
@@ -36,7 +36,7 @@ async def test_edit_and_reject_emit_shaped_approvals(app_client, seeded):
     app, client = app_client
     from app.seeds.seed_all_mongo import seed_all_mongo
     await seed_all_mongo(app.state.mongo_db)
-    await _dev(client, "principal@burmac.example")
+    await _dev(client, "principal@harbourline.example")
 
     cards = (await client.get("/api/o/queue")).json()["cards"]
     a = cards[0]
@@ -55,14 +55,14 @@ async def test_block_requires_compliance(app_client, seeded):
     await seed_all_mongo(app.state.mongo_db)
 
     # As principal — 403
-    await _dev(client, "principal@burmac.example")
+    await _dev(client, "principal@harbourline.example")
     cards = (await client.get("/api/o/queue")).json()["cards"]
     r = await client.post(f"/api/o/queue/{cards[0]['envelope_id']}/block",
                           json={"reason": "hold pending audit"})
     assert r.status_code == 403
 
     # As compliance — 200 and card resolves
-    await _dev(client, "compliance@burmac.example")
+    await _dev(client, "compliance@harbourline.example")
     r = await client.post(f"/api/o/queue/{cards[0]['envelope_id']}/block",
                           json={"reason": "hold pending audit"})
     assert r.status_code == 200, r.text

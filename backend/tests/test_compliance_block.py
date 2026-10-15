@@ -63,7 +63,7 @@ async def test_non_compliance_hit_block_endpoint_403(app_client, seeded):
     # Impersonate a principal.
     r = await client.post(
         "/api/auth/dev/impersonate",
-        json={"email": "principal@burmac.example"},
+        json={"email": "principal@harbourline.example"},
     )
     assert r.status_code == 200
     r = await client.post(
@@ -79,7 +79,7 @@ async def test_compliance_user_can_block_and_clear(app_client, seeded):
 
     r = await client.post(
         "/api/auth/dev/impersonate",
-        json={"email": "compliance@burmac.example"},
+        json={"email": "compliance@harbourline.example"},
     )
     assert r.status_code == 200
 

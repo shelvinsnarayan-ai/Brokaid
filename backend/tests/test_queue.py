@@ -6,7 +6,7 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def _op_session(client, email: str = "principal@burmac.example"):
+async def _op_session(client, email: str = "principal@harbourline.example"):
     r = await client.post(
         "/api/auth/dev/impersonate", json={"email": email},
     )
