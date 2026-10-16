@@ -3,6 +3,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { fmtDateTime } from "../../lib/format";
+import { BrandingEditor } from "./BrandingEditor";
 
 const API = (import.meta as any).env.VITE_API_BASE || "";
 
@@ -199,47 +200,8 @@ function SendTests() {
   };
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", margin: "8px 0" }}>
-      <button className="k-btn" onClick={() => void run("email-test", "Test email")} data-testid="gov-email-test">Send test email to me</button>
       <button className="k-btn" onClick={() => void run("push-test", "Test push")} data-testid="gov-push-test">Send test push to my devices</button>
       {out && <span style={muted} data-testid="gov-test-result">{out}</span>}
-    </div>
-  );
-}
-
-type EmailSettings = { sender_name: string; reply_to: string | null; brand_colour: string; logo_url: string | null;
-  allowlist: string[]; source: string; email_enabled: boolean };
-
-function EmailBrand() {
-  const [s, setS] = useState<EmailSettings | null>(null);
-  useEffect(() => {
-    void fetch(`${API}/api/notifications/email-settings`, { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null)).then(setS);
-  }, []);
-  if (!s) return null;
-  const rows: [string, string, string][] = [
-    ["Email on this site", s.email_enabled ? "On" : "Off", "enabled"],
-    ["Sender name", s.sender_name, "sender"],
-    ["Reply-to", s.reply_to || "Not set", "reply-to"],
-    ["Brand colour", s.brand_colour, "colour"],
-    ["Logo", s.logo_url || "Not set", "logo"],
-    ["Allow-list", s.allowlist.length ? s.allowlist.join(", ") : "None", "allowlist"],
-  ];
-  return (
-    <div data-testid="gov-email-brand" style={{ margin: "8px 0" }}>
-      <p style={{ ...muted, margin: "0 0 4px" }}>
-        Brokerage email settings (read-only{s.source === "env" ? ", platform defaults" : ""})
-      </p>
-      <table style={{ fontSize: 13, borderCollapse: "collapse" }}>
-        <tbody>
-          {rows.map(([k, v, id]) => (
-            <tr key={id}><td style={{ ...muted, padding: "2px 12px 2px 0" }}>{k}</td>
-              <td data-testid={`gov-email-brand-${id}`} style={{ wordBreak: "break-all" }}>
-                {id === "colour" && <span style={{ display: "inline-block", width: 10, height: 10, background: v, marginRight: 6 }} />}
-                {v}
-              </td></tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
@@ -262,7 +224,7 @@ function EmailOverrides() {
   return (
     <details style={card} data-testid="gov-email-overrides">
       <summary style={{ fontSize: 16, cursor: "pointer" }} data-testid="gov-email-overrides-toggle">Demo email and push</summary>
-      <EmailBrand />
+      <BrandingEditor />
       <SendTests />
       <p style={{ ...muted, margin: "8px 0" }} data-testid="gov-email-allowlist">
         Demo logins use .example addresses, which never receive email. Route a persona to a real inbox here.

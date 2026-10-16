@@ -56,12 +56,13 @@ def test_render_uses_tenant_name_and_colour_only():
 def test_harbourline_record_drives_sender_and_allowlist():
     async def go(db, tid, uid):
         s = await ec.tenant_settings(db, tid)
-        assert s["sender_name"] == "Harbourline Insurance Brokers" and s["source"] == "tenant"
+        rec = (await db.tenants.find_one({"tenant_id": tid}))["email_settings"]
+        assert s["sender_name"] == rec["sender_name"] and s["source"] == "tenant"
         assert "luka@underaiter.com" in s["allowlist"]
         n = await _alert(db, tid, uid)
         send = FakeSend()
         await ec.run_once(db, DAY, send=send, ids=[n["notification_id"]])  # allow from tenant record
-        assert send.calls and send.calls[0]["from_name"] == "Harbourline Insurance Brokers"
+        assert send.calls and send.calls[0]["from_name"] == rec["sender_name"]
         assert "burmac" not in (send.calls[0]["html"] + send.calls[0]["text"]).lower()
     _run(go)
 

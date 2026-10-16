@@ -59,7 +59,7 @@ def email_enabled() -> bool:
     return (os.environ.get("ENVIRONMENT") or "").strip().lower() != "production"
 
 
-DEFAULT_BRAND_COLOUR = "#F2B01E"
+DEFAULT_BRAND_COLOUR = "#0B1B3A"  # button background; white text passes 4.5:1
 _HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 _RASTER = (".png", ".jpg", ".jpeg", ".gif")
 
@@ -129,12 +129,12 @@ def render(n: dict, user: dict, settings: dict) -> tuple[str, str, str]:
             f"Turn these emails off in You → Notifications.\nSent by {brand}. We never ask for passwords or card details by email.")
     html = (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F6FA;padding:24px 0">'
-        '<tr><td align="center"><table role="presentation" width="560" cellpadding="0" cellspacing="0" '
-        'style="background:#FFFFFF;border-radius:12px;font-family:Arial,Helvetica,sans-serif;color:#0B1B3A">'
+        '<tr><td align="center"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'style="max-width:560px;background:#FFFFFF;border-radius:12px;font-family:Arial,Helvetica,sans-serif;color:#0B1B3A">'
         f'<tr><td style="padding:20px 28px;border-bottom:3px solid {colour};font-size:15px;font-weight:bold">{head}</td></tr>'
         f'<tr><td style="padding:24px 28px 8px;font-size:20px;font-weight:bold">{escape(subject)}</td></tr>'
         f'<tr><td style="padding:0 28px 20px;font-size:15px;line-height:22px">Hi {first},<br>{escape(line)}</td></tr>'
-        f'<tr><td style="padding:0 28px 28px"><a href="{escape(url)}" style="display:inline-block;background:#0B1B3A;'
+        f'<tr><td style="padding:0 28px 28px"><a href="{escape(url)}" style="display:inline-block;background:{colour};'
         'color:#FFFFFF;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:14px;font-weight:bold">'
         'Open the app</a></td></tr>'
         '<tr><td style="padding:16px 28px;border-top:1px solid #E3E8F0;font-size:12px;color:#5B6B85">'
@@ -240,8 +240,8 @@ async def resend_send(*, to: str, subject: str, html: str, text: str, from_name:
 
 
 async def run_once(store, now: datetime | None = None, *, send=None, allow: list[str] | None = None,
-                   ids: list[str] | None = None, ignore_quiet: bool = False) -> dict:
-    """Process due email rows. Injected clock/sender/allow-list for tests."""
+                   ids: list[str] | None = None, ignore_quiet: bool = False, settings_override: dict | None = None) -> dict:
+    """Process due email rows. Injected clock/sender/allow-list for tests; settings_override for draft previews."""
     # tenant-safe: system-only — the sender spans tenants; every row is handled by its own id.
     now, send = now or datetime.now(timezone.utc), send or resend_send
     q: dict = {"channels_state.email": {"$in": ["pending", "held", "retry"]},
@@ -253,7 +253,7 @@ async def run_once(store, now: datetime | None = None, *, send=None, allow: list
         q["test"] = {"$ne": True}
     out: dict = {}
     async for n in store.notifications.find(q).limit(200):
-        status = await _process(store, n, now, send, allow, ignore_quiet)
+        status = await _process(store, n, now, send, allow, ignore_quiet, settings_override)
         out[status] = out.get(status, 0) + 1
     return out
 
@@ -263,7 +263,7 @@ async def _set(store, n, status, **extra):
     return status
 
 
-async def _process(store, n, now, send, allow, ignore_quiet=False) -> str:
+async def _process(store, n, now, send, allow, ignore_quiet=False, settings_override=None) -> str:
     if not email_enabled():
         return await _set(store, n, "skipped:email_disabled")
     if n.get("read_at"):
@@ -272,7 +272,7 @@ async def _process(store, n, now, send, allow, ignore_quiet=False) -> str:
     prefs = await store.notification_prefs.find_one({"user_id": n["user_id"], "tenant_id": n["tenant_id"]}) or {}
     if not prefs.get("email", user.get("kind") == "operator"):
         return await _set(store, n, "skipped:off")
-    settings = await tenant_settings(store, n["tenant_id"])
+    settings = settings_override or await tenant_settings(store, n["tenant_id"])
     addr, why = resolve_address(user, settings["allowlist"] if allow is None else allow)
     if why:
         return await _set(store, n, why)
