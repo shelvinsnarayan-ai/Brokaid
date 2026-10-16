@@ -57,6 +57,9 @@ RULES: dict[str, dict] = {
     "QueueCardEnqueued": STAFF_REVIEW,
     "CertificateRequestNeedsBroker": {**STAFF_REVIEW, "title": "A certificate request needs a broker",
                                       "body": "{client} asked for a certificate that needs broker review."},
+    "EndorsementQuoteReady": {**STAFF_REVIEW, "title": "A quote needs broker approval",
+                              "many": "{n} quotes need broker approval",
+                              "body": "{client} has a quoted change waiting for broker approval."},
     "OperatorApproval": dict(kind="approval_needed", to=("client", "can_approve"), title="Ready for your approval",
                              many="Ready for your approval", body="Your broker has checked your request. Please review and approve it.",
                              link="/c", once="approval_needed:{envelope_id}"),
@@ -142,12 +145,26 @@ async def deliver(store, tenant_id: str, user_id: str, *, kind: str, title: str,
     return "created"
 
 
+BROKER_REVIEWED = dict(kind="broker_reviewed", to=("client", None), title="Your broker has reviewed your request",
+                       many="Your broker has reviewed your request",
+                       body="Your broker will contact you about the next step.", link="/c",
+                       once="broker_reviewed:{envelope_id}")
+
+
 async def on_event(store, tenant_id: str, type_: str, payload: dict, event_id: str) -> None:
     rule = RULES.get(type_)
     if not rule:
         return
     p = payload or {}
     safe = wrap(store)
+    if type_ == "OperatorApproval" and p.get("envelope_id"):
+        # Only a priced change waits on the client; a broker taking a parked review is a different alert.
+        async with use_tenant(tenant_id):
+            env_types = {e["type"] async for e in safe.events.find({"payload.envelope_id": p["envelope_id"]}, {"type": 1})}
+        if "EndorsementQuoteReady" not in env_types:
+            if "RequestNeedsHumanReview" not in env_types:
+                return
+            rule = BROKER_REVIEWED
     async with use_tenant(tenant_id):
         client_id = await _client_id(safe, p)
         client = await safe.clients.find_one({"client_id": client_id}) if client_id else None

@@ -122,3 +122,52 @@ def validate_requested_changes(policy: dict, changes: list[dict] | None) -> None
             _check_address(schedule, ch)
         elif "limits." in fp:
             _check_limit(schedule, ch)
+
+
+_REGO_FIELDS = {"registration", "rego", "registration_number"}
+
+
+def normalize_vehicle_ops(policy: dict, changes: list[dict] | None) -> list[dict]:
+    """R0.11 follow-up: fold per-vehicle element paths into the canonical list-level ops.
+
+    Models sometimes write a swap as `schedule.vehicles[NEW].field` sets (plus an edit on the held
+    vehicle) instead of `schedule.vehicles[]` remove + add. Fold only when the request removes or
+    re-registers a held vehicle, or explicitly adds; a lone edit to an unknown vehicle is left as is
+    so the made-up-field guard still parks it.
+    """
+    if not changes:
+        return changes or []
+    held = {i for v in ((policy or {}).get("schedule") or {}).get("vehicles") or [] for i in _ident(v, _KEYS["vehicles"])}
+    keep, removes, new, explicit_add = [], [], {}, False
+    for ch in changes:
+        m = _ELEMENT.match(ch.get("field_path") or "")
+        if not m or m.group(1) != "vehicles" or m.group(2).isdigit():
+            keep.append(ch)
+            continue
+        ref, field, op = m.group(2), m.group(3), (ch.get("operation") or "").lower()
+        if _norm(ref) in held:
+            to = ch.get("to_value")
+            if op == "remove" or (field in _REGO_FIELDS and to and _norm(to) not in held):
+                removes.append(ref)
+                if op != "remove" and to:
+                    new.setdefault(_norm(to), {"rego": str(to)})
+            else:
+                keep.append(ch)
+            continue
+        if op in ("add", "set"):
+            explicit_add = explicit_add or op == "add"
+            veh = new.setdefault(_norm(ref), {"rego": ref})
+            if field not in _REGO_FIELDS:
+                veh[field] = ch.get("to_value")
+        else:
+            keep.append(ch)
+    if not (removes or explicit_add) or not new:
+        return changes
+    cite = {"kind": "policy_schedule", "policy_id": None, "field_path": "schedule.vehicles[]"}
+    return keep + [
+        {"field_path": "schedule.vehicles[]", "operation": "remove", "from_value": {"rego": r},
+         "to_value": None, "citation": cite} for r in dict.fromkeys(removes)
+    ] + [
+        {"field_path": "schedule.vehicles[]", "operation": "add", "from_value": None,
+         "to_value": v, "citation": cite} for v in new.values()
+    ]

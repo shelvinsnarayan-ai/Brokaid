@@ -259,6 +259,10 @@ def compute_status(events: list[dict[str, Any]]) -> dict[str, Any]:
         if (r.get("payload") or {}).get("envelope_id") == envelope_id
     ]
     state = "idle"
+    # R0.11 follow-up: state follows the newest envelope only (older envelopes' signature/payment
+    # events were leaking into a fresh request). Events without an envelope_id still count.
+    env_t = set(newest_env_types) | {
+        r["type"] for r in events if not (r.get("payload") or {}).get("envelope_id")}
     declined = any(
         r["type"] == ADVICE_CLASSIFIED and (r.get("payload") or {}).get("tier") == "X"
         for r in events if (r.get("payload") or {}).get("envelope_id") == envelope_id
@@ -270,23 +274,26 @@ def compute_status(events: list[dict[str, Any]]) -> dict[str, Any]:
     elif (NEEDS_HUMAN_REVIEW in newest_env_types
           and "OperatorApproval" not in newest_env_types):
         state = "awaiting_broker_review"
-    elif "CertificateRegenerated" in latest_types:
+    elif (NEEDS_HUMAN_REVIEW in newest_env_types
+          and "EndorsementQuoteReady" not in newest_env_types):
+        state = "broker_reviewed"  # broker took the parked request; they follow up directly
+    elif "CertificateRegenerated" in env_t:
         state = "certificate_ready"
-    elif "EndorsementExecuted" in latest_types:
+    elif "EndorsementExecuted" in env_t:
         state = "executing"
-    elif "SignatureCompleted" in latest_types:
+    elif "SignatureCompleted" in env_t:
         state = "executing"
-    elif "SignatureRequested" in latest_types:
+    elif "SignatureRequested" in env_t:
         state = "awaiting_signature"
-    elif PAYMENT_ADVISED in latest_types:
+    elif PAYMENT_ADVISED in env_t:
         state = "awaiting_signature"
-    elif "Approval" in latest_types:
+    elif "Approval" in env_t:
         state = "awaiting_payment"
-    elif "EndorsementQuoteReady" in latest_types:
+    elif "EndorsementQuoteReady" in env_t:
         state = "awaiting_operator"
-    elif "SubmissionDrafted" in latest_types:
+    elif "SubmissionDrafted" in env_t:
         state = "placement_running"
-    elif "ClientChangeRequested" in latest_types:
+    elif "ClientChangeRequested" in env_t:
         state = "intake_running"
     return {
         "state": state,

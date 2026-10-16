@@ -116,6 +116,18 @@ export function ClientPendingQuote() {
       <Link to="/c/cover" className="brokaid-btn brokaid-btn--secondary">← Back to cover</Link>
     </section>
   );
+  if ((data as any).state === "broker_reviewed") return (
+    <section className="brokaid-tab" data-testid="pending-quote-broker-reviewed">
+      <header className="brokaid-tab__head">
+        <p className="brokaid-tab__eyebrow">With your broker</p>
+        <h1 className="brokaid-tab__title">Your broker has reviewed this change</h1>
+        <p className="brokaid-tab__lede">
+          Your broker has picked this up and will contact you about the next step.
+        </p>
+      </header>
+      <Link to="/c/cover" className="brokaid-btn brokaid-btn--secondary">← Back to cover</Link>
+    </section>
+  );
   if (data.state === "awaiting_broker_review") return (
     <section className="brokaid-tab" data-testid="pending-quote-broker-review">
       <header className="brokaid-tab__head">

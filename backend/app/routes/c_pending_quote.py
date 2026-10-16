@@ -81,6 +81,9 @@ async def _pending(store, tenant_id: str, policy_id: str) -> dict[str, Any]:
         review = await _find_latest_by_type_and_envelope(
             safe, "RequestNeedsHumanReview", envelope_id,
         )
+        if review and await safe.events.find_one({"type": "OperatorApproval", "payload.envelope_id": envelope_id}):
+            return {"pending": True, "state": "broker_reviewed", "envelope_id": envelope_id,
+                    "reason": "broker_reviewed"}
         if review:
             return {
                 "pending": True,
@@ -130,7 +133,7 @@ async def pending_quote(
     )
     if not body.get("pending"):
         return {k: v for k, v in body.items() if k in ("pending", "reason")}
-    if body.get("state") in ("with_broker", "awaiting_broker_review", "declined"):
+    if body.get("state") in ("with_broker", "awaiting_broker_review", "broker_reviewed", "declined"):
         return {
             "pending": True,
             "state": body["state"],

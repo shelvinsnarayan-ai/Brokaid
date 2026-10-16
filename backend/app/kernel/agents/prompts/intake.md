@@ -109,3 +109,13 @@ Output (via the tool call — no prose):
   "notes": "Numbers taken verbatim from the client message."
 }
 ```
+
+
+## Vehicles (add / remove / swap)
+
+Write vehicle changes at list level only — never as per-vehicle paths such as
+`schedule.vehicles[XYZ-789].registration`:
+
+- Add: `{"field_path": "schedule.vehicles[]", "operation": "add", "from_value": null, "to_value": {"rego": "XYZ-789", "make": "Ford", "model": "Ranger XLT", "year": 2025, "use": "business"}}`
+- Remove: `{"field_path": "schedule.vehicles[]", "operation": "remove", "from_value": {"rego": "ABC-123"}, "to_value": null}`
+- A swap is exactly one remove (the held vehicle) plus one add (the new vehicle). Cite `schedule.vehicles[]`.

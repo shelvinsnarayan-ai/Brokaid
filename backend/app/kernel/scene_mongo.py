@@ -85,10 +85,19 @@ async def list_recent_events_for_policy(
             p = r.get("payload") or {}
             if p.get("policy_id") != policy_id:
                 continue
-            out.append({"type": r["type"], "payload": _parse(p)})
+            out.append({"type": r["type"], "payload": _parse(p), "seq": r.get("seq")})
             if len(out) >= limit:
                 break
     return out
+
+
+async def envelope_events_without_policy(db, tenant_id: str, envelope_id: str) -> list[dict[str, Any]]:
+    """Envelope events whose payload has no policy_id (e.g. OperatorApproval on a review card)."""
+    safe = _wrap(db)
+    async with use_tenant(tenant_id):
+        return [{"type": r["type"], "payload": _parse(r.get("payload") or {}), "seq": r.get("seq")}
+                async for r in safe.events.find({"payload.envelope_id": envelope_id,
+                                                 "payload.policy_id": {"$exists": False}})]
 
 
 async def find_carrier_quote(

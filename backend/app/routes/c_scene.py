@@ -34,7 +34,8 @@ from app.kernel.mocks import e_sign, payment_rail
 from app.kernel.mocks.carrier_channel import submit_endorsement
 from app.kernel.advice_boundary import classify
 from app.kernel.authority import require_authority
-from app.kernel.policy_field_guard import UnmatchedPolicyField, validate_requested_changes
+from app.kernel import scene_mongo
+from app.kernel.policy_field_guard import UnmatchedPolicyField, normalize_vehicle_ops, validate_requested_changes
 from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
 from app.kernel.trail_mongo import DuplicateIdempotencyKey
@@ -237,6 +238,8 @@ async def _run_intake_placement_async(
         brain = Brain(store)
         intake_out = await brain.invoke(intake_envelope, "intake")
         intake_payload = intake_out.payload or {}
+        if intake_payload.get("proposed_changes"):
+            intake_payload["proposed_changes"] = normalize_vehicle_ops(policy, intake_payload["proposed_changes"])
         if await _park_if_unmatched(
             store, tenant_id=tenant_id, envelope_id=envelope_id_str,
             policy=policy, changes=intake_payload.get("proposed_changes"),
@@ -297,6 +300,9 @@ async def _run_intake_placement_async(
         )
         placement_out = await brain.invoke(placement_envelope, "placement")
         plc_payload = placement_out.payload or {}
+        sub = plc_payload.get("structured_submission") or {}
+        if sub.get("requested_changes"):
+            sub["requested_changes"] = normalize_vehicle_ops(policy, sub["requested_changes"])
         if await _park_if_unmatched(
             store, tenant_id=tenant_id, envelope_id=envelope_id_str,
             policy=policy, stage="placement",
@@ -435,6 +441,11 @@ async def status(
     events = await scene.list_recent_events_for_policy(
         store, session.tenant_id, policy_id, limit=40,
     )
+    env = next(((e.get("payload") or {}).get("envelope_id") for e in events
+                if (e.get("payload") or {}).get("envelope_id")), None)
+    if env:  # R0.11 follow-up: broker decisions on the envelope carry no policy_id
+        extra = await scene_mongo.envelope_events_without_policy(store, session.tenant_id, env)
+        events = sorted(events + extra, key=lambda e: e.get("seq") or 0, reverse=True)
     return scene.compute_status(events)
 
 
