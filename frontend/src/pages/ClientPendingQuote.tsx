@@ -165,7 +165,7 @@ export function ClientPendingQuote() {
           </div>
         </div>
         <p className="brokaid-quote-card__summary">
-          No action needed from you right now. We'll notify you when the
+          No action needed from you right now. You'll get an alert when the
           quote is ready to approve. Typical turnaround: under an hour in
           business hours.
         </p>
