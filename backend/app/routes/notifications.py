@@ -91,7 +91,7 @@ async def get_prefs(request: Request, session: Session = Depends(require_session
     safe = _safe(request)
     async with use_tenant(session.tenant_id):
         p = await notify._prefs(safe, session.user_id)
-    return {**p, "in_app_locked": True, "email_available": True, "push_available": push_channel.configured()}
+    return {**p, "in_app_locked": True, "email_available": email_channel.email_enabled(), "push_available": push_channel.configured()}
 
 
 @router.put("/prefs")
@@ -129,9 +129,18 @@ async def list_overrides(request: Request, session: Session = Depends(require_se
     safe = _safe(request)
     async with use_tenant(session.tenant_id):
         rows = [u async for u in safe.users.find({}).sort("email", 1)]
+    settings = await email_channel.tenant_settings(request.app.state.mongo_db, session.tenant_id)
     return {"users": [{"user_id": u["user_id"], "name": u.get("display_name"), "email": u["email"],
                        "email_override": u.get("email_override"), "kind": u.get("kind")} for u in rows],
-            "allowlist": email_channel._allowlist()}
+            "allowlist": settings["allowlist"]}
+
+
+@router.get("/email-settings")
+async def email_settings(request: Request, session: Session = Depends(require_session)) -> dict:
+    """Operator-only, read-only: this brokerage's email branding + allow-list, and whether email is on here."""
+    _require_operator(session)
+    s = await email_channel.tenant_settings(request.app.state.mongo_db, session.tenant_id)
+    return {**s, "email_enabled": email_channel.email_enabled()}
 
 
 @router.put("/email-overrides")
@@ -143,8 +152,9 @@ async def set_override(body: OverrideBody, request: Request, session: Session = 
                                         {"$set": {"email_override": str(body.email_override) if body.email_override else None}})
     if not r.matched_count:
         raise HTTPException(status_code=404, detail="user_not_found")
+    allow = (await email_channel.tenant_settings(request.app.state.mongo_db, session.tenant_id))["allowlist"]
     return {"user_id": body.user_id, "email_override": body.email_override,
-            "allowlisted": bool(body.email_override) and email_channel.allowed(str(body.email_override), email_channel._allowlist())}
+            "allowlisted": bool(body.email_override) and email_channel.allowed(str(body.email_override), allow)}
 
 
 @router.post("/email-test")

@@ -46,7 +46,41 @@ class EmailChannel:
     name = "email"
 
     async def deliver(self, n: dict, prefs: dict) -> str:
+        if not email_enabled():
+            return "skipped:email_disabled"
         return "pending" if prefs.get("email") else "skipped:off"
+
+
+def email_enabled() -> bool:
+    """EMAIL_ENABLED wins when set; otherwise off in production, on elsewhere (R0.14)."""
+    v = (os.environ.get("EMAIL_ENABLED") or "").strip().lower()
+    if v:
+        return v == "true"
+    return (os.environ.get("ENVIRONMENT") or "").strip().lower() != "production"
+
+
+DEFAULT_BRAND_COLOUR = "#F2B01E"
+_HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
+_RASTER = (".png", ".jpg", ".jpeg", ".gif")
+
+
+def resolve_settings(tenant: dict) -> dict:
+    """Per-brokerage email settings from the tenant record; env is only the fallback default."""
+    s = tenant.get("email_settings") or {}
+    allow = s.get("allowlist")
+    return {
+        "sender_name": s.get("sender_name") or tenant.get("display_name") or os.environ.get("EMAIL_FROM_NAME") or "",
+        "reply_to": s.get("reply_to") or os.environ.get("EMAIL_REPLY_TO") or None,
+        "brand_colour": s["brand_colour"] if _HEX.match(s.get("brand_colour") or "") else DEFAULT_BRAND_COLOUR,
+        "logo_url": s.get("logo_url") or None,
+        "allowlist": [a.strip().lower() for a in allow if a.strip()] if allow is not None else _allowlist(),
+        "source": "tenant" if s else "env",
+    }
+
+
+async def tenant_settings(store, tenant_id: str) -> dict:
+    # tenant-safe: system-only — one tenant record by its own id.
+    return resolve_settings(await store.tenants.find_one({"tenant_id": tenant_id}) or {})
 
 
 def in_quiet_hours(now: datetime) -> bool:
@@ -82,10 +116,14 @@ def resolve_address(user: dict, allow: list[str]) -> tuple[str | None, str | Non
     return addr, None
 
 
-def render(n: dict, user: dict) -> tuple[str, str, str]:
+def render(n: dict, user: dict, settings: dict) -> tuple[str, str, str]:
     subject, line = COPY.get(n["kind"], ("You have a new alert", "There is something new for you."))
-    brand = os.environ["EMAIL_FROM_NAME"]
-    url = os.environ["APP_BASE_URL"].rstrip("/") + n["link"]
+    brand, colour, base = settings["sender_name"], settings["brand_colour"], os.environ["APP_BASE_URL"].rstrip("/")
+    url = base + n["link"]
+    logo = settings.get("logo_url") or ""
+    logo = logo if logo.startswith("https://") else (base + logo if logo.startswith("/") else "")
+    head = (f'<img src="{escape(logo)}" alt="{escape(brand)}" height="28" style="display:block;border:0">'
+            if logo.lower().endswith(_RASTER) else escape(brand))  # SVG logos don't render in most mail apps
     first = escape((user.get("display_name") or "").split(" ")[0] or "there")
     text = (f"Hi {first},\n\n{line}\n\nOpen {brand}: {url}\n\n"
             f"Turn these emails off in You → Notifications.\nSent by {brand}. We never ask for passwords or card details by email.")
@@ -93,7 +131,7 @@ def render(n: dict, user: dict) -> tuple[str, str, str]:
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F6FA;padding:24px 0">'
         '<tr><td align="center"><table role="presentation" width="560" cellpadding="0" cellspacing="0" '
         'style="background:#FFFFFF;border-radius:12px;font-family:Arial,Helvetica,sans-serif;color:#0B1B3A">'
-        f'<tr><td style="padding:20px 28px;border-bottom:3px solid #F2B01E;font-size:15px;font-weight:bold">{escape(brand)}</td></tr>'
+        f'<tr><td style="padding:20px 28px;border-bottom:3px solid {colour};font-size:15px;font-weight:bold">{head}</td></tr>'
         f'<tr><td style="padding:24px 28px 8px;font-size:20px;font-weight:bold">{escape(subject)}</td></tr>'
         f'<tr><td style="padding:0 28px 20px;font-size:15px;line-height:22px">Hi {first},<br>{escape(line)}</td></tr>'
         f'<tr><td style="padding:0 28px 28px"><a href="{escape(url)}" style="display:inline-block;background:#0B1B3A;'
@@ -183,12 +221,12 @@ class BillingPaused(Exception):
     pass
 
 
-async def resend_send(*, to: str, subject: str, html: str, text: str) -> str:
+async def resend_send(*, to: str, subject: str, html: str, text: str, from_name: str,
+                      reply_to: str | None = None) -> str:
     _assert_safe_email(subject, html)
-    payload = {"to": [to], "subject": subject, "html": html, "text": text,
-               "from_name": os.environ["EMAIL_FROM_NAME"]}
-    if os.environ.get("EMAIL_REPLY_TO"):
-        payload["contact_email"] = os.environ["EMAIL_REPLY_TO"]
+    payload = {"to": [to], "subject": subject, "html": html, "text": text, "from_name": from_name}
+    if reply_to:
+        payload["contact_email"] = reply_to
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(f"{EMAIL_BASE_URL}/api/v1/email/send",
                                  headers={"X-Email-Key": os.environ["EMERGENT_EMAIL_KEY"]}, json=payload)
@@ -206,12 +244,13 @@ async def run_once(store, now: datetime | None = None, *, send=None, allow: list
     """Process due email rows. Injected clock/sender/allow-list for tests."""
     # tenant-safe: system-only — the sender spans tenants; every row is handled by its own id.
     now, send = now or datetime.now(timezone.utc), send or resend_send
-    allow = _allowlist() if allow is None else allow
     q: dict = {"channels_state.email": {"$in": ["pending", "held", "retry"]},
                "updated_at": {"$lte": now - SETTLE}, "$or": [{"email_next_at": None}, {"email_next_at": {"$lte": now}},
                                                              {"email_next_at": {"$exists": False}}]}
     if ids:
         q["notification_id"] = {"$in": ids}
+    else:  # background loop never sends test rows; explicit test sends pass ids
+        q["test"] = {"$ne": True}
     out: dict = {}
     async for n in store.notifications.find(q).limit(200):
         status = await _process(store, n, now, send, allow, ignore_quiet)
@@ -225,13 +264,16 @@ async def _set(store, n, status, **extra):
 
 
 async def _process(store, n, now, send, allow, ignore_quiet=False) -> str:
+    if not email_enabled():
+        return await _set(store, n, "skipped:email_disabled")
     if n.get("read_at"):
         return await _set(store, n, "skipped:read_in_app")
     user = await store.users.find_one({"user_id": n["user_id"], "tenant_id": n["tenant_id"]}) or {}
     prefs = await store.notification_prefs.find_one({"user_id": n["user_id"], "tenant_id": n["tenant_id"]}) or {}
     if not prefs.get("email", user.get("kind") == "operator"):
         return await _set(store, n, "skipped:off")
-    addr, why = resolve_address(user, allow)
+    settings = await tenant_settings(store, n["tenant_id"])
+    addr, why = resolve_address(user, settings["allowlist"] if allow is None else allow)
     if why:
         return await _set(store, n, why)
     if in_quiet_hours(now) and not ignore_quiet:
@@ -240,10 +282,11 @@ async def _process(store, n, now, send, allow, ignore_quiet=False) -> str:
         {"_id": n["_id"], "channels_state.email": n["channels_state"]["email"]}, {"$set": {"channels_state.email": "sending"}})
     if not claimed.modified_count:
         return "raced"
-    subject, html, text = render(n, user)
+    subject, html, text = render(n, user, settings)
     attempts = n.get("email_attempts", 0) + 1
     try:
-        mid = await send(to=addr, subject=subject, html=html, text=text)
+        mid = await send(to=addr, subject=subject, html=html, text=text, from_name=settings["sender_name"],
+                         reply_to=settings["reply_to"])
         return await _set(store, n, "sent", email_message_id=mid, email_sent_at=now, email_attempts=attempts)
     except Exception as e:  # noqa: BLE001 — never blocks in-app or the ledger
         log.warning("email send failed (attempt %s): %r", attempts, e)

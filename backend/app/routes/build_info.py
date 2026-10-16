@@ -93,6 +93,9 @@ warn_if_baked_sha_stale()
 _BAKED_IDENTITY: dict[str, Any] | None = None if _has_git_tree() else _resolve_identity()
 
 
+from app.kernel import email_channel  # noqa: E402
+
+
 @router.get("/api/build-info")
 async def build_info() -> dict[str, Any]:
     identity = _BAKED_IDENTITY or _resolve_identity()
@@ -100,4 +103,5 @@ async def build_info() -> dict[str, Any]:
         **identity,
         "auth_dev_mode": (os.environ.get("AUTH_DEV_MODE") or "").lower() == "true",
         "llm_key_present": bool(os.environ.get("EMERGENT_LLM_KEY")),
+        "email_enabled": email_channel.email_enabled(),
     }

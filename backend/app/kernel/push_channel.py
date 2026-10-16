@@ -59,8 +59,9 @@ async def run_once(store, now: datetime | None = None, *, send=None, ids: list[s
                "$or": [{"push_next_at": None}, {"push_next_at": {"$lte": now}}, {"push_next_at": {"$exists": False}}]}
     if ids:
         q["notification_id"] = {"$in": ids}
-    else:
+    else:  # background loop never sends test rows; explicit test sends pass ids
         q["updated_at"] = {"$lte": now - ec.SETTLE}
+        q["test"] = {"$ne": True}
     out: dict = {}
     async for n in store.notifications.find(q).limit(200):
         s = await _process(store, n, now, send, ignore_quiet)

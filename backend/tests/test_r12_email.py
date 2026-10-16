@@ -37,7 +37,7 @@ def test_address_rules():
 
 def test_render_is_plain_and_safe():
     n = {"kind": "broker_reply", "link": "/c/ask", "title": "Your broker replied"}
-    subject, html, text = ec.render(n, {"display_name": "Kai Owner"})
+    subject, html, text = ec.render(n, {"display_name": "Kai Owner"}, ec.resolve_settings({"display_name": "Harbourline Insurance Brokers"}))
     ec._assert_safe_email(subject, html)
     assert "Hi Kai," in text and "Owner" not in text and "Turn these emails off in You → Notifications." in html
     assert html.count("<a ") == 1 and os.environ["APP_BASE_URL"] + "/c/ask" in html and "$" not in html
@@ -62,7 +62,10 @@ def _run(fn):
         olly = await db.users.find_one({"tenant_id": tid, "email": "operator@harbourline.example"})
         await db.users.update_one({"_id": olly["_id"]}, {"$set": {"email_override": "delivered@resend.dev"}})
         await db.notification_prefs.delete_many({"tenant_id": tid, "user_id": olly["user_id"]})
-        return await fn(db, tid, olly["user_id"])
+        try:
+            return await fn(db, tid, olly["user_id"])
+        finally:  # leave the operator's demo routing as it was
+            await db.users.update_one({"_id": olly["_id"]}, {"$set": {"email_override": olly.get("email_override")}})
     return asyncio.run(go())
 
 
