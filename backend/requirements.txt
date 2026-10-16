@@ -42,6 +42,7 @@ grpcio==1.83.1
 grpcio-status==1.71.2
 h11==0.16.0
 hf-xet==1.6.0
+http_ece==1.2.1
 httpcore==1.0.9
 httplib2==0.32.0
 httptools==0.8.0
@@ -83,6 +84,7 @@ pluggy==1.6.0
 propcache==0.5.2
 proto-plus==1.28.2
 protobuf==5.29.6
+py-vapid==1.9.6
 pyasn1==0.6.4
 pyasn1_modules==0.4.2
 pycodestyle==2.14.0
@@ -107,6 +109,7 @@ python-dotenv==1.2.3
 python-jose==3.5.0
 python-multipart==0.0.32
 pytokens==0.4.1
+pywebpush==2.5.0
 PyYAML==6.0.3
 pyzbar==0.1.9
 qrcode==8.2

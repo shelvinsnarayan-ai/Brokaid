@@ -92,6 +92,8 @@ export default defineConfig(({ mode }) => {
       devOnlyChunkMarker(),
       VitePWA({
         registerType: "autoUpdate",
+        // R0.13: push + notificationclick handlers; caching/auto-update stay with the generated SW.
+        workbox: { importScripts: ["/push-handler.js"] },
         includeAssets: [
           "favicon-app.svg",
           "favicon-platform.svg",

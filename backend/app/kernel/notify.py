@@ -42,7 +42,9 @@ class NotEnabledChannel:
 
 from app.kernel.email_channel import EmailChannel  # noqa: E402
 
-CHANNELS = [InAppChannel(), EmailChannel(), NotEnabledChannel("push")]
+from app.kernel.push_channel import PushChannel  # noqa: E402
+
+CHANNELS = [InAppChannel(), EmailChannel(), PushChannel()]
 DEFAULT_PREFS = {"in_app": True, "email": False, "push": False, "quiet_hours": QUIET_HOURS}
 
 STAFF_REVIEW = dict(kind="broker_review", to=("staff", ("ae",)), title="A request needs a broker",

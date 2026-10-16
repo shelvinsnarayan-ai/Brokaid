@@ -9,7 +9,7 @@ from pydantic import BaseModel, EmailStr
 
 from app.auth.sessions import Session
 from app.db.tenant_safe import wrap
-from app.kernel import email_channel, notify
+from app.kernel import email_channel, notify, push_channel
 from app.kernel.tenant_ctx import use_tenant
 from app.middleware.session import require_session
 
@@ -91,7 +91,7 @@ async def get_prefs(request: Request, session: Session = Depends(require_session
     safe = _safe(request)
     async with use_tenant(session.tenant_id):
         p = await notify._prefs(safe, session.user_id)
-    return {**p, "in_app_locked": True, "email_available": True, "push_available": False}
+    return {**p, "in_app_locked": True, "email_available": True, "push_available": push_channel.configured()}
 
 
 @router.put("/prefs")
@@ -165,3 +165,72 @@ async def email_test(request: Request, session: Session = Depends(require_sessio
     async with use_tenant(session.tenant_id):
         n = await _safe(request).notifications.find_one({"idem_keys": key})
     return {"result": res, "email": n["channels_state"].get("email"), "message_id": n.get("email_message_id")}
+
+
+# ---- R0.13 Phase C — web push subscriptions (per user, per device) ----
+class PushKeys(BaseModel):
+    p256dh: str
+    auth: str
+
+
+class PushSub(BaseModel):
+    endpoint: str
+    keys: PushKeys
+    user_agent: str | None = None
+
+
+class PushUnsub(BaseModel):
+    endpoint: str
+
+
+@router.get("/push-public-key")
+async def push_public_key(session: Session = Depends(require_session)) -> dict:
+    import os
+    return {"key": os.environ.get("VAPID_PUBLIC_KEY"), "available": push_channel.configured()}
+
+
+@router.post("/push-subscriptions")
+async def add_push_subscription(body: PushSub, request: Request, session: Session = Depends(require_session)) -> dict:
+    if not body.endpoint.startswith("https://"):
+        raise HTTPException(status_code=422, detail="endpoint_must_be_https")
+    safe, now = _safe(request), datetime.now(timezone.utc)
+    async with use_tenant(session.tenant_id):
+        await safe.push_subscriptions.update_one(
+            {"user_id": session.user_id, "endpoint": body.endpoint},
+            {"$set": {"keys": body.keys.model_dump(), "user_agent": (body.user_agent or request.headers.get("user-agent", ""))[:200],
+                      "updated_at": now}, "$setOnInsert": {"created_at": now, "last_ok_at": None}}, upsert=True)
+        await safe.notification_prefs.update_one({"user_id": session.user_id}, {"$set": {"push": True}}, upsert=True)
+        n = await safe.push_subscriptions.count_documents({"user_id": session.user_id})
+    return {"subscribed": True, "devices": n}
+
+
+@router.delete("/push-subscriptions")
+async def remove_push_subscription(body: PushUnsub, request: Request, session: Session = Depends(require_session)) -> dict:
+    safe = _safe(request)
+    async with use_tenant(session.tenant_id):
+        await safe.push_subscriptions.delete_one({"user_id": session.user_id, "endpoint": body.endpoint})
+        n = await safe.push_subscriptions.count_documents({"user_id": session.user_id})
+        if not n:
+            await safe.notification_prefs.update_one({"user_id": session.user_id}, {"$set": {"push": False}}, upsert=True)
+    return {"subscribed": False, "devices": n}
+
+
+@router.post("/push-test")
+async def push_test(request: Request, session: Session = Depends(require_session)) -> dict:
+    """Operator-only: send a test push to the caller's own devices now (ignores quiet hours)."""
+    _require_operator(session)
+    import uuid
+    store, key = request.app.state.mongo_db, f"push-test:{uuid.uuid4()}"
+    async with use_tenant(session.tenant_id):
+        prefs_row = await _safe(request).notification_prefs.find_one({"user_id": session.user_id}) or {}
+    if not prefs_row.get("push"):
+        return {"push": "skipped:off", "results": [], "hint": "Turn on push on this device first (Alerts → Notification settings)."}
+    await notify.deliver(store, session.tenant_id, session.user_id, kind="broker_review", title="Push test",
+                         many="Push test", body="A test alert from Agent operations.", link="/o/alerts",
+                         dedupe_key=key, idem=key, test=True)
+    async with use_tenant(session.tenant_id):
+        n = await _safe(request).notifications.find_one({"idem_keys": key})
+    await push_channel.run_once(store, ids=[n["notification_id"]], ignore_quiet=True)
+    async with use_tenant(session.tenant_id):
+        n = await _safe(request).notifications.find_one({"idem_keys": key})
+    return {"push": n["channels_state"].get("push"), "results": n.get("push_results", [])}

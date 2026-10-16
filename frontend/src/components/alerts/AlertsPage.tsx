@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useAlertsStore } from "../../state/alertsStore";
 import { AlertsList } from "./AlertsList";
+import { PushControl } from "./PushControl";
 
 const API = (import.meta as any).env.VITE_API_BASE || "";
 
@@ -41,10 +42,10 @@ function PrefsCard() {
         <Toggle id="in-app" label="In the app" on note="Always on" />
         <Toggle id="email" label="Email" on={p.email} onChange={setEmail}
           note={p.email ? "On. We email you about new alerts." : "Off. Turn on to get alerts by email."} />
-        <Toggle id="push" label="Push" on={p.push} note="Coming soon" />
+        <PushControl available={!!(p as any).push_available} />
       </ul>
       <p className="brokaid-pref__note" data-testid="alerts-quiet-hours">
-        Emails are held between {p.quiet_hours.start} and {p.quiet_hours.end} Sydney time and sent at {p.quiet_hours.end}. In-app alerts are never held.
+        Emails and pushes are held between {p.quiet_hours.start} and {p.quiet_hours.end} Sydney time and sent at {p.quiet_hours.end}. In-app alerts are never held.
       </p>
     </section>
   );

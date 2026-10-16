@@ -187,6 +187,25 @@ interface Drill {
 
 interface OverrideRow { user_id: string; name: string; email: string; email_override: string | null; kind: string }
 
+function SendTests() {
+  const [out, setOut] = useState<string | null>(null);
+  const run = async (path: string, label: string) => {
+    const r = await fetch(`${API}/api/notifications/${path}`, { method: "POST", credentials: "include" });
+    const b = r.ok ? await r.json() : null;
+    if (!b) return setOut(`${label}: could not send.`);
+    if (path === "email-test") return setOut(`${label}: ${b.email}${b.message_id ? ` (id ${b.message_id})` : ""}`);
+    const codes = (b.results || []).map((x: { status: number }) => x.status).join(", ");
+    setOut(`${label}: ${b.push}${codes ? ` — push service replied ${codes}` : ""}${b.hint ? `. ${b.hint}` : ""}`);
+  };
+  return (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", margin: "8px 0" }}>
+      <button className="k-btn" onClick={() => void run("email-test", "Test email")} data-testid="gov-email-test">Send test email to me</button>
+      <button className="k-btn" onClick={() => void run("push-test", "Test push")} data-testid="gov-push-test">Send test push to my devices</button>
+      {out && <span style={muted} data-testid="gov-test-result">{out}</span>}
+    </div>
+  );
+}
+
 function EmailOverrides() {
   const [rows, setRows] = useState<OverrideRow[]>([]);
   const [allow, setAllow] = useState<string[]>([]);
@@ -204,7 +223,8 @@ function EmailOverrides() {
   };
   return (
     <details style={card} data-testid="gov-email-overrides">
-      <summary style={{ fontSize: 16, cursor: "pointer" }} data-testid="gov-email-overrides-toggle">Demo email routing</summary>
+      <summary style={{ fontSize: 16, cursor: "pointer" }} data-testid="gov-email-overrides-toggle">Demo email and push</summary>
+      <SendTests />
       <p style={{ ...muted, margin: "8px 0" }} data-testid="gov-email-allowlist">
         Demo logins use .example addresses, which never receive email. Route a persona to a real inbox here.
         Only allow-listed addresses are sent to: {allow.length ? allow.join(", ") : "none set"}.
