@@ -1,0 +1,262 @@
+"""R0.12 Phase B — email channel (Emergent-managed Resend proxy) + quiet-hours sender loop.
+
+At creation the channel only marks a row `pending` (or `skipped:off`); `run_once` does the sending,
+so in-app delivery and the ledger never wait on email. One email per notification row.
+Statuses in channels_state.email: pending | held | sending | sent | failed | skipped:<reason>.
+"""
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+import re
+import ipaddress
+from datetime import datetime, time, timedelta, timezone
+from html import escape
+from html.parser import HTMLParser
+from urllib.parse import urlparse
+
+import httpx
+
+from app.kernel import inbox
+
+log = logging.getLogger("brokaid.email")
+EMAIL_BASE_URL = "https://integrations.emergentagent.com"
+SEND_EVERY_S = 60
+SETTLE = timedelta(seconds=60)          # let 5-minute coalescing gather before sending
+BACKOFF = [timedelta(seconds=30), timedelta(minutes=2), timedelta(minutes=10)]
+MAX_ATTEMPTS = 3
+QUIET_START, QUIET_END = time(21, 0), time(7, 0)
+
+COPY = {  # fixed server-side templates; no client names, premiums or policy numbers (G4 + brief)
+    "client_question": ("New client question", "A client has asked a question. It needs a reply within one business day."),
+    "broker_reply": ("Your broker replied", "Your broker has replied to your question."),
+    "broker_review": ("A request needs a broker", "A client request is waiting for broker review."),
+    "approval_needed": ("Ready for your approval", "Your broker has checked your change. Please review and approve it."),
+    "signature_needed": ("Signature needed", "Your change is approved. Please sign to finish it."),
+    "certificate_issued": ("Your certificate is ready", "A new certificate of currency is ready to view."),
+    "broker_reviewed": ("Your broker has reviewed your request", "Your broker will contact you about the next step."),
+    "promise_due": ("A client reply is due soon", "A reply you promised a client is due within two hours."),
+    "promise_overdue": ("A client reply is overdue", "A reply promised to a client is now overdue."),
+    "renewal_30": ("A renewal is coming up", "A policy renews within the next 30 days."),
+}
+
+
+class EmailChannel:
+    name = "email"
+
+    async def deliver(self, n: dict, prefs: dict) -> str:
+        return "pending" if prefs.get("email") else "skipped:off"
+
+
+def in_quiet_hours(now: datetime) -> bool:
+    t = now.astimezone(inbox.SYD).time()
+    return t >= QUIET_START or t < QUIET_END
+
+
+def next_send_time(now: datetime) -> datetime:
+    local = now.astimezone(inbox.SYD)
+    day = local.date() if local.time() < QUIET_END else local.date() + timedelta(days=1)
+    return datetime.combine(day, QUIET_END, tzinfo=inbox.SYD).astimezone(timezone.utc)
+
+
+def _allowlist() -> list[str]:
+    return [a.strip().lower() for a in os.environ.get("EMAIL_ALLOWLIST", "").split(",") if a.strip()]
+
+
+def allowed(addr: str, allow: list[str]) -> bool:
+    a = addr.lower()
+    return any(a == p or (p.startswith("*@") and a.endswith(p[1:])) for p in allow)
+
+
+def resolve_address(user: dict, allow: list[str]) -> tuple[str | None, str | None]:
+    addr = (user.get("email_override") or user.get("email") or "").strip()
+    host = addr.rsplit("@", 1)[-1].lower() if "@" in addr else ""
+    if not host:
+        return None, "skipped:no_address"
+    labels = host.split(".")
+    if "example" in labels or labels[-1] in ("test", "invalid", "localhost"):  # RFC 2606 reserved
+        return None, "skipped:example_address"
+    if not allowed(addr, allow):
+        return None, "skipped:not_allowlisted"
+    return addr, None
+
+
+def render(n: dict, user: dict) -> tuple[str, str, str]:
+    subject, line = COPY.get(n["kind"], ("You have a new alert", "There is something new for you."))
+    brand = os.environ["EMAIL_FROM_NAME"]
+    url = os.environ["APP_BASE_URL"].rstrip("/") + n["link"]
+    first = escape((user.get("display_name") or "").split(" ")[0] or "there")
+    text = (f"Hi {first},\n\n{line}\n\nOpen {brand}: {url}\n\n"
+            f"Turn these emails off in You → Notifications.\nSent by {brand}. We never ask for passwords or card details by email.")
+    html = (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F6FA;padding:24px 0">'
+        '<tr><td align="center"><table role="presentation" width="560" cellpadding="0" cellspacing="0" '
+        'style="background:#FFFFFF;border-radius:12px;font-family:Arial,Helvetica,sans-serif;color:#0B1B3A">'
+        f'<tr><td style="padding:20px 28px;border-bottom:3px solid #F2B01E;font-size:15px;font-weight:bold">{escape(brand)}</td></tr>'
+        f'<tr><td style="padding:24px 28px 8px;font-size:20px;font-weight:bold">{escape(subject)}</td></tr>'
+        f'<tr><td style="padding:0 28px 20px;font-size:15px;line-height:22px">Hi {first},<br>{escape(line)}</td></tr>'
+        f'<tr><td style="padding:0 28px 28px"><a href="{escape(url)}" style="display:inline-block;background:#0B1B3A;'
+        'color:#FFFFFF;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:14px;font-weight:bold">'
+        'Open the app</a></td></tr>'
+        '<tr><td style="padding:16px 28px;border-top:1px solid #E3E8F0;font-size:12px;color:#5B6B85">'
+        f'Turn these emails off in You → Notifications.<br>Sent by {escape(brand)}. '
+        'We never ask for passwords or card details by email.</td></tr></table></td></tr></table>')
+    return subject, html, text
+
+
+# ---- guardrail gate (verbatim from the integration playbook; never weaken) ----
+_SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
+_CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
+             "send us your password", "enter your password below", "confirm your card number",
+             "your full card number", "seed phrase", "recovery phrase", "verify your card",
+             "social security number", "confirm your bank details")
+_HOSTISH = re.compile(r"\b(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,})", re.I)
+
+
+def _host_ok(host: str) -> bool:
+    if not host or "xn--" in host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    return not any(host == s or host.endswith("." + s) for s in _SHORTENERS)
+
+
+def _same_site(shown: str, real: str) -> bool:
+    return shown == real or real.endswith("." + shown) or shown.endswith("." + real)
+
+
+class _EmailScan(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags, self.urls, self.anchors = set(), [], []
+        self._href, self._text = None, []
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.add(tag.lower())
+        self.urls += [v for k, v in attrs if k.lower() in ("href", "src") and v]
+        if tag.lower() == "a":
+            self._href = dict((k.lower(), v) for k, v in attrs).get("href")
+            self._text = []
+
+    def handle_data(self, data):
+        if self._href is not None:
+            self._text.append(data)
+
+    def handle_endtag(self, tag):
+        if tag.lower() == "a" and self._href is not None:
+            self.anchors.append((self._href, "".join(self._text)))
+            self._href, self._text = None, []
+
+
+def _assert_safe_email(subject: str, html: str) -> None:
+    scan = _EmailScan()
+    scan.feed(html)
+    if scan.tags & {"form", "input", "textarea", "select"}:
+        raise ValueError("No forms or input fields in email (G2)")
+    body = f"{subject}\n{html}".lower()
+    for p in _CRED_ASK:
+        if p in body:
+            raise ValueError(f"Email asks the recipient for credentials: {p!r} (G2)")
+    for url in scan.urls:
+        low = url.strip().lower()
+        if low.startswith(("mailto:", "tel:", "cid:", "#")):
+            continue
+        if not low.startswith("https://"):
+            raise ValueError(f"Email links/assets must be absolute https: {url!r} (G3)")
+        host = urlparse(low).hostname or ""
+        if not _host_ok(host) or urlparse(low).username is not None:
+            raise ValueError(f"Shortened, numeric-host or credential-bearing URL: {url!r} (G3)")
+    for href, text in scan.anchors:
+        real = urlparse(href.strip().lower()).hostname or ""
+        if not real:
+            continue
+        for m in _HOSTISH.finditer(text):
+            if not _same_site(m.group(1).lower(), real):
+                raise ValueError(f"Anchor text {m.group(1)!r} ≠ real link host {real!r} (G3)")
+
+
+class BillingPaused(Exception):
+    pass
+
+
+async def resend_send(*, to: str, subject: str, html: str, text: str) -> str:
+    _assert_safe_email(subject, html)
+    payload = {"to": [to], "subject": subject, "html": html, "text": text,
+               "from_name": os.environ["EMAIL_FROM_NAME"]}
+    if os.environ.get("EMAIL_REPLY_TO"):
+        payload["contact_email"] = os.environ["EMAIL_REPLY_TO"]
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(f"{EMAIL_BASE_URL}/api/v1/email/send",
+                                 headers={"X-Email-Key": os.environ["EMERGENT_EMAIL_KEY"]}, json=payload)
+    if resp.status_code in (402, 403, 409):
+        code = (resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}).get("code", "")
+        if code in ("insufficient_credits", "integration_disabled", "daily_limit_reached"):
+            log.warning("Email paused: %s (%s)", code, resp.status_code)
+            raise BillingPaused(code)
+    resp.raise_for_status()
+    return resp.json().get("id")
+
+
+async def run_once(store, now: datetime | None = None, *, send=None, allow: list[str] | None = None,
+                   ids: list[str] | None = None, ignore_quiet: bool = False) -> dict:
+    """Process due email rows. Injected clock/sender/allow-list for tests."""
+    # tenant-safe: system-only — the sender spans tenants; every row is handled by its own id.
+    now, send = now or datetime.now(timezone.utc), send or resend_send
+    allow = _allowlist() if allow is None else allow
+    q: dict = {"channels_state.email": {"$in": ["pending", "held", "retry"]},
+               "updated_at": {"$lte": now - SETTLE}, "$or": [{"email_next_at": None}, {"email_next_at": {"$lte": now}},
+                                                             {"email_next_at": {"$exists": False}}]}
+    if ids:
+        q["notification_id"] = {"$in": ids}
+    out: dict = {}
+    async for n in store.notifications.find(q).limit(200):
+        status = await _process(store, n, now, send, allow, ignore_quiet)
+        out[status] = out.get(status, 0) + 1
+    return out
+
+
+async def _set(store, n, status, **extra):
+    await store.notifications.update_one({"_id": n["_id"]}, {"$set": {"channels_state.email": status, **extra}})
+    return status
+
+
+async def _process(store, n, now, send, allow, ignore_quiet=False) -> str:
+    if n.get("read_at"):
+        return await _set(store, n, "skipped:read_in_app")
+    user = await store.users.find_one({"user_id": n["user_id"], "tenant_id": n["tenant_id"]}) or {}
+    prefs = await store.notification_prefs.find_one({"user_id": n["user_id"], "tenant_id": n["tenant_id"]}) or {}
+    if not prefs.get("email", user.get("kind") == "operator"):
+        return await _set(store, n, "skipped:off")
+    addr, why = resolve_address(user, allow)
+    if why:
+        return await _set(store, n, why)
+    if in_quiet_hours(now) and not ignore_quiet:
+        return await _set(store, n, "held", email_next_at=next_send_time(now))
+    claimed = await store.notifications.update_one(
+        {"_id": n["_id"], "channels_state.email": n["channels_state"]["email"]}, {"$set": {"channels_state.email": "sending"}})
+    if not claimed.modified_count:
+        return "raced"
+    subject, html, text = render(n, user)
+    attempts = n.get("email_attempts", 0) + 1
+    try:
+        mid = await send(to=addr, subject=subject, html=html, text=text)
+        return await _set(store, n, "sent", email_message_id=mid, email_sent_at=now, email_attempts=attempts)
+    except Exception as e:  # noqa: BLE001 — never blocks in-app or the ledger
+        log.warning("email send failed (attempt %s): %r", attempts, e)
+        if attempts >= MAX_ATTEMPTS:
+            return await _set(store, n, "failed", email_attempts=attempts, email_error=str(e)[:200])
+        return await _set(store, n, "retry", email_attempts=attempts, email_next_at=now + BACKOFF[attempts - 1],
+                          email_error=str(e)[:200])
+
+
+async def loop(store) -> None:
+    while True:
+        try:
+            await run_once(store)
+        except Exception as e:  # noqa: BLE001
+            log.warning("email sender failed (non-fatal): %r", e)
+        await asyncio.sleep(SEND_EVERY_S)

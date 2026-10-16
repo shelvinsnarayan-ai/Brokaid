@@ -72,3 +72,26 @@ def test_quote_ready_alerts_staff_and_review_approval_is_not_client_approval():
     assert RULES["EndorsementQuoteReady"]["to"] == ("staff", ("ae",))
     assert RULES["EndorsementQuoteReady"]["link"] == "/o/queue/{envelope_id}"
     assert BROKER_REVIEWED["kind"] == "broker_reviewed" and BROKER_REVIEWED["to"] == ("client", None)
+
+
+def test_awaiting_client_approval_until_client_taps():
+    env = {"envelope_id": "E", "policy_id": "p1"}
+    evs = [{"type": "ClientChangeRequested", "payload": env}, {"type": "EndorsementQuoteReady", "payload": env},
+           {"type": "OperatorApproval", "payload": {"envelope_id": "E"}}]
+    assert scene.compute_status(list(reversed(evs)))["state"] == "awaiting_client_approval"
+    evs.append({"type": "Approval", "payload": env})  # the client's own tap carries policy_id
+    assert scene.compute_status(list(reversed(evs)))["state"] == "awaiting_payment"
+
+
+def test_paid_needs_client_approval_not_broker_lineage():
+    import os
+    from pathlib import Path
+
+    import httpx
+    from dotenv import dotenv_values
+    base = dotenv_values(Path(__file__).resolve().parents[2] / "frontend/.env").get("REACT_APP_BACKEND_URL")
+    c = httpx.Client(base_url=base, timeout=30)
+    assert c.post("/api/auth/dev/impersonate", json={"email": "owner@fictionalclient.example"}).status_code == 200
+    r = c.post("/api/c/matters/00000000-0000-4000-8000-000000000104/paid/62836e0c-3573-413f-b392-704cfbb7cd76", json={})
+    assert r.status_code == 409 and "client Approval" in r.text
+    assert os.environ is not None

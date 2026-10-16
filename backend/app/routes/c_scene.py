@@ -99,6 +99,17 @@ async def _require_predecessor(store, tenant_id: str, envelope_id: str,
         )
 
 
+async def _require_client_approval(store, tenant_id: str, envelope_id: str) -> None:
+    """R0.12 item 0: payment needs the CLIENT's own Approval (it carries policy_id). The broker's
+    queue-side `Approval` (no policy_id, lineage for execute_endorsement) never counts."""
+    from app.db.tenant_safe import wrap
+    async with use_tenant(tenant_id):
+        row = await wrap(store).events.find_one({"type": "Approval", "payload.envelope_id": envelope_id,
+                                                 "payload.policy_id": {"$exists": True}})
+    if row is None:
+        raise LineageIncomplete(f"missing upstream event(s) for envelope {envelope_id}: client Approval")
+
+
 def _store(request: Request):
     s = getattr(request.app.state, "mongo_db", None)
     if s is None:
@@ -444,7 +455,8 @@ async def status(
     env = next(((e.get("payload") or {}).get("envelope_id") for e in events
                 if (e.get("payload") or {}).get("envelope_id")), None)
     if env:  # R0.11 follow-up: broker decisions on the envelope carry no policy_id
-        extra = await scene_mongo.envelope_events_without_policy(store, session.tenant_id, env)
+        extra = [e for e in await scene_mongo.envelope_events_without_policy(store, session.tenant_id, env)
+                 if e["type"] != "Approval"]  # broker-side lineage Approval is not the client's
         events = sorted(events + extra, key=lambda e: e.get("seq") or 0, reverse=True)
     return scene.compute_status(events)
 
@@ -457,7 +469,7 @@ async def _load_payable(store, tenant_id: str, policy_id: str,
     quote = await scene.find_carrier_quote(store, tenant_id, envelope_id)
     if not quote:
         raise HTTPException(status_code=404, detail="quote_not_found")
-    await _require_predecessor(store, tenant_id, envelope_id, ["Approval"])
+    await _require_client_approval(store, tenant_id, envelope_id)
     return policy, quote
 
 

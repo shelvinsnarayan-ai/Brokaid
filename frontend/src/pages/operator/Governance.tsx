@@ -185,6 +185,51 @@ interface Drill {
   result: "pass" | "fail"; engaged_at: string; released_at: string; operator: string; recorded_at: string;
 }
 
+interface OverrideRow { user_id: string; name: string; email: string; email_override: string | null; kind: string }
+
+function EmailOverrides() {
+  const [rows, setRows] = useState<OverrideRow[]>([]);
+  const [allow, setAllow] = useState<string[]>([]);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const load = () => fetch(`${API}/api/notifications/email-overrides`, { credentials: "include" })
+    .then((r) => (r.ok ? r.json() : { users: [], allowlist: [] })).then((d) => { setRows(d.users); setAllow(d.allowlist); });
+  useEffect(() => { void load(); }, []);
+  const save = async (u: OverrideRow) => {
+    const v = (draft[u.user_id] ?? u.email_override ?? "").trim();
+    await fetch(`${API}/api/notifications/email-overrides`, {
+      method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: u.user_id, email_override: v || null }),
+    });
+    void load();
+  };
+  return (
+    <details style={card} data-testid="gov-email-overrides">
+      <summary style={{ fontSize: 16, cursor: "pointer" }} data-testid="gov-email-overrides-toggle">Demo email routing</summary>
+      <p style={{ ...muted, margin: "8px 0" }} data-testid="gov-email-allowlist">
+        Demo logins use .example addresses, which never receive email. Route a persona to a real inbox here.
+        Only allow-listed addresses are sent to: {allow.length ? allow.join(", ") : "none set"}.
+      </p>
+      <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+        <tbody>
+          {rows.map((u) => (
+            <tr key={u.user_id} style={{ borderTop: "1px solid var(--line, #1E2E5A)" }}>
+              <td style={{ padding: "6px 4px" }}>{u.name}<div style={muted}>{u.email}</div></td>
+              <td style={{ padding: "6px 4px" }}>
+                <input aria-label={`Email for ${u.name}`} defaultValue={u.email_override ?? ""} placeholder="real inbox (optional)"
+                  onChange={(e) => setDraft({ ...draft, [u.user_id]: e.target.value })}
+                  data-testid={`gov-override-input-${u.user_id}`} style={{ width: "100%" }} />
+              </td>
+              <td style={{ padding: "6px 4px", width: 70 }}>
+                <button className="k-btn" onClick={() => void save(u)} data-testid={`gov-override-save-${u.user_id}`}>Save</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
+  );
+}
+
 function DrillLog() {
   const [rows, setRows] = useState<Drill[]>([]);
   useEffect(() => {
@@ -253,6 +298,7 @@ export function Governance() {
         <EngageForm agents={agents} packages={packages} onDone={done} />
       </section>
       <DrillLog />
+      <EmailOverrides />
       <DemoReset onDone={done} />
     </div>
   );

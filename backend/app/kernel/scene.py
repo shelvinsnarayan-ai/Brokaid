@@ -289,6 +289,8 @@ def compute_status(events: list[dict[str, Any]]) -> dict[str, Any]:
         state = "awaiting_signature"
     elif "Approval" in env_t:
         state = "awaiting_payment"
+    elif "EndorsementQuoteReady" in env_t and "OperatorApproval" in env_t:
+        state = "awaiting_client_approval"  # broker approved; the client must tap Approve
     elif "EndorsementQuoteReady" in env_t:
         state = "awaiting_operator"
     elif "SubmissionDrafted" in env_t:

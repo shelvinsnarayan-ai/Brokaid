@@ -90,10 +90,13 @@ def create_app(
         import asyncio
         from app.kernel import notify
         notify_task = asyncio.create_task(notify.loop(app.state.mongo_db))
+        from app.kernel import email_channel
+        email_task = asyncio.create_task(email_channel.loop(app.state.mongo_db))
         try:
             yield
         finally:
             notify_task.cancel()
+            email_task.cancel()
             try:
                 await mongo_db.close_mongo_client()
             except Exception as e:  # noqa: BLE001

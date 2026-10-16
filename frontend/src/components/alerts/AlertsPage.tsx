@@ -7,14 +7,15 @@ const API = (import.meta as any).env.VITE_API_BASE || "";
 
 interface Prefs { in_app: boolean; email: boolean; push: boolean; quiet_hours: { start: string; end: string } }
 
-function Toggle({ id, label, on, note }: { id: string; label: string; on: boolean; note: string }) {
+function Toggle({ id, label, on, note, onChange }: { id: string; label: string; on: boolean; note: string; onChange?: (v: boolean) => void }) {
   return (
     <li className="brokaid-pref" data-testid={`pref-${id}`}>
       <label htmlFor={`pref-${id}-input`}>
         <span className="brokaid-pref__label">{label}</span>
         <span className="brokaid-pref__note">{note}</span>
       </label>
-      <input id={`pref-${id}-input`} type="checkbox" role="switch" checked={on} disabled readOnly
+      <input id={`pref-${id}-input`} type="checkbox" role="switch" checked={on} disabled={!onChange}
+        onChange={(e) => onChange?.(e.target.checked)} readOnly={!onChange}
         aria-describedby={`pref-${id}-note`} data-testid={`pref-${id}-toggle`} />
     </li>
   );
@@ -26,16 +27,24 @@ function PrefsCard() {
     void fetch(`${API}/api/notifications/prefs`, { credentials: "include" }).then((r) => (r.ok ? r.json() : null)).then(setP);
   }, []);
   if (!p) return null;
+  const setEmail = async (email: boolean) => {
+    const r = await fetch(`${API}/api/notifications/prefs`, {
+      method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, push: p.push }),
+    });
+    if (r.ok) setP(await r.json());
+  };
   return (
     <section id="settings" className="brokaid-alerts__prefs" data-testid="alerts-prefs">
       <h2>Notification settings</h2>
       <ul>
         <Toggle id="in-app" label="In the app" on note="Always on" />
-        <Toggle id="email" label="Email" on={p.email} note="Coming soon" />
+        <Toggle id="email" label="Email" on={p.email} onChange={setEmail}
+          note={p.email ? "On. We email you about new alerts." : "Off. Turn on to get alerts by email."} />
         <Toggle id="push" label="Push" on={p.push} note="Coming soon" />
       </ul>
       <p className="brokaid-pref__note" data-testid="alerts-quiet-hours">
-        When email and push arrive, they will hold between {p.quiet_hours.start} and {p.quiet_hours.end} Sydney time. In-app alerts are never held.
+        Emails are held between {p.quiet_hours.start} and {p.quiet_hours.end} Sydney time and sent at {p.quiet_hours.end}. In-app alerts are never held.
       </p>
     </section>
   );

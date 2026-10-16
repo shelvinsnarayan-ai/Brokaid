@@ -5,11 +5,11 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from app.auth.sessions import Session
 from app.db.tenant_safe import wrap
-from app.kernel import notify
+from app.kernel import email_channel, notify
 from app.kernel.tenant_ctx import use_tenant
 from app.middleware.session import require_session
 
@@ -83,7 +83,7 @@ async def read_one(notification_id: str, request: Request, session: Session = De
 
 class PrefsBody(BaseModel):
     email: bool = False
-    push: bool = False
+    push: bool = False  # stored for phase C; push is not sent yet
 
 
 @router.get("/prefs")
@@ -91,7 +91,7 @@ async def get_prefs(request: Request, session: Session = Depends(require_session
     safe = _safe(request)
     async with use_tenant(session.tenant_id):
         p = await notify._prefs(safe, session.user_id)
-    return {**p, "in_app_locked": True, "email_available": False, "push_available": False}
+    return {**p, "in_app_locked": True, "email_available": True, "push_available": False}
 
 
 @router.put("/prefs")
@@ -110,3 +110,58 @@ async def run_checks(request: Request, session: Session = Depends(require_sessio
     if session.active_role != "operator":
         raise HTTPException(status_code=403, detail="operator_role_required")
     return await notify.run_checks(request.app.state.mongo_db, session.tenant_id)
+
+
+class OverrideBody(BaseModel):
+    user_id: str
+    email_override: EmailStr | None = None
+
+
+def _require_operator(session: Session) -> None:
+    if session.active_role != "operator":
+        raise HTTPException(status_code=403, detail="operator_role_required")
+
+
+@router.get("/email-overrides")
+async def list_overrides(request: Request, session: Session = Depends(require_session)) -> dict:
+    """Operator-only: demo personas use .example addresses; route their alerts to real inboxes."""
+    _require_operator(session)
+    safe = _safe(request)
+    async with use_tenant(session.tenant_id):
+        rows = [u async for u in safe.users.find({}).sort("email", 1)]
+    return {"users": [{"user_id": u["user_id"], "name": u.get("display_name"), "email": u["email"],
+                       "email_override": u.get("email_override"), "kind": u.get("kind")} for u in rows],
+            "allowlist": email_channel._allowlist()}
+
+
+@router.put("/email-overrides")
+async def set_override(body: OverrideBody, request: Request, session: Session = Depends(require_session)) -> dict:
+    _require_operator(session)
+    safe = _safe(request)
+    async with use_tenant(session.tenant_id):
+        r = await safe.users.update_one({"user_id": body.user_id},
+                                        {"$set": {"email_override": str(body.email_override) if body.email_override else None}})
+    if not r.matched_count:
+        raise HTTPException(status_code=404, detail="user_not_found")
+    return {"user_id": body.user_id, "email_override": body.email_override,
+            "allowlisted": bool(body.email_override) and email_channel.allowed(str(body.email_override), email_channel._allowlist())}
+
+
+@router.post("/email-test")
+async def email_test(request: Request, session: Session = Depends(require_session)) -> dict:
+    """Operator-only: create one in-app alert for the caller and run the email sender for it now."""
+    _require_operator(session)
+    store = request.app.state.mongo_db
+    import uuid
+    key = f"email-test:{uuid.uuid4()}"
+    await notify.deliver(store, session.tenant_id, session.user_id, kind="broker_review",
+                         title="Email test", many="Email test", body="A test alert from Agent operations.",
+                         link="/o/alerts", dedupe_key=key, idem=key, test=True)
+    async with use_tenant(session.tenant_id):
+        n = await _safe(request).notifications.find_one({"idem_keys": key})
+    from datetime import timedelta
+    res = await email_channel.run_once(store, datetime.now(timezone.utc) + email_channel.SETTLE + timedelta(seconds=1),
+                                       ids=[n["notification_id"]], ignore_quiet=True)
+    async with use_tenant(session.tenant_id):
+        n = await _safe(request).notifications.find_one({"idem_keys": key})
+    return {"result": res, "email": n["channels_state"].get("email"), "message_id": n.get("email_message_id")}

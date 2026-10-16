@@ -40,7 +40,9 @@ class NotEnabledChannel:
         return "not_enabled"
 
 
-CHANNELS = [InAppChannel(), NotEnabledChannel("email"), NotEnabledChannel("push")]
+from app.kernel.email_channel import EmailChannel  # noqa: E402
+
+CHANNELS = [InAppChannel(), EmailChannel(), NotEnabledChannel("push")]
 DEFAULT_PREFS = {"in_app": True, "email": False, "push": False, "quiet_hours": QUIET_HOURS}
 
 STAFF_REVIEW = dict(kind="broker_review", to=("staff", ("ae",)), title="A request needs a broker",
@@ -62,7 +64,7 @@ RULES: dict[str, dict] = {
                               "body": "{client} has a quoted change waiting for broker approval."},
     "OperatorApproval": dict(kind="approval_needed", to=("client", "can_approve"), title="Ready for your approval",
                              many="Ready for your approval", body="Your broker has checked your request. Please review and approve it.",
-                             link="/c", once="approval_needed:{envelope_id}"),
+                             link="/c/cover/{policy_id}/pending", once="approval_needed:{envelope_id}"),
     "SignatureRequested": dict(kind="signature_needed", to=("client", "can_sign"), title="Signature needed",
                                many="Signature needed", body="Your change is approved. Please sign to finish it.",
                                link="/c", once="signature_needed:{envelope_id}"),
@@ -107,8 +109,11 @@ async def _client_id(safe, p: dict) -> str | None:
 
 
 async def _prefs(safe, user_id: str) -> dict:
+    """Email defaults ON for broker staff, OFF for clients until they opt in (R0.12)."""
     row = await safe.notification_prefs.find_one({"user_id": user_id}) or {}
-    return {**DEFAULT_PREFS, **{k: row[k] for k in ("email", "push") if k in row}, "in_app": True}
+    user = await safe.users.find_one({"user_id": user_id}) or {}
+    base = {**DEFAULT_PREFS, "email": user.get("kind") == "operator"}
+    return {**base, **{k: row[k] for k in ("email", "push") if k in row}, "in_app": True}
 
 
 async def deliver(store, tenant_id: str, user_id: str, *, kind: str, title: str, many: str, body: str,
@@ -179,7 +184,13 @@ async def on_event(store, tenant_id: str, type_: str, payload: dict, event_id: s
         if p.get("author_user_id"):
             author = (await safe.users.find_one({"user_id": p["author_user_id"]}) or {}).get("display_name")
     received = p.get("received_at") or datetime.now(timezone.utc).isoformat()
+    policy_id = p.get("policy_id")
+    if not policy_id and p.get("envelope_id"):
+        async with use_tenant(tenant_id):
+            row = await safe.events.find_one({"payload.envelope_id": p["envelope_id"], "payload.policy_id": {"$exists": True}})
+        policy_id = ((row or {}).get("payload") or {}).get("policy_id")
     ctx = {"client": (client or {}).get("display_name", "A client"), "author": author or "Your broker",
+           "policy_id": policy_id or "",
            "envelope_id": p.get("envelope_id") or "", "thread_id": thread_id or "",
            "reply_by": inbox.fmt_short(inbox.reply_by_for(inbox._utc(received)))}
     ref = thread_id or p.get("envelope_id") or event_id
