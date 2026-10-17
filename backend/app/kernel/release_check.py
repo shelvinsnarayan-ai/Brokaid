@@ -289,6 +289,29 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
                 await expect(await http.post(f"{base}/paid/{env_id}", headers=as_("owner"), json={}), 200, "Payment advice")
                 return "payment.advised recorded."
 
+            async def bank_receipt():
+                from decimal import Decimal
+
+                from app.kernel import bankfeed
+                from app.scripts import bank_synth
+                async with use_tenant(tenant_id):
+                    pay = await wrap(store).payables.find_one({"envelope_id": env_id})
+                if not pay:
+                    raise StepFailed("No payment reference (CRN) was issued for the synthetic change.")
+                if pay["state"] != "advised":
+                    raise StepFailed(f"After 'I've paid this' the item is '{pay['state']}', expected advised (not received).")
+                line = [{"date": datetime.now(timezone.utc).date(), "amount": Decimal(pay["amount"]),
+                         "description": f"BPAY {pay['crn']} RELEASE CHECK {run_id[:8]}", "balance": Decimal(pay["amount"])}]
+                res = await bankfeed.import_statement(store, tenant_id, data=bank_synth.cba(line).encode(), filename="release-check.csv",
+                                                      user_id="release-check", storage_path=None, test=True)
+                async with use_tenant(tenant_id):
+                    txn = await wrap(store).bank_txns.find_one({"statement_id": res["statement"]["statement_id"]})
+                    pay = await wrap(store).payables.find_one({"envelope_id": env_id})
+                    ev = await wrap(store).events.find_one({"type": "PremiumReceived", "payload.txn_fingerprint": txn["fingerprint"]})
+                if txn["status"] != "matched" or pay["state"] != "received" or not ev:
+                    raise StepFailed(f"The CRN line didn't auto-match (line {txn['status']}, item {pay['state']}).")
+                return f"Bank line with CRN {pay['crn']} auto-matched; PremiumReceived recorded (test-flagged)."
+
             async def sign():
                 await expect(await http.post(f"{base}/sign/{env_id}", headers=as_("owner")), 200, "Signature")
                 return "Signed."
@@ -323,6 +346,7 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
                                    ("access.bookkeeper", "Bookkeeper can't approve", probe_bookkeeper),
                                    ("spine.client_approval", "Client approval", client_approve),
                                    ("spine.paid", "Payment advised", paid),
+                                   ("money.bank_receipt", "Bank statement → CRN match → received", bank_receipt),
                                    ("spine.sign", "Sign", sign),
                                    ("spine.packet", "Change packet", packet),
                                    ("spine.finalise", "Finalise and certificate", finalise),

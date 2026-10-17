@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from pymongo.errors import DuplicateKeyError
 
@@ -74,6 +74,9 @@ RULES: dict[str, dict] = {
     "payment.advised": dict(kind="signature_needed", to=("client", "can_sign"), title="Signature needed",
                             many="Signature needed", body="Your change is approved. Please sign to finish it.",
                             link="/c", once="signature_needed:{envelope_id}"),
+    "PremiumReceived": dict(kind="payment_received", to=("client", None), title="Payment received — thank you",
+                            many="Payments received — thank you", body="Your broker's bank has confirmed your payment. Thank you.",
+                            link="/c/money", once="payment_received:{payable_id}"),
     "CertificateRegenerated": dict(kind="certificate_issued", to=("client", None), title="Your certificate is ready",
                                    many="Your certificates are ready", body="A new certificate of currency is ready to view.",
                                    link="/c/cover"),
@@ -226,7 +229,7 @@ async def on_event(store, tenant_id: str, type_: str, payload: dict, event_id: s
 async def run_checks(store, tenant_id: str, now: datetime | None = None) -> dict:
     """Promise due soon / overdue, renewal 30 days out. Each alerts once per state."""
     now = now or datetime.now(timezone.utc)
-    safe, made = wrap(store), {"promise_due": 0, "promise_overdue": 0, "renewal_30": 0}
+    safe, made = wrap(store), {"promise_due": 0, "promise_overdue": 0, "renewal_30": 0, "bank_unmatched": 0, "advised_no_receipt": 0}
     async with use_tenant(tenant_id):
         staff_for = {c["client_id"]: await _client_staff(safe, c["client_id"]) async for c in safe.clients.find({}, {"client_id": 1})}
         everyone = await _client_staff(safe, None)
@@ -263,6 +266,34 @@ async def run_checks(store, tenant_id: str, now: datetime | None = None) -> dict
                               link="/o/renewals" if staff else "/c/cover", dedupe_key=f"renewal_30:{p['policy_id']}",
                               idem=f"renewal_30:{p['policy_id']}:{exp.date().isoformat()}")
             made["renewal_30"] += r == "created"
+    made.update(await _money_checks(store, tenant_id, now, staff_for, everyone))
+    return made
+
+
+async def _money_checks(store, tenant_id, now, staff_for, everyone) -> dict:
+    """R1.5: unmatched bank lines > 3 business days; client said paid but nothing received > 5 business days."""
+    from app.kernel.bankfeed import business_days_between
+    safe, made, today = wrap(store), {"bank_unmatched": 0, "advised_no_receipt": 0}, now.date()
+    async with use_tenant(tenant_id):
+        lines = [t async for t in safe.bank_txns.find({"status": {"$in": ["unmatched", "suggested"]}, "test": {"$ne": True}})]
+        adv = [p async for p in safe.payables.find({"state": "advised", "test": {"$ne": True}})]
+        names = {c["client_id"]: c["display_name"] async for c in safe.clients.find({}, {"client_id": 1, "display_name": 1})}
+    for t in lines:
+        if business_days_between(date.fromisoformat(t["date"]), today) > 3:
+            for uid in everyone:
+                r = await deliver(store, tenant_id, uid, kind="bank_unmatched", title="A bank receipt isn't matched yet",
+                                  many="{n} bank receipts aren't matched yet", body=f"${t['amount']} on {t['date']}: {t['description'][:60]}",
+                                  link="/o/bank", dedupe_key="bank_unmatched", idem=f"bank_unmatched:{t['txn_id']}")
+                made["bank_unmatched"] += r == "created"
+    for p in adv:
+        adv_at = inbox._utc(p["advised_at"]).date()
+        if business_days_between(adv_at, today) > 5:
+            for uid in staff_for.get(p["client_id"]) or everyone:
+                r = await deliver(store, tenant_id, uid, kind="advised_no_receipt", title=f"Payment not received from {names.get(p['client_id'], 'a client')}",
+                                  many="{n} advised payments not received", body=f"They said they paid ${p['amount']} (CRN {p['crn']}) on "
+                                  f"{adv_at:%d/%m/%Y}; no matching bank line yet.", link="/o/bank",
+                                  dedupe_key=f"advised_no_receipt:{p['payable_id']}", idem=f"advised_no_receipt:{p['payable_id']}")
+                made["advised_no_receipt"] += r == "created"
     return made
 
 

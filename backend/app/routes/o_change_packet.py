@@ -103,6 +103,7 @@ def render_packet(ctx: dict[str, Any]) -> str:
         f"  Change    : {_money(q.get('premium_change_amount'))} (MOCKED)",
         f"  New annual: {_money(q.get('premium_new_annual'))} (MOCKED)",
         f"  Carrier   : {q.get('carrier_name') or '—'} (MOCKED)",
+        f"  Payment ref (CRN): {ctx.get('crn') or 'not issued yet'}",
         "",
         "APPROVALS",
         f"  Broker approved : {ctx['broker']}",
@@ -159,6 +160,8 @@ async def change_packet(
             packet_id, generated_at = f"CP-{day}-{n + 1:03d}", now.isoformat(timespec="seconds")
         cert_ev = by.get("CertificateRegenerated")
 
+    async with use_tenant(tid):
+        crn = ((await safe.payables.find_one({"envelope_id": envelope_id})) or {}).get("crn")
     basis = "synthetic" if policy.get("fictional") or client.get("fictional") else "manual"
     body = render_packet({
         "packet_id": packet_id, "envelope_id": envelope_id, "policy_id": policy_id,
@@ -168,7 +171,7 @@ async def change_packet(
         "effective": _syd(by["SignatureCompleted"]["ts"], with_time=False),
         "generated": _syd(generated_at), "basis": basis, "changes": changes,
         "quote": (by.get("CarrierQuoted") or {}).get("payload") or {},
-        "broker": broker, "client_approval": client_appr,
+        "broker": broker, "client_approval": client_appr, "crn": crn,
     })
     link_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
     key = f"changepacket:{envelope_id}"

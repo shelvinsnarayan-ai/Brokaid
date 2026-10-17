@@ -16,7 +16,9 @@ interface Details {
   amount: string;
   currency: string;
   due_date: string;
-  bpay: { biller_code: string; reference: string };
+  mocked?: boolean;
+  crn?: string;
+  bpay: { biller_code: string; reference: string } | null;
   eft: { account_name: string; bsb: string; account_number: string; reference: string };
 }
 
@@ -90,10 +92,15 @@ export function ClientPay() {
         {details && (
           <div className="brokaid-paydetails" data-testid="pay-details">
             <Row label="Due date" value={fmtDate(details.due_date)} testId="pay-due-date" />
-            <h3 className="brokaid-paydetails__title">BPAY <span className="brokaid-paydetails__mocked">MOCKED</span></h3>
-            <Row label="Biller code" value={details.bpay.biller_code} testId="pay-bpay-biller" />
-            <Row label="Reference" value={details.bpay.reference} testId="pay-bpay-ref" />
-            <h3 className="brokaid-paydetails__title">Bank transfer (EFT) <span className="brokaid-paydetails__mocked">MOCKED</span></h3>
+            {details.crn ? <Row label="Your payment reference (CRN)" value={details.crn} testId="pay-crn" /> : null}
+            {details.bpay ? (
+              <>
+                <h3 className="brokaid-paydetails__title">BPAY {details.mocked !== false && <span className="brokaid-paydetails__mocked">MOCKED</span>}</h3>
+                <Row label="Biller code" value={details.bpay.biller_code} testId="pay-bpay-biller" />
+                <Row label="Reference" value={details.bpay.reference} testId="pay-bpay-ref" />
+              </>
+            ) : null}
+            <h3 className="brokaid-paydetails__title">Bank transfer (EFT) {details.mocked !== false && <span className="brokaid-paydetails__mocked">MOCKED</span>}</h3>
             <Row label="Account name" value={details.eft.account_name} testId="pay-eft-name" />
             <Row label="BSB" value={details.eft.bsb} testId="pay-eft-bsb" />
             <Row label="Account" value={details.eft.account_number} testId="pay-eft-account" />

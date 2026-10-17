@@ -31,7 +31,7 @@ from app.kernel.brain import Brain
 from app.kernel.certificate import regenerate_certificate_dispatch
 from app.kernel.contracts.models import Actor, ContextEnvelope, InvocationBudget
 from app.kernel.endorsement import execute_endorsement
-from app.kernel.mocks import e_sign, payment_rail
+from app.kernel.mocks import e_sign
 from app.kernel.mocks.carrier_channel import submit_endorsement
 from app.kernel.advice_boundary import classify
 from app.kernel.authority import require_authority
@@ -481,12 +481,13 @@ async def _load_payable(store, tenant_id: str, policy_id: str,
     return policy, quote
 
 
-def _details_for(policy: dict, quote: dict, envelope_id: str) -> dict:
-    return payment_rail.payment_details(
-        envelope_id=envelope_id,
-        amount=quote.get("premium_change_amount") or "0",
-        currency=quote.get("premium_currency") or policy["premium_currency"],
-    )
+async def _details_for(store, tenant_id: str, policy: dict, quote: dict, envelope_id: str) -> dict:
+    """R1.5: a payable with its own CRN; real trust details once the Operator sets them, MOCKED until then."""
+    from app.kernel import payments
+    p = await payments.ensure_payable(store, tenant_id, envelope_id=envelope_id, policy_id=policy["policy_id"],
+                                      amount=quote.get("premium_change_amount") or "0",
+                                      currency=quote.get("premium_currency") or policy["premium_currency"])
+    return payments.details(p, await payments.get_settings(store, tenant_id))
 
 
 @router.api_route("/{policy_id}/pay/{envelope_id}", methods=["GET", "POST"])
@@ -507,7 +508,7 @@ async def pay(
     return {
         "state": "awaiting_signature" if advised else "awaiting_payment",
         "envelope_id": envelope_id,
-        "payment_details": _details_for(policy, quote, envelope_id),
+        "payment_details": await _details_for(store, session.tenant_id, policy, quote, envelope_id),
         "payment_advised": bool(advised),
     }
 
@@ -539,7 +540,7 @@ async def paid(
     )
     deduplicated = row is not None
     if not deduplicated:
-        details = _details_for(policy, quote, envelope_id)
+        details = await _details_for(store, tenant_id, policy, quote, envelope_id)
         paid_at = (body.paid_at if body and body.paid_at
                    else datetime.now(timezone.utc).isoformat(timespec="seconds"))
         try:
@@ -555,6 +556,8 @@ async def paid(
         row = await _find_envelope_event(
             store, tenant_id, envelope_id, scene.PAYMENT_ADVISED,
         )
+    from app.kernel import payments
+    await payments.mark_advised(store, tenant_id, envelope_id)  # Advised only — Received comes from the bank feed
     return {
         "state": "awaiting_signature",
         "envelope_id": envelope_id,

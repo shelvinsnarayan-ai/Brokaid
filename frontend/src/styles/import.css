@@ -22,3 +22,6 @@
 .imp-progress { position: relative; height: 22px; border-radius: 11px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
 .imp-progress > div { height: 100%; background: #c98a4b; transition: width 400ms ease; }
 .imp-progress > span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 0.75rem; mix-blend-mode: difference; color: #fff; }
+.bank-state--received { color: #8fd19e; font-weight: 600; }
+.bank-state--advised { color: #f2c46d; }
+.bank-state--owed { color: rgba(236, 232, 222, 0.75); }

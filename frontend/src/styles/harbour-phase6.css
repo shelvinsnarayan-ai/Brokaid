@@ -505,3 +505,12 @@
 @media (max-width: 767px) {
   .brokaid-bell__panel { position: fixed; left: 8px; right: 8px; top: 64px; width: auto; }
 }
+.brokaid-money { list-style: none; padding: 0; margin: 16px 0; display: grid; gap: 10px; }
+.brokaid-money__item { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; padding: 14px 16px; border-radius: 12px; border: 1px solid color-mix(in oklab, var(--harbour) 18%, transparent); }
+.brokaid-money__ref { display: block; font-size: 13px; color: color-mix(in oklab, var(--harbour) 70%, transparent); }
+.brokaid-money__amt { font-weight: 600; font-variant-numeric: tabular-nums; }
+.brokaid-money__chip { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: color-mix(in oklab, var(--harbour) 10%, transparent); }
+.brokaid-money__chip--advised { background: #fff1d6; color: #7a4d00; }
+.brokaid-money__chip--received, .brokaid-money__chip--overpaid { background: #dff3e4; color: #1d5e2f; }
+.brokaid-money__chip--partial { background: #e6eefc; color: #1f3f7a; }
+.brokaid-money__note { margin: 4px 0 0; font-size: 13px; color: color-mix(in oklab, var(--harbour) 70%, transparent); }
