@@ -15,6 +15,7 @@ certificate carry their own kernel modules.
 from __future__ import annotations
 
 import asyncio
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -219,18 +220,44 @@ async def _park_if_not_f_or_g(
     return True
 
 
+async def _once(coro) -> None:
+    """Run an emit whose idempotency key may already be in the ledger (resumed chain)."""
+    from app.kernel.trail_mongo import DuplicateIdempotencyKey
+    try:
+        await coro
+    except DuplicateIdempotencyKey:
+        pass
+
+
+async def _test_pause(point: str) -> None:
+    """Non-production hook so a restart can be tested at a precise step."""
+    secs = os.environ.get(f"INTAKE_TEST_PAUSE_{point.upper()}_S")
+    if secs and (os.environ.get("ENVIRONMENT") or "").lower() != "production":
+        await asyncio.sleep(float(secs))
+
+
 async def _run_intake_placement_async(
     store, *, tenant_id: str, user_id: str, envelope_id_str: str,
     policy_id: str, policy: dict, raw_message: str,
+    state: dict | None = None, save=None,
 ) -> None:
-    """Background chain: intAIke → plAIce → MOCKED carrier → enqueue.
+    """Resumable chain (R1.1 job): intAIke → gates → plAIce → MOCKED carrier → queue card.
 
-    Any failure is swallowed and the envelope stays parked in
-    `ClientChangeRequested` state — honours the governance invariant
-    'silence parks' (no auto-advance on error).
+    Each completed step is recorded in `state` (persisted on the job row by `save`), so a
+    restarted worker resumes from the last completed step without repeating ledger events.
+    Failures raise to the job runner (retry with backoff, then dead-letter for Olly); the
+    envelope stays parked in `ClientChangeRequested` meanwhile — silence parks.
     """
-    try:
-        envelope_id = uuid.UUID(envelope_id_str)
+    state = state if state is not None else {}
+
+    async def mark(step: str, value=True) -> None:
+        state[step] = value
+        if save:
+            await save(step, value)
+
+    envelope_id = uuid.UUID(envelope_id_str)
+    brain = Brain(store)
+    if "intake" not in state:
         intake_envelope = ContextEnvelope(
             envelope_id=envelope_id,
             tenant_id=uuid.UUID(tenant_id), matter_id=None,
@@ -240,60 +267,42 @@ async def _run_intake_placement_async(
             inputs={"raw_message": raw_message, "policy_id": policy_id,
                     "context_events_summary": "client-initiated change request"},
             context_events=[], risk_schema_refs=[], tenant_config={},
-            budget=InvocationBudget(
-                max_input_tokens=4000, max_output_tokens=1500, max_wall_ms=45000,
-            ),
+            budget=InvocationBudget(max_input_tokens=4000, max_output_tokens=1500, max_wall_ms=45000),
             caller=Actor(kind="human", id=user_id, name="client_owner"),
             ts=datetime.now(timezone.utc),
         )
-        brain = Brain(store)
         intake_out = await brain.invoke(intake_envelope, "intake")
         intake_payload = intake_out.payload or {}
         if intake_payload.get("proposed_changes"):
             intake_payload["proposed_changes"] = normalize_vehicle_ops(policy, intake_payload["proposed_changes"])
-        if await _park_if_unmatched(
+        await mark("intake", {"payload": intake_payload, "class_key": intake_out.class_key})
+    intake_payload = state["intake"]["payload"]
+    if "gates" not in state:
+        parked = await _park_if_unmatched(
             store, tenant_id=tenant_id, envelope_id=envelope_id_str,
-            policy=policy, changes=intake_payload.get("proposed_changes"),
-            stage="intake",
-        ):
-            return
-        if await _park_if_not_f_or_g(
+            policy=policy, changes=intake_payload.get("proposed_changes"), stage="intake",
+        ) or await _park_if_not_f_or_g(
             store, tenant_id=tenant_id, envelope_id=envelope_id_str,
-            policy=policy, raw_message=raw_message,
-            changes=intake_payload.get("proposed_changes"),
-        ):
-            return
-        proposed_class = (
-            intake_out.class_key
-            or intake_payload.get("class_proposed")
-            or ""
+            policy=policy, raw_message=raw_message, changes=intake_payload.get("proposed_changes"),
         )
-        if proposed_class not in PLACEMENT_ELIGIBLE_CLASSES:
-            try:
-                await queue_enqueue(
-                    store, tenant_id=tenant_id,
-                    envelope_id=envelope_id_str,
-                    class_key=(
-                        proposed_class
-                        if proposed_class in INTAKE_ELIGIBLE_CLASSES
-                        else "request_info"
-                    ),
-                    proposal_ref=(
-                        (await scene.last_event_id_for_envelope(
-                            store, tenant_id, "AgentOutputProduced",
-                            envelope_id_str,
-                        )) or ""
-                    ),
-                    matter_id=None,
-                    client_id=policy["client_id"],
-                    gate_reason="intake_only",
-                    confidence=None,
-                    routed_to_role="account_executive",
-                )
-            except Exception:
-                pass
-            return
+        await mark("gates", "parked" if parked else "ok")
+    if state["gates"] == "parked":
+        return
+    await _test_pause("after_classify")
+    proposed_class = state["intake"]["class_key"] or intake_payload.get("class_proposed") or ""
+    proposal_ref = (await scene.last_event_id_for_envelope(store, tenant_id, "AgentOutputProduced", envelope_id_str)) or ""
+    if proposed_class not in PLACEMENT_ELIGIBLE_CLASSES:
+        if "card" not in state:
+            await queue_enqueue(
+                store, tenant_id=tenant_id, envelope_id=envelope_id_str,
+                class_key=proposed_class if proposed_class in INTAKE_ELIGIBLE_CLASSES else "request_info",
+                proposal_ref=proposal_ref, matter_id=None, client_id=policy["client_id"],
+                gate_reason="intake_only", confidence=None, routed_to_role="account_executive",
+            )
+            await mark("card")
+        return
 
+    if "placement" not in state:
         placement_envelope = ContextEnvelope(
             envelope_id=envelope_id,
             tenant_id=uuid.UUID(tenant_id), matter_id=None,
@@ -303,68 +312,67 @@ async def _run_intake_placement_async(
             inputs={"intake_output": intake_payload, "policy_current": policy,
                     "context_events_summary": "client-initiated change request"},
             context_events=[], risk_schema_refs=[], tenant_config={},
-            budget=InvocationBudget(
-                max_input_tokens=8000, max_output_tokens=3000, max_wall_ms=60000,
-            ),
+            budget=InvocationBudget(max_input_tokens=8000, max_output_tokens=3000, max_wall_ms=60000),
             caller=Actor(kind="human", id=user_id, name="client_owner"),
             ts=datetime.now(timezone.utc),
         )
         placement_out = await brain.invoke(placement_envelope, "placement")
-        plc_payload = placement_out.payload or {}
-        sub = plc_payload.get("structured_submission") or {}
+        plc = placement_out.payload or {}
+        sub = plc.get("structured_submission") or {}
         if sub.get("requested_changes"):
             sub["requested_changes"] = normalize_vehicle_ops(policy, sub["requested_changes"])
-        if await _park_if_unmatched(
-            store, tenant_id=tenant_id, envelope_id=envelope_id_str,
-            policy=policy, stage="placement",
+        await mark("placement", plc)
+    plc_payload = state["placement"]
+    if "placement_gate" not in state:
+        parked = await _park_if_unmatched(
+            store, tenant_id=tenant_id, envelope_id=envelope_id_str, policy=policy, stage="placement",
             changes=(plc_payload.get("structured_submission") or {}).get("requested_changes"),
-        ):
-            return
-        await scene.emit_submission_drafted(
-            store, tenant_id=tenant_id,
-            envelope_id=envelope_id_str, policy_id=policy_id,
+        )
+        await mark("placement_gate", "parked" if parked else "ok")
+    if state["placement_gate"] == "parked":
+        return
+    if "submission" not in state:
+        await _once(scene.emit_submission_drafted(
+            store, tenant_id=tenant_id, envelope_id=envelope_id_str, policy_id=policy_id,
             submission_summary=plc_payload.get("submission_summary"),
             structured_submission=plc_payload.get("structured_submission") or {},
             recommended_wording_ref=plc_payload.get("recommended_wording_ref"),
+        ))
+        await mark("submission")
+    if "quote" not in state:
+        quote = await submit_endorsement(envelope_id=envelope_id_str, submission=plc_payload, policy_current=policy)
+        await _once(scene.emit_carrier_quoted(store, tenant_id=tenant_id, envelope_id=envelope_id_str,
+                                              policy_id=policy_id, quote=quote))
+        await mark("quote", quote)
+    quote = state["quote"]
+    if "ready" not in state:
+        await _once(scene.emit_endorsement_quote_ready(store, tenant_id=tenant_id, envelope_id=envelope_id_str,
+                                                       policy_id=policy_id, quote_id=quote["quote_id"]))
+        await mark("ready")
+    if "card" not in state:
+        await queue_enqueue(
+            store, tenant_id=tenant_id, envelope_id=envelope_id_str, class_key=proposed_class,
+            proposal_ref=proposal_ref, matter_id=None, client_id=policy["client_id"],
+            gate_reason="awaiting_operator_class_shadow_authoritative", confidence=None,
+            routed_to_role="account_executive",
         )
-        quote = await submit_endorsement(
-            envelope_id=envelope_id_str, submission=plc_payload,
-            policy_current=policy,
-        )
-        await scene.emit_carrier_quoted(
-            store, tenant_id=tenant_id,
-            envelope_id=envelope_id_str, policy_id=policy_id, quote=quote,
-        )
-        await scene.emit_endorsement_quote_ready(
-            store, tenant_id=tenant_id,
-            envelope_id=envelope_id_str, policy_id=policy_id,
-            quote_id=quote["quote_id"],
-        )
-        # Enqueue the operator queue card so the AE / principal can
-        # approve the class on the Control Tower (operator-gate rule
-        # from Phase 3 close-out).
-        try:
-            await queue_enqueue(
-                store, tenant_id=tenant_id,
-                envelope_id=envelope_id_str,
-                class_key=proposed_class,
-                proposal_ref=(
-                    (await scene.last_event_id_for_envelope(
-                        store, tenant_id, "AgentOutputProduced",
-                        envelope_id_str,
-                    )) or ""
-                ),
-                matter_id=None,
-                client_id=policy["client_id"],
-                gate_reason="awaiting_operator_class_shadow_authoritative",
-                confidence=None,
-                routed_to_role="account_executive",
-            )
-        except Exception:
-            pass
-    except Exception:
-        # Silence parks — do not auto-advance on failure.
-        return
+        await mark("card")
+
+
+async def intake_job(store, job: dict) -> None:
+    from app.kernel import jobs
+    p = job["payload"]
+    policy = await scene.load_policy(store, job["tenant_id"], p["policy_id"])
+    if not policy:
+        raise RuntimeError("policy not found")
+
+    async def save(step, value):
+        await jobs.save_state(store, job, step, value)
+    await _run_intake_placement_async(
+        store, tenant_id=job["tenant_id"], user_id=p["user_id"], envelope_id_str=p["envelope_id"],
+        policy_id=p["policy_id"], policy=policy, raw_message=p["raw_message"],
+        state=dict(p.get("state") or {}), save=save,
+    )
 
 
 @router.post("/{policy_id}/request-change")
@@ -425,13 +433,11 @@ async def request_change(
                 }
         raise
 
-    task = asyncio.create_task(_run_intake_placement_async(
-        store, tenant_id=tenant_id, user_id=session.user_id,
-        envelope_id_str=str(envelope_id),
-        policy_id=policy_id, policy=policy, raw_message=body.raw_message,
-    ))
-    _PENDING_TASKS.add(task)
-    task.add_done_callback(_PENDING_TASKS.discard)
+    from app.kernel import jobs
+    await jobs.enqueue(store, "intake.chain", {
+        "envelope_id": str(envelope_id), "policy_id": policy_id, "user_id": session.user_id,
+        "raw_message": body.raw_message, "state": {},
+    }, key=f"intake:{envelope_id}", tenant_id=tenant_id, max_attempts=3)
 
     return {
         "state": "received",

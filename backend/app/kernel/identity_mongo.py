@@ -114,12 +114,17 @@ async def _ensure_indexes(safe_db: TenantSafeDatabase) -> None:
     )
     await _try_index(
         "user_client_links",
-        [("user_id", ASCENDING), ("client_id", ASCENDING)],
-        unique=True, name="ucl_user_client_uniq",
+        [("user_id", ASCENDING), ("tenant_id", ASCENDING), ("client_id", ASCENDING)],
+        unique=True, name="ucl_user_tenant_client_uniq",  # R1.1: archived rows share user+client
     )
     await _try_index(
         "user_client_links",
         [("tenant_id", ASCENDING)], name="ucl_tenant",
+    )
+    await _try_index(
+        "memberships",
+        [("tenant_id", ASCENDING), ("user_id", ASCENDING), ("client_id", ASCENDING), ("role", ASCENDING)],
+        unique=True, name="mem_tenant_user_client_role_uniq",
     )
     await _try_index(
         "sessions",

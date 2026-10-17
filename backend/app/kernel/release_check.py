@@ -189,7 +189,20 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
             raise StepFailed("The ledger hash chain did not verify.")
         return "Ledger hash chain verified."
 
-    for key, label, fn in (("build", "Build", build), ("config.email", "Email setting", email_cfg),
+    async def queue():
+        from app.kernel import jobs
+        s = await jobs.summary(store, tenant_id)
+        if not s["leader"]["alive"]:
+            raise StepFailed("No background scheduler is running (leader lease expired).")
+        if s["oldest_queued_s"] > 300:
+            raise StepFailed(f"Background work is backed up: oldest job has waited {s['oldest_queued_s'] // 60} minutes.")
+        old_dead = [d for d in s["dead"] if d["finished_at"] and
+                    datetime.fromisoformat(d["finished_at"]) < datetime.now(timezone.utc) - timedelta(hours=1)]
+        if old_dead:
+            return "warn", f"{len(old_dead)} failed background job(s) older than an hour need a look in Background work."
+        return f"Queue healthy: {s['counts']['queued']} queued, {s['counts']['running']} running, {s['counts']['dead']} dead."
+
+    for key, label, fn in (("build", "Build", build), ("jobs", "Background work", queue), ("config.email", "Email setting", email_cfg),
                            ("config.push", "Push keys", vapid), ("config.storage", "File storage", storage),
                            ("config.llm", "AI key", llm), ("ledger", "Ledger chain", ledger)):
         await r.step(key, label, fn, soft=True)
@@ -334,9 +347,13 @@ def _alert_query(env_id: str, policy_id: str, ids: dict, since: datetime | None 
 
 
 async def _check_alerts(store, tenant_id, env_id, policy_id, ids, since):
-    await asyncio.sleep(1.0)
-    async with use_tenant(tenant_id):
-        rows = [n async for n in wrap(store).notifications.find(_alert_query(env_id, policy_id, ids, since))]
+    rows: list = []
+    for _ in range(20):  # fan-out is a background job (R1.1): wait for the certificate alert to land
+        async with use_tenant(tenant_id):
+            rows = [n async for n in wrap(store).notifications.find(_alert_query(env_id, policy_id, ids, since))]
+        if any(n["kind"] == "certificate_issued" for n in rows):
+            break
+        await asyncio.sleep(1.0)
     if not rows:
         raise StepFailed("No alerts were created for the synthetic change.")
     if not any(n["user_id"] == ids["owner"] for n in rows):

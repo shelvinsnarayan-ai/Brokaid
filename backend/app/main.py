@@ -87,19 +87,18 @@ def create_app(
             await warn_on_policy_schedule_mismatches(app.state.mongo_db)
         except Exception as e:  # noqa: BLE001
             logger.warning("policy sanity scan failed (non-fatal): %r", e)
-        import asyncio
-        from app.kernel import notify
-        notify_task = asyncio.create_task(notify.loop(app.state.mongo_db))
-        from app.kernel import email_channel
-        email_task = asyncio.create_task(email_channel.loop(app.state.mongo_db))
-        from app.kernel import push_channel
-        push_task = asyncio.create_task(push_channel.loop(app.state.mongo_db))
+        import os as _os
+        from app.kernel import jobs, notify, push_channel
+        await notify.ensure_indexes(app.state.mongo_db)
+        await app.state.mongo_db.push_subscriptions.create_index(
+            [("tenant_id", 1), ("user_id", 1), ("endpoint", 1)], unique=True)
+        # R1.1: background work runs as durable jobs (notify fan-out, intake chain, email, push, periodic checks).
+        job_tasks = await jobs.start_in_process(app.state.mongo_db, workers=int(_os.environ.get("JOBS_WORKERS", "1")))
         try:
             yield
         finally:
-            notify_task.cancel()
-            email_task.cancel()
-            push_task.cancel()
+            for t in job_tasks:
+                t.cancel()
             try:
                 await mongo_db.close_mongo_client()
             except Exception as e:  # noqa: BLE001
@@ -150,6 +149,7 @@ def create_app(
     from app.routes.o_governance import router as o_governance_router
     from app.routes.o_branding import router as o_branding_router
     from app.routes.o_release_check import router as o_release_check_router
+    from app.routes.o_jobs import router as o_jobs_router
     from app.routes.o_m2_stubs import router as o_m2_stubs_router
     from app.routes.notifications import router as notifications_router
     from app.routes.c_things import router as c_things_router
@@ -169,7 +169,7 @@ def create_app(
         client_360_router, client_preferences_router,
         compliance_router, daily_brief_router, jurisdictions_router,
         kpi_router, matters_router,
-        o_change_packet_router, o_claims_router, o_governance_router, o_branding_router, o_release_check_router, o_m2_stubs_router, notifications_router, c_things_router, o_placement_router, o_shadow_mode_router,
+        o_change_packet_router, o_claims_router, o_governance_router, o_branding_router, o_release_check_router, o_jobs_router, o_m2_stubs_router, notifications_router, c_things_router, o_placement_router, o_shadow_mode_router,
         policies_router, queue_router, trail_router, verifier_router,
     ):
         api_router.include_router(r)

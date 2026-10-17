@@ -25,7 +25,13 @@ def _as(email: str) -> httpx.Client:
 
 
 def _alerts(c, pred):
-    return [n for n in c.get("/api/notifications", params=T).json()["notifications"] if pred(n)]
+    import time
+    for _ in range(8):  # R1.1: fan-out runs as a background job; give it a moment
+        hits = [n for n in c.get("/api/notifications", params=T).json()["notifications"] if pred(n)]
+        if hits:
+            return hits
+        time.sleep(0.5)
+    return hits
 
 
 def _kernel(coro_fn):

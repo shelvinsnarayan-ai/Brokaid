@@ -25,9 +25,11 @@ async def append_via_dispatch(
             idempotency_key=idempotency_key,
             mocked=mocked,
         )
-    try:  # R0.11A: one notification subscriber; never blocks the ledger write
-        from app.kernel import notify
-        await notify.on_event(store, tenant_id, type, payload, ev.event_id)
+    try:  # R0.11A/R1.1: notification fan-out is a durable job; never blocks the ledger write
+        from app.kernel import jobs, notify
+        if type in notify.RULES:
+            await jobs.enqueue(store, "notify.event", {"type": type, "payload": payload, "event_id": ev.event_id},
+                               key=f"notify:{ev.event_id}", tenant_id=tenant_id)
     except Exception as e:  # noqa: BLE001
         import logging
         logging.getLogger("brokaid.notify").warning("notify failed for %s (non-fatal): %r", type, e)

@@ -21,7 +21,7 @@ BOOKKEEPER = {"email": "bookkeeper@fictionalclient.example",
 async def _ensure_user(safe, tenant_id: str) -> str:
     u = await safe.users.find_one({"email": BOOKKEEPER["email"]})
     if u:
-        if not await safe.user_client_links.find_one({"user_id": u["user_id"]}):
+        if not await safe.user_client_links.find_one({"user_id": u["user_id"], "client_id": str(FICTIONAL_CLIENT_ID)}):
             await safe.user_client_links.insert_one({
                 "user_id": u["user_id"], "tenant_id": tenant_id,
                 "client_id": str(FICTIONAL_CLIENT_ID), "role": BOOKKEEPER["role"],

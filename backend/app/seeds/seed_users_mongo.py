@@ -63,9 +63,13 @@ async def _repoint_legacy_logins(db, tenant_id: str) -> int:
     moved = [u["user_id"] async for u in db.users.find({"repointed_from": legacy["tenant_id"]}, {"user_id": 1})]
     await db.user_brokerage_roles.update_many(
         {"tenant_id": legacy["tenant_id"], "user_id": {"$in": moved}}, {"$set": {"active": False}})
-    await db.user_client_links.update_many(
-        {"tenant_id": legacy["tenant_id"], "user_id": {"$in": moved}},
-        {"$set": {"tenant_id": f"archived:{legacy['tenant_id']}"}})
+    archived = f"archived:{legacy['tenant_id']}"
+    async for link in db.user_client_links.find({"tenant_id": legacy["tenant_id"], "user_id": {"$in": moved}}):
+        twin = {"user_id": link["user_id"], "client_id": link["client_id"], "tenant_id": archived}
+        if await db.user_client_links.find_one(twin):
+            await db.user_client_links.delete_one({"_id": link["_id"]})  # already archived once
+        else:
+            await db.user_client_links.update_one({"_id": link["_id"]}, {"$set": {"tenant_id": archived}})
     return res.modified_count
 
 
@@ -162,6 +166,8 @@ async def _ensure_client_mongo(safe_db, tenant_id: str, spec: dict) -> str:
                 user_id = existing["user_id"]
 
         try:
+            if await safe_db.user_client_links.find_one({"user_id": user_id, "client_id": str(FICTIONAL_CLIENT_ID)}):
+                return user_id  # R1.1: idempotent — never insert a second link on restart
             await safe_db.user_client_links.insert_one({
                 "user_id": user_id,
                 "tenant_id": tenant_id,
