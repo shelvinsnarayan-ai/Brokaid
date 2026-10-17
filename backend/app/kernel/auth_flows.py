@@ -32,7 +32,8 @@ MAX_FAILS, IP_MAX_FAILS, LOCK_FOR = 5, 20, timedelta(minutes=15)
 STAFF_ROLES = ("operator", "principal", "deputy", "ae", "accounts", "compliance")
 PRINCIPAL_MAY_INVITE = ("deputy", "ae", "accounts", "compliance")
 CLIENT_ROLES = {"owner": "client_owner", "bookkeeper": "client_contact"}
-ROLE_LABEL = {"operator": "Operator", "principal": "Principal", "deputy": "Deputy", "ae": "Account executive",
+LOGIN_ROLES = STAFF_ROLES + ("platform_admin",)  # R1.9: platform_admin signs in but is never a tenant staff role
+ROLE_LABEL = {"platform_admin": "Platform admin", "operator": "Operator", "principal": "Principal", "deputy": "Deputy", "ae": "Account executive",
               "accounts": "Accounts", "compliance": "Compliance", "owner": "Client owner", "bookkeeper": "Bookkeeper"}
 _COMMON = {l.strip().lower() for l in (Path(__file__).parent.parent / "auth" / "common_passwords.txt").read_text().splitlines() if l.strip()}
 _WEAK_WORDS = ("password", "passw0rd", "qwerty", "letmein", "welcome", "iloveyou", "admin", "abc123", "monkey",
@@ -201,12 +202,18 @@ async def migrate_identities(store) -> int:
     return moved
 
 
+def _platform_emails() -> set[str]:
+    return {e.strip().lower() for e in (os.environ.get("PLATFORM_ADMIN_EMAILS") or "").split(",") if e.strip()}
+
+
 async def tenant_options(store, email: str) -> list[dict]:
     out, ident = [], await identity(store, email)
     for doc, tid in await find_users(store, email):
         if doc.get("disabled") or not await login_context(store, doc, tid):
             continue
         t = await wrap(store).system("tenants").find_one({"tenant_id": tid})
+        if (t or {}).get("status") == "suspended":  # R1.9: a suspended brokerage can't sign in
+            continue
         out.append({"tenant_id": tid, "name": t["display_name"], "slug": t["slug"], "user": merged(doc, ident)})
     return out
 
@@ -217,8 +224,10 @@ async def login_context(store, user: dict, tenant_id: str) -> dict | None:
     async with use_tenant(tenant_id):
         if user["kind"] == "operator":
             rows = [r async for r in safe.user_brokerage_roles.find({"user_id": user["user_id"], "active": True})]
-            for role in STAFF_ROLES:
+            for role in LOGIN_ROLES:
                 for r in rows:
+                    if r["role"] == role == "platform_admin" and (user.get("email") or "").lower() not in _platform_emails():
+                        continue  # R1.9: platform_admin only while the email is in PLATFORM_ADMIN_EMAILS
                     if r["role"] == role:
                         return {"active_role": role, "brokerage_id": r["brokerage_id"], "client_id": None, "staff": True}
             return None
@@ -264,7 +273,7 @@ async def issue_session(store, tenant_id: str, user_id: str, ctx: dict) -> tuple
             "mfa_verified": True, "pending_mfa": False, "staff": staff, "expires_at": now() + ttl,
             "idle_s": None if staff else int(CLIENT_IDLE.total_seconds()), "last_seen_at": now(),
             "revoked_at": None, "client_prefs": {}, "created_at": now()})
-    return sid, int(ttl.total_seconds()), "/o" if staff else "/c"
+    return sid, int(ttl.total_seconds()), "/platform" if ctx["active_role"] == "platform_admin" else "/o" if staff else "/c"
 
 
 async def finalise(store, row: dict) -> tuple[str, int, str]:
@@ -320,8 +329,12 @@ async def use_token(store, row: dict) -> bool:
 async def create_invite(store, *, tenant_id: str, email: str, name: str, role: str,
                         client_id: str | None, created_by: str, bootstrap: bool = False) -> tuple[str, dict]:
     email = email.strip().lower()
-    if role not in STAFF_ROLES and role not in CLIENT_ROLES:
+    if role not in LOGIN_ROLES and role not in CLIENT_ROLES:
         raise HTTPException(status_code=422, detail="Pick a valid role.")
+    if role == "platform_admin":  # R1.9: only the bootstrap, only in the platform tenant, only env emails
+        t = await wrap(store).system("tenants").find_one({"tenant_id": tenant_id}) or {}
+        if t.get("slug") != "platform" or email.strip().lower() not in _platform_emails() or created_by != "bootstrap":
+            raise HTTPException(status_code=422, detail="Pick a valid role.")
     if role in CLIENT_ROLES and not client_id:
         raise HTTPException(status_code=422, detail="Pick the client this person belongs to.")
     async with use_tenant(tenant_id):

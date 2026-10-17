@@ -351,6 +351,9 @@ async def add_file(store, tid, c, *, kind: str, data: bytes, filename: str, cont
         raise Bad("Upload a file up to 10 MB.")
     if content_type not in FILE_TYPES:
         raise Bad("Upload a photo (JPEG, PNG, WebP, HEIC) or a PDF.")
+    from app.kernel import filetype
+    if not filetype.matches(data, content_type):
+        raise Bad("The file's contents don't match its type. Upload a real photo or PDF.")
     if c["stage"] in TERMINAL:
         raise Bad("This claim is closed.")
     if not keep_location:

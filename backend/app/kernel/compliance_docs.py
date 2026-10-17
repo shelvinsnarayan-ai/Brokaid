@@ -53,6 +53,9 @@ async def _event(store, tid, typ, payload, idem, by="system", role="compliance")
 
 async def upload(store, tid, *, kind, data: bytes, filename: str, content_type: str, version: str, effective_date: str,
                  insurer: str | None, product: str | None, by: str) -> dict:
+    from app.kernel import filetype
+    if not filetype.matches(data, content_type or "application/pdf"):
+        raise ValueError("The file's contents don't match its type. Upload a real PDF or Word document.")
     if kind not in KINDS:
         raise Missing(f"Document type must be one of {', '.join(KINDS)}.")
     if kind != "FSG" and not (insurer or "").strip():

@@ -11,14 +11,15 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, FastAPI
-from starlette.middleware.cors import CORSMiddleware
 
-from app.db import mongo as mongo_db
-from app.middleware.tenant import TenantContextMiddleware
-from app.settings import get_settings
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")  # before app imports: COOKIE_NAME reads APP_BASE_URL at import
 
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+from fastapi import APIRouter, FastAPI  # noqa: E402
+from starlette.middleware.cors import CORSMiddleware  # noqa: E402
+
+from app.db import mongo as mongo_db  # noqa: E402
+from app.middleware.tenant import TenantContextMiddleware  # noqa: E402
+from app.settings import get_settings  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -92,6 +93,8 @@ def create_app(
         try:
             logger.info("identities migrated: %s", await auth_flows.migrate_identities(app.state.mongo_db))
             logger.info("bootstrap operator: %s", await auth_flows.bootstrap_operator(app.state.mongo_db))
+            from app.kernel import platform as _platform
+            logger.info("bootstrap platform admin: %s", await _platform.bootstrap(app.state.mongo_db))
         except Exception as e:  # noqa: BLE001
             logger.warning("bootstrap operator failed (non-fatal): %r", e)
         await notify.ensure_indexes(app.state.mongo_db)
@@ -105,10 +108,14 @@ def create_app(
         await _renewals.ensure_indexes(app.state.mongo_db)
         from app.kernel import compliance_docs as _cdocs
         await _cdocs.ensure_indexes(app.state.mongo_db)
+        from app.kernel import ops as _ops
+        await _ops.ensure_indexes(app.state.mongo_db)
         await app.state.mongo_db.push_subscriptions.create_index(
             [("tenant_id", 1), ("user_id", 1), ("endpoint", 1)], unique=True)
         # R1.1: background work runs as durable jobs (notify fan-out, intake chain, email, push, periodic checks).
         job_tasks = await jobs.start_in_process(app.state.mongo_db, workers=int(_os.environ.get("JOBS_WORKERS", "1")))
+        import asyncio as _asyncio
+        job_tasks.append(_asyncio.create_task(_ops.watch_loop(app.state.mongo_db)))  # R1.9 owner alerts (leader-independent)
         try:
             yield
         finally:
@@ -128,10 +135,25 @@ def create_app(
         allow_headers=["*"],
     )
     app.add_middleware(TenantContextMiddleware)
+    from app.kernel.ops import AccessLogMiddleware
+    from app.middleware.security import SecurityMiddleware
+    app.add_middleware(SecurityMiddleware)   # R1.9: headers, CSRF origin check, rate limits
+    app.add_middleware(AccessLogMiddleware)  # R1.9: outermost — JSON access log + error capture
 
     from fastapi import Depends
     from app.middleware.client_guard import client_object_guard
     api_router = APIRouter(dependencies=[Depends(client_object_guard)])  # R1.2b: foreign client objects → 404
+
+    @api_router.get("/api/health")
+    async def health() -> dict:
+        return {"status": "ok"}
+
+    @api_router.get("/api/ready")
+    async def ready_check():
+        from fastapi.responses import JSONResponse
+        from app.kernel import ops as _ops
+        r = await _ops.ready(app.state.mongo_db)
+        return JSONResponse(r, status_code=200 if r["ok"] else 503)
 
     @api_router.get("/api/healthz")
     async def healthz() -> dict:
@@ -158,6 +180,7 @@ def create_app(
     from app.routes.o_compliance import c_router as c_compliance_router
     from app.routes.o_compliance import router as o_compliance_router
     from app.routes.c_members import router as c_members_router
+    from app.routes.platform import router as platform_router
     from app.routes.c_ask import router as c_ask_router
     from app.routes.c_cert import router as c_cert_router
     from app.routes.c_claims import router as c_claims_router
@@ -191,7 +214,7 @@ def create_app(
     for r in (
         build_info_router,
         c_envelope_router,
-        auth_login_router, o_invites_router, o_users_router, o_import_router, o_bank_router, c_money_router, o_renewals_router, c_renewals_router, o_compliance_router, c_compliance_router, c_members_router,
+        auth_login_router, o_invites_router, o_users_router, o_import_router, o_bank_router, c_money_router, o_renewals_router, c_renewals_router, o_compliance_router, c_compliance_router, c_members_router, platform_router,
         c_ask_router, c_cert_router, c_claims_router, c_me_router,
         c_next_action_router, c_pending_quote_router, c_scene_router,
         client_360_router, client_preferences_router,

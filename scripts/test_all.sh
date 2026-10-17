@@ -24,6 +24,8 @@ mongo_preflight() {  # mongod aborts with EMFILE (errno 24) at the default 1024 
 }
 
 step "mongo preflight" mongo_preflight
+step "secrets scan (tree+history)" bash scripts/secrets_scan.sh
+step "dependency audit" bash scripts/dep_audit.sh
 step "backend lint (ruff E9,F)" bash -c "cd backend && ruff check app tests --select E9,F"
 step "frontend typecheck" bash -c "cd frontend && node_modules/.bin/tsc --noEmit -p ."
 step "deny-list (source)" node ci/deny_list_source.js

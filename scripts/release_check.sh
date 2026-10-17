@@ -4,8 +4,8 @@
 #   e.g. scripts/release_check.sh https://app.example.com "$BROKAID_SESSION"
 # Exit code: 0 PASS, 1 FAIL, 2 could not run.
 set -euo pipefail
-BASE="${1:?base URL}"; SESSION="${2:?Olly session cookie value (brokaid_session)}"
-H=(-H "Cookie: brokaid_session=${SESSION}" -H "Content-Type: application/json")
+BASE="${1:?base URL}"; SESSION="${2:?Olly session cookie value (__Host-brokaid_session; override the name with COOKIE=)}"
+H=(-H "Cookie: ${COOKIE:-__Host-brokaid_session}=${SESSION}" -H "Content-Type: application/json")
 start=$(curl -sS -w '\n%{http_code}' -X POST "${BASE%/}/api/o/release-check" "${H[@]}" -d '{}')
 code=$(tail -n1 <<<"$start"); body=$(sed '$d' <<<"$start")
 if [ "$code" != "200" ]; then echo "Could not start release check (HTTP $code): $body"; exit 2; fi

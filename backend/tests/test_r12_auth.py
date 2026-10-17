@@ -8,6 +8,8 @@ import httpx
 import pyotp
 import pytest
 
+from app.kernel.routes_util import all_routes
+
 from app.auth.sessions import COOKIE_NAME
 from app.db.tenant_safe import wrap
 from app.kernel import auth_flows as af
@@ -73,7 +75,9 @@ def test_invite_accept_enrol_and_single_use():
     async def go(db, c, app):
         tid = await _tid(db)
         op = await _staff_cookie(db, "operator@harbourline.example")
-        clients = (await c.get("/api/o/invites", cookies=op)).json()["clients"]
+        _r = await c.get("/api/o/invites", cookies=op)
+        assert _r.status_code == 200, _r.text
+        clients = _r.json()["clients"]
         r = await c.post("/api/o/invites", cookies=op, json={"email": "new.ae@harbourline.example", "name": "Nia New", "role": "ae"})
         assert r.status_code == 200 and r.json()["email_status"] == "skipped:example_address".split(":")[0]
         token = r.json()["invite_url"].rsplit("/", 1)[1]
@@ -257,7 +261,7 @@ def test_bootstrap_operator_is_idempotent():
 
 def test_production_has_no_dev_or_legacy_sign_in():
     async def go(db, c, app):
-        paths = {getattr(r, "path", "") for r in app.routes}
+        paths = {getattr(r, "path", "") for r in all_routes(app)}
         assert not any(p.startswith(("/api/auth/dev", "/api/auth/client", "/api/auth/operator")) for p in paths)
         assert "/api/auth/login" in paths and af.cookie_flags()["secure"] is True
         assert (await c.post("/api/auth/dev/impersonate", json={"email": "operator@harbourline.example"})).status_code in (404, 405)

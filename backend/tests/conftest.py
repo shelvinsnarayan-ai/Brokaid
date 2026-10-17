@@ -21,6 +21,9 @@ import uuid  # noqa: E402
 TEST_PREFIX = "brokaid_test_"
 _RUN = os.environ.get("BROKAID_TEST_RUN") or uuid.uuid4().hex[:8]
 os.environ["BROKAID_TEST_RUN"] = _RUN
+os.environ.setdefault("RATE_LIMIT_PER_MIN", "100000")       # R1.9: tests share one client IP
+os.environ.setdefault("RATE_LIMIT_AUTH_PER_MIN", "100000")
+os.environ.setdefault("OPS_WATCH_SECONDS", "86400")
 _LIVE_DB = os.environ.get("DB_NAME", "")
 _SERVER: subprocess.Popen | None = None
 
@@ -56,6 +59,7 @@ def pytest_configure(config):
     port = _free_port()
     base = f"http://127.0.0.1:{port}"
     env = {**os.environ, "DB_NAME": db, "AUTH_DEV_MODE": "true", "ENVIRONMENT": "development",
+           "RATE_LIMIT_PER_MIN": "100000", "RATE_LIMIT_AUTH_PER_MIN": "100000", "OPS_WATCH_SECONDS": "86400",
            "APP_BASE_URL": base, "EMAIL_ENABLED": "false", "EMAIL_AUTH_ENABLED": "false", "PUSH_ENABLED": "false"}
     _guard_db(env["DB_NAME"])
     log = open(f"/tmp/brokaid_test_api_{_RUN}_{_worker()}.log", "w")

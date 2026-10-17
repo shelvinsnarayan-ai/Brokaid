@@ -67,11 +67,16 @@ async def _ids(request: Request) -> dict[str, str]:
 async def client_object_guard(request: Request) -> None:
     if not request.url.path.startswith("/api/c/"):
         return
+    from app.middleware.session import require_session
+    try:
+        session = await require_session(request)
+    except HTTPException:
+        return  # unauthenticated: the route's own dependency answers 401
+    if session.active_role == "platform_admin":
+        raise NOT_FOUND  # platform admins have no client surface at all
     ids = await _ids(request)
     if not ids:
         return
-    from app.middleware.session import require_session
-    session = await require_session(request)
     from app.kernel.rbac import ALL_OPERATOR_ROLES
     if session.active_role in ALL_OPERATOR_ROLES:
         raise HTTPException(status_code=403, detail="client_only")  # staff never use client routes

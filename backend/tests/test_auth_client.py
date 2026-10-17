@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import pytest
 
+from app.auth.sessions import COOKIE_NAME
+
 pytestmark = pytest.mark.asyncio
 
 
@@ -35,7 +37,7 @@ async def test_verify_token_creates_session(app_client, seeded):
     assert r.status_code == 200
     body = r.json()
     assert body["ok"] is True
-    assert "brokaid_session" in client.cookies
+    assert COOKIE_NAME in client.cookies
 
 
 async def test_verify_twice_second_attempt_400(app_client, seeded):

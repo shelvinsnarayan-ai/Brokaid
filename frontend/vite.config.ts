@@ -82,6 +82,21 @@ function devOnlyChunkMarker(): Plugin {
   };
 }
 
+const SECURITY_HEADERS = {
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+};
+
+function csp(dev: boolean): string {
+  const script = dev ? "'self' 'unsafe-inline'" : "'self'";
+  return [`default-src 'self'`, `script-src ${script}`, `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+    `font-src 'self' https://fonts.gstatic.com data:`, `img-src 'self' data: blob:`, `connect-src 'self' wss: https:`,
+    `worker-src 'self'`, `manifest-src 'self'`, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'`, `object-src 'none'`].join("; ");
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const authDev = (env.AUTH_DEV_MODE ?? "false").toLowerCase() === "true";
@@ -154,7 +169,10 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.BROKAID_BUILD_SHA": JSON.stringify(readBuildIdentity().sha),
       "import.meta.env.BROKAID_BUILD_SIGNED": JSON.stringify(readBuildIdentity().signed),
     },
+    // R1.9: security headers. Dev needs 'unsafe-inline' scripts for the React refresh preamble; preview/prod does not.
+    preview: { headers: { ...SECURITY_HEADERS, "Content-Security-Policy": csp(false) } },
     server: {
+      headers: { ...SECURITY_HEADERS, "Content-Security-Policy": csp(true) },
       host: "0.0.0.0",
       port: 3000,
       strictPort: true,

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import pytest
 
+from app.auth.sessions import COOKIE_NAME
+
 from app.auth import totp as totp_mod
 
 pytestmark = pytest.mark.asyncio
@@ -19,7 +21,7 @@ async def test_login_wrong_password_returns_401(app_client, seeded):
     )
     assert r.status_code == 401
     assert r.json()["detail"] == "invalid_credentials"
-    assert "brokaid_session" not in r.cookies
+    assert COOKIE_NAME not in r.cookies
 
 
 async def test_login_unknown_user_returns_401(app_client, seeded):
@@ -44,7 +46,7 @@ async def test_login_success_sets_cookie_and_flags_mfa_required(app_client, seed
         "enrolment_required": True,
         "active_role": "principal",
     }
-    assert "brokaid_session" in client.cookies
+    assert COOKIE_NAME in client.cookies
 
 
 async def test_enrol_then_verify_upgrades_session(app_client, seeded, pool):

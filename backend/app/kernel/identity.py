@@ -256,7 +256,12 @@ def _tenant_from_row(row) -> Tenant:
 
 # ---- Public dispatcher functions -------------------------------------
 async def read_session(store, session_id) -> Optional[Session]:
-    return await _dispatch(store).read_session(store, session_id)
+    s = await _dispatch(store).read_session(store, session_id)
+    if s is not None and hasattr(store, "tenants"):
+        from app.kernel.platform import is_suspended
+        if await is_suspended(store, s.tenant_id):  # R1.9: suspension ends every session for that tenant
+            return None
+    return s
 
 
 async def create_session(

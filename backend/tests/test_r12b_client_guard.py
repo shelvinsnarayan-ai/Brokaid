@@ -4,6 +4,8 @@ import uuid
 
 import pytest
 
+from app.kernel.routes_util import all_routes
+
 from app.db.tenant_safe import wrap
 from app.kernel import auth_flows as af
 from app.kernel.tenant_ctx import use_tenant
@@ -16,7 +18,7 @@ NESTED = {"file_id", "req_id"}  # R1.8: only ever under a guarded claim_id
 
 def _c_routes(app):
     out = []
-    for r in app.routes:
+    for r in all_routes(app):
         p = getattr(r, "path", "")
         if p.startswith("/api/c/") and "{" in p:
             for m in sorted(r.methods - {"HEAD", "OPTIONS"}):

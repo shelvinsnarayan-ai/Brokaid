@@ -37,6 +37,20 @@ async def _privacy_export(store, job: dict) -> None:
     await privacy_export.build(store, job["tenant_id"], p["matter_id"], p["client_id"], p["user_id"])
 
 
+@jobs.handler("backup.nightly")
+async def _backup_nightly(store, job: dict) -> None:
+    from app.kernel import backup
+    await backup.backup_all(store)
+
+
+@jobs.handler("backup.drill")
+async def _backup_drill(store, job: dict) -> None:
+    from app.kernel import backup
+    # tenant-safe: system-only — weekly drill on each tenant's latest backup
+    async for t in store.tenants.find({}, {"tenant_id": 1}):
+        await backup.drill(store, t["tenant_id"])
+
+
 @jobs.handler("ai.eval")
 async def _ai_eval(store, job: dict) -> None:
     from app.eval.run import run

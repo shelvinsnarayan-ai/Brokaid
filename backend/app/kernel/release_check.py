@@ -204,7 +204,8 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
 
     async def auth_cfg():
         from app.kernel import auth_flows
-        paths = {getattr(rt, "path", "") for rt in app.routes}
+        from app.kernel.routes_util import all_routes
+        paths = {getattr(rt, "path", "") for rt in all_routes(app)}
         if env == "production" and any(p.startswith(("/api/auth/dev", "/api/auth/client", "/api/auth/operator")) for p in paths):
             raise StepFailed("Dev or legacy sign-in routes are reachable in production.")
         f = auth_flows.cookie_flags()
@@ -367,6 +368,7 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
         await manual_only_steps(r, store)
         await compliance_steps(r, store, tenant_id, ids)
         await claim_steps(r, store, tenant_id, ids, run_id)
+        await ops_steps(r, http, store, tenant_id)
 
         async def probe_client_on_o():
             await expect(await http.get("/api/o/queue", headers=as_("owner")), 403, "Client on broker route")
@@ -553,6 +555,45 @@ async def compliance_steps(r, store, tenant_id, ids) -> None:
     for key, label, fn in (("compliance.fsg", "FSG delivered on invite", fsg), ("compliance.complaint_clock", "Complaint clock", clock),
                            ("ai.eval_gate", "AI eval gate", evalgate)):
         await r.step(key, label, fn)
+
+
+async def ops_steps(r, http, store, tenant_id) -> None:
+    """R1.9: readiness, backup age, last restore drill, security headers."""
+    from app.kernel import ops
+
+    async def ready():
+        x = await ops.ready(store)
+        if not x["ok"]:
+            raise StepFailed("Not ready: " + ", ".join(k for k, v in x["checks"].items() if not v["ok"]))
+        return "Mongo, object storage, job leader and LLM key all OK."
+
+    async def backup_age():
+        b = await store.backups.find_one({"tenant_id": tenant_id}, sort=[("at", -1)])  # tenant-safe: system-only
+        if not b:
+            raise StepFailed("No backup for this tenant yet.")
+        age = (datetime.now(timezone.utc) - (b["at"] if b["at"].tzinfo else b["at"].replace(tzinfo=timezone.utc))).total_seconds() / 3600
+        if age >= 26:
+            raise StepFailed(f"Latest backup is {age:.0f}h old (limit 26h).")
+        return f"Latest backup {age:.1f}h old ({sum(b['counts'].values())} documents, key {b['key_id']})."
+
+    async def drill():
+        d = await store.restore_drills.find_one({"tenant_id": tenant_id}, sort=[("at", -1)])  # tenant-safe: system-only
+        if not d or d["result"] != "PASS":
+            raise StepFailed(f"Last restore drill: {(d or {}).get('result', 'none')} {(d or {}).get('reason') or ''}".strip())
+        return f"Last restore drill PASS ({d['events']} events chain-verified, counts match the manifest)."
+
+    async def headers():
+        resp = await http.get("/api/health")
+        need = ("content-security-policy", "strict-transport-security", "x-frame-options", "referrer-policy", "permissions-policy")
+        missing = [h for h in need if h not in resp.headers]
+        if missing:
+            raise StepFailed("Missing headers: " + ", ".join(missing))
+        return "CSP, HSTS, X-Frame-Options, Referrer-Policy and Permissions-Policy present."
+
+    await r.step("ops.ready", "/api/ready", ready)
+    await r.step("ops.backup_age", "Backup under 26h old", backup_age)
+    await r.step("ops.restore_drill", "Last restore drill", drill)
+    await r.step("ops.headers", "Security headers", headers)
 
 
 async def claim_steps(r, store, tenant_id, ids, run_id) -> None:

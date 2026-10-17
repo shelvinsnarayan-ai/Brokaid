@@ -8,6 +8,7 @@ import { BrandingEditor } from "./BrandingEditor";
 import { ReleaseCheck } from "./ReleaseCheck";
 import { BackgroundWork } from "./BackgroundWork";
 import { AiEval } from "./AiEval";
+import { GoLive } from "./GoLive";
 
 const API = (import.meta as any).env.VITE_API_BASE || "";
 
@@ -317,6 +318,7 @@ export function Governance() {
       <section style={card}><ReleaseCheck /></section>
       <section style={card} data-testid="gov-invites-card"><strong>People</strong> · <Link to="/o/invites" data-testid="gov-invites-link">Invite staff and clients</Link></section>
       <section style={card}><BackgroundWork /></section>
+      <section style={card}><GoLive /></section>
       <section style={card}><AiEval /></section>
       <SpendCard s={spendData} />
       <RegistryCard />

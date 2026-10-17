@@ -1,0 +1,6 @@
+.imp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; margin: 16px 0; }
+@media (max-width: 800px) { .imp-grid { grid-template-columns: 1fr; } }
+.imp-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.imp-field > span { opacity: 0.75; letter-spacing: 0.02em; }
+.imp-field input, .imp-field select { padding: 9px 11px; border-radius: 6px; border: 1px solid #3a3f48; background: #161a21; color: inherit; font: inherit; transition: border-color 120ms ease; }
+.imp-field input:focus, .imp-field select:focus { outline: none; border-color: #c9a227; }

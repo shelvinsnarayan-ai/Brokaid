@@ -61,6 +61,16 @@ def _view(row: dict) -> dict:
                for k in ("enabled_at", "released_at")}}
 
 
+@router.get("/governance/go-live")
+async def go_live(request: Request, session: Session = Depends(require_operator_session)) -> dict:
+    """R1.9: the tenant's own go-live checklist (same items the platform admin sees)."""
+    from app.kernel import platform
+    store = request.app.state.mongo_db
+    t = await store.tenants.find_one({"tenant_id": session.tenant_id}, {"status": 1})  # tenant-safe: system-only — own row
+    items = await platform.checklist(store, session.tenant_id)
+    return {"status": (t or {}).get("status") or "live", "checklist": items, "missing": [i["label"] for i in items if not i["done"]]}
+
+
 @router.get("/kill-switch")
 async def list_switches(request: Request, session: Session = Depends(require_operator_role)) -> dict:
     rows = await governance.list_all(_db(request))

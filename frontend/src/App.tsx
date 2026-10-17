@@ -39,6 +39,7 @@ import { OperatorClaim } from "./pages/operator/claims/Detail";
 import ClaimsPage from "./pages/operator/Claims";
 import { ShadowMode, ShadowModeDrill } from "./pages/operator/ShadowMode";
 import { Governance } from "./pages/operator/Governance";
+import Platform from "./pages/platform/Platform";
 import { TrailExport } from "./pages/operator/TrailExport";
 import { ChaseLadder } from "./pages/operator/ChaseLadder";
 import "./styles/shadow-mode.css";
@@ -72,6 +73,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<SignIn />} />
+        <Route path="/platform/*" element={<Platform />} />
         <Route path="/invite/:token" element={<AcceptInvite />} />
         <Route path="/reset/:token" element={<ResetPassword />} />
         <Route path="/account/security" element={<AccountSecurity />} />

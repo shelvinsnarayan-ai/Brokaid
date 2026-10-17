@@ -7,6 +7,8 @@ touches tenant-scoped tables.
 """
 from __future__ import annotations
 
+import os
+
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -14,7 +16,8 @@ from typing import Optional
 
 
 
-COOKIE_NAME = "brokaid_session"
+# R1.9: __Host- prefix (Secure, Path=/, no Domain) whenever the app is served over https.
+COOKIE_NAME = "__Host-brokaid_session" if (os.environ.get("APP_BASE_URL") or "").startswith("https://") else "brokaid_session"
 SESSION_TTL = timedelta(hours=12)
 
 
