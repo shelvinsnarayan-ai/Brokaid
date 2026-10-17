@@ -12,7 +12,6 @@ from app.db import mongo as mongo_db  # noqa: E402
 from app.db.tenant_safe import wrap  # noqa: E402
 from app.kernel import auth_flows as af  # noqa: E402
 from app.kernel.tenant_ctx import use_tenant  # noqa: E402
-from app.kernel.tenant_ctx import use_tenant  # noqa: E402
 from app.seeds.seed_users import FICTIONAL_CLIENT_ID  # noqa: E402
 
 QA = [("qa.operator@harbourline.example", "QA Operator", "operator"),
