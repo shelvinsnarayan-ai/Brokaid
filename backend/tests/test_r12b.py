@@ -91,6 +91,11 @@ def test_multi_tenant_bootstrap_login_chooser_and_switch():
         assert s_b != s_a and (await c.get("/api/o/queue", cookies=s_a)).status_code == 401  # switching re-issues
         sess = await db.sessions.find_one({"session_id": s_b[COOKIE_NAME]})
         assert sess["tenant_id"] == target
+        listed = {x["client_id"] for x in (await c.get("/api/o/clients", cookies=s_b)).json()["clients"]}
+        async with use_tenant(target):
+            expected = {x["client_id"] async for x in wrap(db).clients.find({})}
+        assert listed <= expected  # the new session lists only the new tenant's clients
+        assert (OTHER_CLIENT in listed) == (target == b)
         codes = {target: (await c.get(f"/api/o/client/{OTHER_CLIENT}", cookies=s_b)).status_code}
         r = await c.post("/api/auth/switch-tenant", cookies=s_b, json={"tenant_id": current})
         assert COOKIE_NAME in r.cookies, r.text
@@ -232,7 +237,8 @@ def test_a02_deferred_1_2_4_5_6_7_and_every_client_action_checks_authority():
         assert (await c.get("/api/c/me", cookies=kai)).json()["session"]["client_id"] == hh
         assert (await c.post("/api/c/switch-client", cookies=ada, json={"client_id": hh})).status_code == 404
         hh_pol = await _policy(db, tid, hh)
-        assert (await c.post(f"/api/c/matters/{hh_pol}/request-change", cookies=ada, json={"raw_message": "x", "idempotency_key": "leak"})).status_code == 403
+        r = await c.post(f"/api/c/matters/{hh_pol}/request-change", cookies=ada, json={"raw_message": "x", "idempotency_key": "leak"})
+        assert r.status_code == 404 and "can_request_change" not in r.text  # foreign client: not found, never an authority message
         await c.post("/api/c/switch-client", cookies=kai, json={"client_id": CLIENT})
         # A02-6: nothing leaks across clients
         assert hh not in [m["client_id"] for m in (await c.get("/api/c/me", cookies=ada)).json()["memberships"]]
@@ -250,6 +256,7 @@ def test_a02_deferred_1_2_4_5_6_7_and_every_client_action_checks_authority():
         for sw in ("can_claim", "can_certificates", "can_view", "can_pay"):
             await c.put(f"/api/c/members/{bea_m['membership_id']}/authority", cookies=kai, json={"switch": sw, "on": False})
         env = "00000000-0000-4000-8000-00000000e999"
+        await af.ledger(db, tid, "EnvelopeOpened", {"kind": "system", "id": "t", "name": "t"}, {"envelope_id": env, "policy_id": pol})
         for method, path, body in (
                 ("post", "/api/c/claims", {"description": "Water damage in the office"}),
                 ("post", "/api/c/certificate/regen", {"policy_id": pol}),
@@ -325,6 +332,7 @@ def test_o_users_admin_actions_and_principal_limits():
         dep, olly = by["deputy@harbourline.example"], by["operator@harbourline.example"]
         assert dep["status"] == "active" and dep["mfa"] and olly["editable"] is False and "operator" not in listing["staff_roles"]
         assert (await c.post(f"/api/o/users/{olly['user_id']}/disable", cookies=ada)).status_code == 403
+        assert (await c.post(f"/api/o/users/{olly['user_id']}/reset-mfa", cookies=ada)).status_code == 403
         assert (await c.post(f"/api/o/users/{dep['user_id']}/role", cookies=ada, json={"role": "principal"})).status_code == 403
         assert (await c.post(f"/api/o/users/{dep['user_id']}/disable", cookies=ada)).status_code == 200
         assert (await c.get("/api/o/queue", cookies=jar)).status_code == 401

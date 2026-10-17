@@ -119,7 +119,9 @@ def create_app(
     )
     app.add_middleware(TenantContextMiddleware)
 
-    api_router = APIRouter()
+    from fastapi import Depends
+    from app.middleware.client_guard import client_object_guard
+    api_router = APIRouter(dependencies=[Depends(client_object_guard)])  # R1.2b: foreign client objects → 404
 
     @api_router.get("/api/healthz")
     async def healthz() -> dict:
