@@ -17,6 +17,12 @@ async def _notify_periodic(store, job: dict) -> None:
     await notify.run_checks(store, job["payload"]["tenant_id"])
 
 
+@jobs.handler("renewals.tick")
+async def _renewals_tick(store, job: dict) -> None:
+    from app.kernel import renewals
+    await renewals.tick(store, job["payload"]["tenant_id"])
+
+
 @jobs.handler("email.send")
 async def _email_send(store, job: dict) -> None:
     await email_channel.run_once(store)

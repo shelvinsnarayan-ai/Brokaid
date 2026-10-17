@@ -45,6 +45,15 @@ from app.middleware.session import require_session
 
 
 router = APIRouter(prefix="/api/c/matters")
+MANUAL_QUOTE_STAGE = "enter_insurer_quote"
+ESIGN_OFF = ("Signing in the app isn't switched on for this brokerage yet. Your broker will arrange signing with you.")
+
+
+async def require_mock_esign(store, tenant_id: str) -> None:
+    """R1.6: the MOCKED e-sign is never shown in a manual_only (real) tenant."""
+    from app.kernel.holidays import quoting_mode
+    if await quoting_mode(store, tenant_id) == "manual_only":
+        raise HTTPException(status_code=409, detail=ESIGN_OFF)
 
 
 class LineageIncomplete(HTTPException):
@@ -340,11 +349,23 @@ async def _run_intake_placement_async(
         ))
         await mark("submission")
     if "quote" not in state:
+        from app.kernel.holidays import quoting_mode
+        if await quoting_mode(store, tenant_id) == "manual_only":  # R1.6: real tenant — no mocked pricing; the AE enters the insurer's quote
+            await _park_for_broker(
+                store, tenant_id=tenant_id, envelope_id=envelope_id_str, policy=policy, stage=MANUAL_QUOTE_STAGE,
+                mismatch={"field_path": "insurer_quote", "attempted_value": None,
+                          "reason": "Enter insurer quote — this brokerage uses real insurer quotes only (no mocked pricing)."},
+                gate_reason="manual_quote_required",
+            )
+            await mark("quote", "awaiting_manual")
+            return
         quote = await submit_endorsement(envelope_id=envelope_id_str, submission=plc_payload, policy_current=policy)
         await _once(scene.emit_carrier_quoted(store, tenant_id=tenant_id, envelope_id=envelope_id_str,
                                               policy_id=policy_id, quote=quote))
         await mark("quote", quote)
     quote = state["quote"]
+    if quote == "awaiting_manual":
+        return
     if "ready" not in state:
         await _once(scene.emit_endorsement_quote_ready(store, tenant_id=tenant_id, envelope_id=envelope_id_str,
                                                        policy_id=policy_id, quote_id=quote["quote_id"]))
@@ -484,10 +505,11 @@ async def _load_payable(store, tenant_id: str, policy_id: str,
 async def _details_for(store, tenant_id: str, policy: dict, quote: dict, envelope_id: str) -> dict:
     """R1.5: a payable with its own CRN; real trust details once the Operator sets them, MOCKED until then."""
     from app.kernel import payments
+    from app.kernel.holidays import quoting_mode
     p = await payments.ensure_payable(store, tenant_id, envelope_id=envelope_id, policy_id=policy["policy_id"],
                                       amount=quote.get("premium_change_amount") or "0",
                                       currency=quote.get("premium_currency") or policy["premium_currency"])
-    return payments.details(p, await payments.get_settings(store, tenant_id))
+    return payments.details(p, await payments.get_settings(store, tenant_id), await quoting_mode(store, tenant_id))
 
 
 @router.api_route("/{policy_id}/pay/{envelope_id}", methods=["GET", "POST"])
@@ -582,6 +604,7 @@ async def sign(
     store = _store(request)
     tenant_id = session.tenant_id
     await _authorise(store, session, policy_id, envelope_id, "sign_attempt", "can_sign")
+    await require_mock_esign(store, tenant_id)
     await _require_predecessor(
         store, tenant_id, envelope_id, [scene.PAYMENT_ADVISED],
     )

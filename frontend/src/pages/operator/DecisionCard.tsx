@@ -11,6 +11,7 @@ import { KKbd } from "../../components/ledger/KKbd";
 import { KNumber } from "../../components/ledger/KNumber";
 import { useOperatorStore } from "../../state/operatorStore";
 import { labelFor } from "../../lib/labels";
+import { EnterInsurerQuote } from "./EnterInsurerQuote";
 import { fmtDateTime, fmtSydDate, fmtSydTime } from "../../lib/format";
 
 const confidenceWord = (s: number | null | undefined) =>
@@ -179,6 +180,8 @@ export function DecisionCard() {
               <p style={{ marginTop: 0, color: "var(--alert)" }}>
                 {(proposal as any).payload?.stage === "advice_boundary"
                   ? "Parked: this needs personal advice from a broker. Nothing was quoted."
+                  : (proposal as any).payload?.stage === "enter_insurer_quote"
+                  ? "Parked: get a real quote from the insurer and enter it below. Nothing was auto-priced."
                   : "Parked: the request doesn't match what the policy holds. Nothing was quoted."}
               </p>
               {(proposal as any).payload?.stage !== "advice_boundary" && (
@@ -188,6 +191,8 @@ export function DecisionCard() {
                 </>
               )}
               <p>Check · <span data-testid="dcard-mismatch-reason">{mismatch.reason}</span></p>
+              {(proposal as any).payload?.stage === "enter_insurer_quote" && !data.resolution
+                ? <EnterInsurerQuote envelopeId={envelope_id!} onDone={() => setTick((n) => n + 1)} /> : null}
             </div>
           ) : (
             <p style={{ marginTop: 0 }}>

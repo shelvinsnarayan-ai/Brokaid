@@ -1,6 +1,8 @@
 """Operator queue routes — /api/o/queue and Decision Card actions (R5c-4b — Mongo-only)."""
 from __future__ import annotations
 
+import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
@@ -210,6 +212,58 @@ async def _emit_approval_and_resolve(
         resolved_by_event=ev["event_id"],
     )
     return ev["event_id"]
+
+
+class InsurerQuoteBody(BaseModel):
+    premium_change_amount: str = Field(max_length=20)
+    premium_new_annual: str | None = Field(default=None, max_length=20)
+    insurer: str | None = Field(default=None, max_length=80)
+    reference: str | None = Field(default=None, max_length=80)
+    terms: str | None = Field(default=None, max_length=500)
+
+
+@router.post("/{envelope_id}/insurer-quote")
+async def insurer_quote(envelope_id: str, request: Request, body: InsurerQuoteBody,
+                        session: Session = Depends(require_operator_session)) -> dict:
+    """R1.6 manual_only tenants: the AE keys in the real insurer quote for a parked change; nothing is mocked."""
+    from decimal import Decimal, InvalidOperation
+
+    from app.kernel import scene
+    from app.routes.c_scene import MANUAL_QUOTE_STAGE
+    if session.active_role not in ("ae", "principal"):
+        raise HTTPException(status_code=403, detail="Only an AE or a Principal can enter an insurer quote.")
+    store = _store(request)
+    card = await workflow.fetch_queue_card(store, session.tenant_id, envelope_id)
+    async with use_tenant(session.tenant_id):
+        safe = wrap(store)
+        parked = await safe.events.find_one({"type": "RequestNeedsHumanReview", "payload.envelope_id": envelope_id,
+                                             "payload.stage": MANUAL_QUOTE_STAGE})
+        done = await safe.events.find_one({"type": "CarrierQuoted", "payload.envelope_id": envelope_id})
+        user = await safe.users.find_one({"user_id": session.user_id}) or {}
+    if not card or card.get("resolved_at") or not parked:
+        raise HTTPException(status_code=404, detail="No open 'Enter insurer quote' card for this request.")
+    if done:
+        raise HTTPException(status_code=409, detail="A quote is already recorded for this request.")
+    policy = await scene.load_policy(store, session.tenant_id, parked["payload"]["policy_id"])
+    try:
+        delta = Decimal(body.premium_change_amount.replace(",", "").replace("$", "")).quantize(Decimal("0.01"))
+        new = (Decimal(body.premium_new_annual.replace(",", "").replace("$", "")) if body.premium_new_annual
+               else Decimal(str(policy.get("premium_amount") or 0)) + delta).quantize(Decimal("0.01"))
+    except InvalidOperation:
+        raise HTTPException(status_code=422, detail="Enter the premium change as an amount, e.g. 85.00.") from None
+    quote = {"quote_id": str(uuid.uuid4()), "carrier_name": body.insurer or policy.get("insurer_display"),
+             "premium_change_amount": str(delta), "premium_new_annual": str(new),
+             "premium_currency": policy.get("premium_currency") or "AUD", "terms": body.terms or "", "conditions": [],
+             "insurer_reference": body.reference, "quoted_at": datetime.now(timezone.utc).isoformat(timespec="microseconds"),
+             "mocked": False, "data_basis": f"manual entry by {user.get('display_name') or 'a broker'}"}
+    actor = {"kind": "human", "id": session.user_id, "name": session.active_role}
+    async with use_tenant(session.tenant_id):
+        await append_via_dispatch(store, session.tenant_id, "CarrierQuoted", actor=actor,
+                                  payload={"envelope_id": envelope_id, "policy_id": policy["policy_id"], **quote},
+                                  idempotency_key=f"carrier:quote:{envelope_id}")
+    await scene.emit_endorsement_quote_ready(store, tenant_id=session.tenant_id, envelope_id=envelope_id,
+                                             policy_id=policy["policy_id"], quote_id=quote["quote_id"])
+    return {"quote": quote, "next": "Approve the card to send it to the client."}
 
 
 @router.post("/{envelope_id}/approve")

@@ -142,7 +142,12 @@ async def verify(token: str, request: Request) -> dict[str, Any]:
     if hasattr(exp, "tzinfo") and exp.tzinfo is None:
         exp = exp.replace(tzinfo=timezone.utc)
     now = datetime.now(timezone.utc)
-    if exp < now:
+    async with use_tenant(tenant_id):  # R1.6: a lapsed (or ended) policy term is EXPIRED whatever the token says
+        pol = await _wrap_safe(store).policies.find_one({"policy_id": policy_id}, {"status": 1, "expiry": 1}) or {}
+    p_exp = pol.get("expiry")
+    if isinstance(p_exp, datetime) and p_exp.tzinfo is None:
+        p_exp = p_exp.replace(tzinfo=timezone.utc)
+    if exp < now or pol.get("status") == "lapsed" or (isinstance(p_exp, datetime) and p_exp < now):
         await _emit_read(store, tenant_id, certificate_id=certificate_id,
                          verdict="EXPIRED", hashed=hashed, ip=ip)
         raise HTTPException(status_code=410, detail={"verdict": "EXPIRED"})

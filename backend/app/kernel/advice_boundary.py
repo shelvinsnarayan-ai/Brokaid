@@ -39,6 +39,26 @@ def _v(tier: str, rule_id: str, reason: str, kind: str | None) -> dict[str, Any]
     return {"tier": tier, "rule_id": rule_id, "reason": reason, "request_type": kind}
 
 
+_PERSONAL = re.compile(
+    r"\b(your (business|needs|circumstances|situation|risks?|operations|turnover|fleet|cash ?flow|budget|claims?)|"
+    r"suits? you|for you|you should|we (recommend|advise) (that )?you|in your case|given (that )?you|because you)\b", re.I)
+
+
+def classify_recommendation(text: str, quote: dict | None, expiring: dict | None) -> dict[str, Any]:
+    """R1.6 — a broker's renewal recommendation. P (personal advice) if it weighs the client's own
+    circumstances, or the chosen option changes a limit or the excess (A4-4); otherwise G (general comparison)."""
+    sched = (expiring or {}).get("schedule") or {}
+    q = quote or {}
+    old_exc = (sched.get("excess") or {}).get("any_one_occurrence")
+    if q.get("limits") and q["limits"] != (sched.get("limits") or {}):
+        return _v("P", "RENEWAL-P-02", "The recommended option changes a limit (A4-4)", "renewal")
+    if q.get("excess") is not None and old_exc is not None and float(q["excess"]) != float(old_exc):
+        return _v("P", "RENEWAL-P-02", "The recommended option changes the excess (A4-4)", "renewal")
+    if _PERSONAL.search(text or ""):
+        return _v("P", "RENEWAL-P-01", "The recommendation weighs the client's own circumstances", "renewal")
+    return _v("G", "RENEWAL-G-01", "General comparison of renewal terms (facts only)", "renewal")
+
+
 def classify(raw_message: str, structured_submission: dict | None, policy: dict | None) -> dict[str, Any]:
     text = raw_message or ""
     changes = (structured_submission or {}).get("requested_changes") or []

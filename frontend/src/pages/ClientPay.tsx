@@ -19,7 +19,8 @@ interface Details {
   mocked?: boolean;
   crn?: string;
   bpay: { biller_code: string; reference: string } | null;
-  eft: { account_name: string; bsb: string; account_number: string; reference: string };
+  eft: { account_name: string; bsb: string; account_number: string; reference: string } | null;
+  message?: string;
 }
 
 
@@ -86,7 +87,7 @@ export function ClientPay() {
               {details ? fmtAud(details.amount) : "—"}
             </h2>
           </div>
-          <MockedBadge label="payment" variant="client" />
+          {details?.mocked !== false && <MockedBadge label="payment" variant="client" />}
         </div>
 
         {details && (
@@ -100,11 +101,15 @@ export function ClientPay() {
                 <Row label="Reference" value={details.bpay.reference} testId="pay-bpay-ref" />
               </>
             ) : null}
-            <h3 className="brokaid-paydetails__title">Bank transfer (EFT) {details.mocked !== false && <span className="brokaid-paydetails__mocked">MOCKED</span>}</h3>
-            <Row label="Account name" value={details.eft.account_name} testId="pay-eft-name" />
-            <Row label="BSB" value={details.eft.bsb} testId="pay-eft-bsb" />
-            <Row label="Account" value={details.eft.account_number} testId="pay-eft-account" />
-            <Row label="Reference" value={details.eft.reference} testId="pay-eft-ref" />
+            {details.eft ? (
+              <>
+                <h3 className="brokaid-paydetails__title">Bank transfer (EFT) {details.mocked !== false && <span className="brokaid-paydetails__mocked">MOCKED</span>}</h3>
+                <Row label="Account name" value={details.eft.account_name} testId="pay-eft-name" />
+                <Row label="BSB" value={details.eft.bsb} testId="pay-eft-bsb" />
+                <Row label="Account" value={details.eft.account_number} testId="pay-eft-account" />
+                <Row label="Reference" value={details.eft.reference} testId="pay-eft-ref" />
+              </>
+            ) : <p data-testid="pay-details-pending">{details.message || "Your broker will send payment details"}</p>}
           </div>
         )}
 

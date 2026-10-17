@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState } from "../components/EmptyState";
+import { RenewalCards } from "../components/RenewalCard";
 import { ThingGroups, type Thing } from "../components/ThingCard";
 import { useMeStore, usePack } from "../state/meStore";
 import { fmtAud } from "../lib/format";
@@ -107,6 +108,8 @@ export function ClientHome() {
           testId="home-next-action"
         />
       )}
+
+      <RenewalCards where="home" />
 
       <ThingGroups things={things} />
 

@@ -13,6 +13,7 @@ import { ClientCertificateNew } from "./pages/ClientCertificateNew";
 import { VerifyPublic } from "./pages/VerifyPublic";
 import "./styles/cert-phase2.css";
 import { ClientMoney } from "./pages/ClientMoney";
+import { ClientRenewal } from "./pages/ClientRenewal";
 import { ClientClaims, ClaimsNew, ClaimDetail } from "./pages/ClientClaims";
 import { ClientNotifications } from "./pages/ClientNotifications";
 import { ClientAsk } from "./pages/ClientAsk";
@@ -87,6 +88,7 @@ export function App() {
           <Route path="cover/:policy_id/certificate/:envelope_id" element={<ClientCertificate />} />
           <Route path="cover/:policy_id/certificate" element={<ClientCertificate />} />
           <Route path="money" element={<ClientMoney />} />
+          <Route path="renewal/:renewal_id" element={<ClientRenewal />} />
           <Route path="claims" element={<ClientClaims />} />
           <Route path="claims/new" element={<ClaimsNew />} />
           <Route path="claims/:claim_id" element={<ClaimDetail />} />

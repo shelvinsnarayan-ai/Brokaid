@@ -22,7 +22,8 @@ def test_weekly_pack_roles_and_basis():
         r = _as(f"{who}@harbourline.example").get("/api/o/weekly-pack")
         assert r.status_code == 200
         assert {m["key"] for m in r.json()["metrics"]} == {
-            "promises_kept", "promises_open", "promises_overdue", "approvals", "spend"}
+            "promises_kept", "promises_open", "promises_overdue", "approvals", "spend",
+            "renewals_open", "renewals_lapse_risk", "renewals_bound", "renewals_lapsed"}
         assert all(m["data_basis"] for m in r.json()["metrics"])
     pdf = _as("principal@harbourline.example").get("/api/o/weekly-pack.pdf")
     assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF"
@@ -32,7 +33,7 @@ def test_weekly_pack_roles_and_basis():
 def test_renewals_sorted_and_client_denied():
     rows = _as("ae@harbourline.example").get("/api/o/renewals").json()["renewals"]
     assert rows
-    keys = [tuple(reversed(r["expiry"].split("/"))) for r in rows]
+    keys = [(not r.get("overdue"), tuple(reversed(r["expiry"].split("/")))) for r in rows]  # R1.6: overdue first, then soonest
     assert keys == sorted(keys)
     assert all(r["days_to_go"]["data_basis"] == "registry" and r["days_to_go"]["value"] >= 0 for r in rows)
     assert _as("owner@fictionalclient.example").get("/api/o/renewals").status_code == 403

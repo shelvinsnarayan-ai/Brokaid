@@ -11,7 +11,7 @@ from fastapi import HTTPException, Request
 from app.db.tenant_safe import wrap
 from app.kernel.tenant_ctx import use_tenant
 
-ID_KEYS = ("policy_id", "envelope_id", "certificate_id", "claim_id", "membership_id", "thread_id")
+ID_KEYS = ("policy_id", "envelope_id", "certificate_id", "claim_id", "membership_id", "thread_id", "renewal_id")
 NOT_FOUND = HTTPException(status_code=404, detail="not_found")
 
 
@@ -42,8 +42,8 @@ async def resolve_client(safe, key: str, oid: str) -> str | None:
         return None
     if key == "policy_id":
         return await _policy_client(safe, oid)
-    if key in ("claim_id", "membership_id"):
-        coll = safe.claims if key == "claim_id" else safe.memberships
+    if key in ("claim_id", "membership_id", "renewal_id"):
+        coll = {"claim_id": safe.claims, "membership_id": safe.memberships, "renewal_id": safe.renewals}[key]
         d = await coll.find_one({key: oid}, {"client_id": 1})
         return d["client_id"] if d else None
     if key == "thread_id":  # ask threads are envelopes on ClientQuestionAsked (payload.envelope_id + client_id)

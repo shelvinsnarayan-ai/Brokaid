@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { PolicyCard, type Policy } from "../components/PolicyCard";
 import { EmptyState } from "../components/EmptyState";
+import { RenewalCards } from "../components/RenewalCard";
 import { useMeStore, usePack } from "../state/meStore";
 
 const API = import.meta.env.VITE_API_BASE || "";
@@ -40,6 +41,8 @@ export function ClientCover() {
           testId="cover-empty"
         />
       )}
+
+      <RenewalCards where="cover" />
 
       <section className="brokaid-cards" data-testid="cover-policy-cards">
         {policies.map((p) => (

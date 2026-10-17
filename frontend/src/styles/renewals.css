@@ -1,0 +1,32 @@
+.rn-stages { display: flex; gap: 8px; flex-wrap: wrap; }
+.rn-chip { display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent; color: inherit; font-size: 0.8rem; cursor: pointer; transition: background-color 160ms ease, border-color 160ms ease; }
+.rn-chip:hover { border-color: #c98a4b; }
+.rn-chip--on { background-color: rgba(201, 138, 75, 0.18); border-color: #c98a4b; }
+.rn-mono { font-family: "IBM Plex Mono", monospace; }
+.imp-page .imp-tabs select, .rn-detail input, .rn-detail select { background: #0d1626; color: inherit; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; padding: 4px 6px; }
+.rn-row--overdue td { background: rgba(255, 138, 122, 0.06); }
+.rn-row--rec td { background: rgba(143, 209, 158, 0.08); }
+.rn-flag { color: #ff8a7a; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.rn-stage { padding: 1px 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.07); white-space: nowrap; }
+.rn-stage--bound { color: #8fd19e; }
+.rn-stage--lapse_risk, .rn-stage--lapsed { color: #ff8a7a; }
+.rn-stage--paid, .rn-stage--signed { color: #f2c46d; }
+.rn-detail { border-color: rgba(201, 138, 75, 0.5); animation: rn-in 220ms ease; }
+.rn-history { margin: 0; padding-left: 18px; font-size: 0.8rem; color: rgba(236, 232, 222, 0.68); }
+.rn-market, .rn-rec { display: grid; gap: 10px; }
+.rn-rec textarea { background: #0d1626; color: inherit; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; padding: 6px 8px; }
+.rn-gaw { font-style: italic; }
+@keyframes rn-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.rn-c-card { display: grid; gap: 6px; padding: 16px 18px; border-radius: 12px; border: 1px solid var(--line, rgba(0, 0, 0, 0.12));
+  text-decoration: none; color: inherit; margin-bottom: 16px; transition: transform 160ms ease, border-color 160ms ease; }
+.rn-c-card:hover { transform: translateY(-1px); border-color: currentColor; }
+.rn-c-card__eyebrow { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; }
+.rn-c-card--action { border-width: 2px; }
+.rn-c-page { display: grid; gap: 18px; }
+.rn-c-option { display: grid; gap: 4px; padding: 14px; border-radius: 10px; border: 1px solid var(--line, rgba(0, 0, 0, 0.15)); cursor: pointer; }
+.rn-c-option--rec { border-width: 2px; }
+.rn-c-q { display: grid; gap: 6px; }
+.rn-c-q input, .rn-c-q textarea { padding: 8px; border-radius: 8px; border: 1px solid var(--line, rgba(0, 0, 0, 0.2)); font: inherit; }
+.rn-c-warn { font-size: 0.8rem; opacity: 0.8; font-style: italic; }

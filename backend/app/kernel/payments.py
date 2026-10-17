@@ -134,7 +134,10 @@ async def mark_advised(store, tid: str, envelope_id: str) -> None:
             await safe.payables.update_one({"payable_id": p["payable_id"]}, {"$set": {"advised_at": p["advised_at"], "state": state_of(p)}})
 
 
-def details(payable: dict, settings: dict | None) -> dict:
+MANUAL_ONLY_MSG = "Your broker will send payment details"
+
+
+def details(payable: dict, settings: dict | None, mode: str = "mocked_allowed") -> dict:
     out = {"amount": payable["amount"], "currency": payable["currency"], "due_date": payable["due_date"], "crn": payable["crn"],
            "state": payable["state"]}
     if settings:
@@ -143,6 +146,8 @@ def details(payable: dict, settings: dict | None) -> dict:
                 if settings.get("biller_code") else None,
                 "eft": {"account_name": settings["account_name"], "bsb": settings["bsb"], "account_number": settings["account_number"],
                         "reference": payable["crn"], "mocked": False}}
+    if mode == "manual_only":  # R1.6: a real tenant never shows fake payment details
+        return {**out, "mocked": False, "pending_details": True, "message": MANUAL_ONLY_MSG, "bpay": None, "eft": None}
     from app.kernel.mocks import payment_rail as pr
     return {**out, "mocked": True, "bpay": {"biller_code": pr.BPAY_BILLER_CODE_MOCKED, "reference": payable["crn"], "mocked": True},
             "eft": {"account_name": pr.EFT_ACCOUNT_NAME_MOCKED, "bsb": pr.EFT_BSB_MOCKED, "account_number": pr.EFT_ACCOUNT_MOCKED,

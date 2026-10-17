@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
@@ -32,12 +32,10 @@ def _utc(dt):
     return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
 
 
-def reply_by_for(received: datetime) -> datetime:
-    """+1 business day, Mon–Fri, Australia/Sydney wall clock. No public-holiday table."""
-    d = _utc(received).astimezone(SYD) + timedelta(days=1)
-    while d.weekday() >= 5:
-        d += timedelta(days=1)
-    return d.astimezone(timezone.utc)
+def reply_by_for(received: datetime, state: str | None = None) -> datetime:
+    """+1 business day (weekends and AU public holidays skipped, R1.6), Australia/Sydney wall clock."""
+    from app.kernel.holidays import next_business_dt
+    return next_business_dt(_utc(received), state)
 
 
 def _clock(d: datetime) -> str:
@@ -75,10 +73,12 @@ async def _emit(store, tenant_id, type_, payload, key, actor=None):
 
 
 async def record_promise(store, tenant_id: str, thread_id: str, client_id: str, received: datetime) -> None:
+    from app.kernel.holidays import state_for
     received = _utc(received)
     await _emit(store, tenant_id, "PromiseMade", {
         "thread_id": thread_id, "client_id": client_id, "received_at": received.isoformat(),
-        "reply_by": reply_by_for(received).isoformat(), "data_basis": BASIS}, f"promise:{thread_id}")
+        "reply_by": reply_by_for(received, await state_for(store, tenant_id)).isoformat(), "data_basis": BASIS},
+        f"promise:{thread_id}")
 
 
 async def ask(store, tenant_id: str, *, user_id: str, client_id: str, message: str,
@@ -230,7 +230,8 @@ async def backfill(store, tenant_id: str) -> dict:
         firsts = [m for m in t["messages"] if m["who"] == "client"]
         if not t["reply_by"] and firsts:
             await record_promise(store, tenant_id, t["thread_id"], t["client_id"], firsts[0]["at"])
-            t["reply_by"] = reply_by_for(firsts[0]["at"])
+            from app.kernel.holidays import state_for
+            t["reply_by"] = reply_by_for(firsts[0]["at"], await state_for(store, tenant_id))
             made += 1
         answer = next((m for m in t["messages"] if m["who"] == "broker"), None)
         if t["reply_by"] and not t["kept"] and answer:

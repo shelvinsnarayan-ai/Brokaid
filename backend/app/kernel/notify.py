@@ -206,6 +206,10 @@ async def on_event(store, tenant_id: str, type_: str, payload: dict, event_id: s
         author = None
         if p.get("author_user_id"):
             author = (await safe.users.find_one({"user_id": p["author_user_id"]}) or {}).get("display_name")
+    if p.get("renewal_id") and type_ == "payment.advised":
+        return  # renewals: signing waits for the bank-confirmed receipt; renewals.py sends its own alerts
+    from app.kernel.holidays import state_for
+    hstate = await state_for(store, tenant_id)
     received = p.get("received_at") or datetime.now(timezone.utc).isoformat()
     policy_id = p.get("policy_id")
     if not policy_id and p.get("envelope_id"):
@@ -215,7 +219,7 @@ async def on_event(store, tenant_id: str, type_: str, payload: dict, event_id: s
     ctx = {"client": (client or {}).get("display_name", "A client"), "author": author or "Your broker",
            "policy_id": policy_id or "",
            "envelope_id": p.get("envelope_id") or "", "thread_id": thread_id or "",
-           "reply_by": inbox.fmt_short(inbox.reply_by_for(inbox._utc(received)))}
+           "reply_by": inbox.fmt_short(inbox.reply_by_for(inbox._utc(received), hstate))}
     ref = thread_id or p.get("envelope_id") or event_id
     for uid in recipients:
         await deliver(store, tenant_id, uid, kind=rule["kind"], title=rule["title"].format(**ctx),
@@ -272,14 +276,15 @@ async def run_checks(store, tenant_id: str, now: datetime | None = None) -> dict
 
 async def _money_checks(store, tenant_id, now, staff_for, everyone) -> dict:
     """R1.5: unmatched bank lines > 3 business days; client said paid but nothing received > 5 business days."""
-    from app.kernel.bankfeed import business_days_between
+    from app.kernel.holidays import business_days_between, state_for
+    st = await state_for(store, tenant_id)
     safe, made, today = wrap(store), {"bank_unmatched": 0, "advised_no_receipt": 0}, now.date()
     async with use_tenant(tenant_id):
         lines = [t async for t in safe.bank_txns.find({"status": {"$in": ["unmatched", "suggested"]}, "test": {"$ne": True}})]
         adv = [p async for p in safe.payables.find({"state": "advised", "test": {"$ne": True}})]
         names = {c["client_id"]: c["display_name"] async for c in safe.clients.find({}, {"client_id": 1, "display_name": 1})}
     for t in lines:
-        if business_days_between(date.fromisoformat(t["date"]), today) > 3:
+        if business_days_between(date.fromisoformat(t["date"]), today, st) > 3:
             for uid in everyone:
                 r = await deliver(store, tenant_id, uid, kind="bank_unmatched", title="A bank receipt isn't matched yet",
                                   many="{n} bank receipts aren't matched yet", body=f"${t['amount']} on {t['date']}: {t['description'][:60]}",
@@ -287,7 +292,7 @@ async def _money_checks(store, tenant_id, now, staff_for, everyone) -> dict:
                 made["bank_unmatched"] += r == "created"
     for p in adv:
         adv_at = inbox._utc(p["advised_at"]).date()
-        if business_days_between(adv_at, today) > 5:
+        if business_days_between(adv_at, today, st) > 5:
             for uid in staff_for.get(p["client_id"]) or everyone:
                 r = await deliver(store, tenant_id, uid, kind="advised_no_receipt", title=f"Payment not received from {names.get(p['client_id'], 'a client')}",
                                   many="{n} advised payments not received", body=f"They said they paid ${p['amount']} (CRN {p['crn']}) on "

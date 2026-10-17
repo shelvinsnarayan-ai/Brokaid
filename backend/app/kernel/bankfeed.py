@@ -11,7 +11,7 @@ import hashlib
 import io
 import re
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 from pymongo.errors import DuplicateKeyError
@@ -294,6 +294,8 @@ async def record_receipt(store, tid: str, txn: dict, payable: dict, *, by: str, 
         "amount": str(amt), "crn": p["crn"], "payable_id": p["payable_id"], "envelope_id": p["envelope_id"],
         "policy_id": p["policy_id"], "client_id": p["client_id"], "match": kind, "state": p["state"], "test": bool(txn.get("test"))},
         f"premium_received:{txn['fingerprint']}:{txn.get('reversals', 0)}", by, role)
+    from app.kernel import renewals
+    await renewals.on_received(store, tid, p)
     return status
 
 
@@ -343,6 +345,8 @@ async def unmatch(store, tid, txn_id, reason, by, role) -> None:
     await _event(store, tid, "PremiumReceiptReversed", {"txn_fingerprint": t["fingerprint"], "payable_id": p["payable_id"],
                                                         "amount": str(amt), "reason": reason, "client_id": p["client_id"]},
                  f"premium_reversed:{t['fingerprint']}:{t.get('reversals', 0)}", by, role)
+    from app.kernel import renewals
+    await renewals.on_reversed(store, tid, p["payable_id"])
     await match_txn(store, tid, {**t, "status": "unmatched", "match": None}, auto=False)
 
 
@@ -434,9 +438,6 @@ async def sign_off(store, tid: str, as_at: date, note: str, by: str) -> dict:
     return {"signoff_id": sid, **r}
 
 
-def business_days_between(a: date, b: date) -> int:
-    n, d = 0, a
-    while d < b:
-        d += timedelta(days=1)
-        n += d.weekday() < 5
-    return n
+def business_days_between(a: date, b: date, state: str | None = None) -> int:
+    from app.kernel.holidays import business_days_between as bdb
+    return bdb(a, b, state)

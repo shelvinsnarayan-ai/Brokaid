@@ -10,7 +10,7 @@ from app.kernel.tenant_ctx import use_tenant
 from tests.test_r12_auth import run
 from tests.test_r12b import CLIENT, _client_session
 
-ID_PARAMS = {"policy_id", "envelope_id", "certificate_id", "claim_id", "membership_id"}
+ID_PARAMS = {"policy_id", "envelope_id", "certificate_id", "claim_id", "membership_id", "renewal_id"}
 
 
 def _c_routes(app):
@@ -34,13 +34,15 @@ async def _foreign(db, tid):
         await safe.claims.insert_one({"claim_id": claim, "client_id": foreign_cid, "policy_id": p["policy_id"], "status": "open"})
         await safe.memberships.insert_one({"membership_id": mem, "client_id": foreign_cid, "user_id": str(uuid.uuid4()),
                                            "role": "bookkeeper", "authority": {}, "revoked_at": None})
+        renewal = str(uuid.uuid4())
+        await safe.renewals.insert_one({"renewal_id": renewal, "client_id": foreign_cid, "policy_id": p["policy_id"], "stage": "info_requested"})
     env, cert, thread = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
     sys = {"kind": "system", "id": "test", "name": "test"}
     await af.ledger(db, tid, "EnvelopeOpened", sys, {"envelope_id": env, "policy_id": p["policy_id"]})
     await af.ledger(db, tid, "CertificateRegenerated", sys, {"certificate_id": cert, "policy_id": p["policy_id"], "envelope_id": env})
     await af.ledger(db, tid, "ClientQuestionAsked", sys, {"envelope_id": thread, "client_id": foreign_cid, "message": "x"})
     return {"policy_id": p["policy_id"], "envelope_id": env, "certificate_id": cert, "claim_id": claim,
-            "membership_id": mem, "thread_id": thread}, own["policy_id"]
+            "membership_id": mem, "thread_id": thread, "renewal_id": renewal}, own["policy_id"]
 
 
 def test_every_c_route_with_an_object_id_hides_foreign_client_objects():

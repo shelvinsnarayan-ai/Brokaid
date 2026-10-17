@@ -16,7 +16,7 @@ const CLIENT_FILES = () => [
   "components/DemoBanner.tsx", "components/ThingCard.tsx", "components/PolicyCard.tsx",
   "components/PreviewBanner.tsx", "components/AppFooter.tsx",
 ].filter((f) => fs.existsSync(path.join(SRC, f)));
-const MOCKED_ALLOWED = new Set(["pages/ClientPay.tsx", "pages/ClientSign.tsx"]);
+const MOCKED_ALLOWED = new Set(["pages/ClientPay.tsx", "pages/ClientSign.tsx", "pages/ClientRenewal.tsx"]); // R1.6: renewal pay + e-sign fakes
 const RULES = [
   ["HITL", /\bHITL\b/], ["predicate", /\bpredicate\b/i], ["envelope", /\benvelope\b/i],
   ["scalar", /\bscalar\b/i], ["class_key", /class_key/], ["coming post-", /coming post-/i],

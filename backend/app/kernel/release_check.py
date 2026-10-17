@@ -360,6 +360,11 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
         except asyncio.TimeoutError:
             r.checks.append({"key": "spine.timeout", "label": "Spine", "status": "fail", "ms": SPINE_TIMEOUT_S * 1000,
                              "detail": f"The synthetic change didn't finish within {SPINE_TIMEOUT_S // 60} minutes."})
+        try:
+            await renewal_steps(r, http, as_, expect, store, tenant_id, ids, run_id)
+        except StepFailed:
+            pass
+        await manual_only_steps(r, store)
 
         async def probe_client_on_o():
             await expect(await http.get("/api/o/queue", headers=as_("owner")), 403, "Client on broker route")
@@ -403,6 +408,110 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
     result = "FAIL" if any(c["status"] == "fail" for c in r.checks) else "PASS"
     return {"sha": info.get("sha"), "short_sha": (info.get("sha") or "")[:7], "env": env, "result": result,
             "checks": r.checks, "envelope_id": env_id, "policy_id": policy_id}
+
+
+async def renewal_steps(r, http, as_, expect, store, tenant_id, ids, run_id) -> None:
+    """R1.6: a synthetic renewal on a fresh test policy with an injected clock (T-60 → bound → verifier VALID)."""
+    from decimal import Decimal
+
+    from app.kernel import bankfeed, renewals as rn
+    from app.scripts import bank_synth
+    pid = await fresh_policy(store, tenant_id, f"{run_id}:renewal")
+    pol = await rn._policy(store, tenant_id, pid)
+    exp = rn._utc(pol["expiry"])
+    t0 = exp - timedelta(days=60)
+    st: dict = {}
+    kw = {"by": ids["ae"], "role": "ae"}
+
+    async def start():
+        if (await rn.tick(store, tenant_id, t0, [pid]))["started"] != 1:
+            raise StepFailed("The renewal didn't start at T-60 (injected clock).")
+        async with use_tenant(tenant_id):
+            st["r"] = await wrap(store).renewals.find_one({"policy_id": pid}, {"_id": 0})
+        st["r"] = await rn.request_info(store, tenant_id, st["r"], now=t0, **kw)
+        st["base"] = f"/api/c/renewals/{st['r']['renewal_id']}"
+        return "Started at T-60 (injected clock); checklist sent."
+
+    async def info():
+        await expect(await http.post(f"{st['base']}/info", headers=as_("owner"),
+                                     json={"answers": {"claims": {"any": False}, "turnover": {"value": "500000"}}}), 200, "Renewal info")
+        return "Client answered the checklist."
+
+    async def market():
+        r0 = await rn.get(store, tenant_id, st["r"]["renewal_id"])
+        names = (await rn.insurers(store, tenant_id))[:3]
+        r0 = await rn.request_quotes(store, tenant_id, r0, names, now=t0, **kw)
+        exc = str((pol["schedule"].get("excess") or {}).get("any_one_occurrence") or 0)
+        r0 = await rn.manual_quote(store, tenant_id, r0, {"insurer": "Release Check Mutual", "premium": "1111.00", "excess": exc},
+                                   by_name="release check", now=t0, **kw)
+        st["q"] = r0["quotes"][-1]["quote_id"]
+        r0 = await rn.recommend(store, tenant_id, r0, st["q"], "Lowest premium with the same cover and excess as expiring.",
+                                ["Lowest premium"], now=t0, **kw)
+        await rn.send_to_client(store, tenant_id, r0, now=t0, **kw)
+        return f"{len(names)} MOCKED quote(s) + 1 manual quote; recommendation (tier {r0['recommendation']['tier']}) sent."
+
+    async def decide():
+        await expect(await http.post(f"{st['base']}/decide", headers=as_("bookkeeper"), json={"choice": st["q"]}), 403, "Bookkeeper decide")
+        d = await expect(await http.post(f"{st['base']}/decide", headers=as_("owner"), json={"choice": st["q"]}), 200, "Client decide")
+        st["crn"] = d.json()["payment"]["crn"]
+        await expect(await http.post(f"{st['base']}/paid", headers=as_("owner")), 200, "Renewal payment advice")
+        return f"Bookkeeper 403; owner approved; CRN {st['crn']} advised."
+
+    async def received():
+        line = [{"date": datetime.now(timezone.utc).date(), "amount": Decimal("1111.00"),
+                 "description": f"BPAY {st['crn']} RENEWAL CHECK {run_id[:8]}", "balance": Decimal("1111.00")}]
+        await bankfeed.import_statement(store, tenant_id, data=bank_synth.cba(line).encode(), filename="release-check-renewal.csv",
+                                        user_id="release-check", storage_path=None, test=True)
+        if (await rn.get(store, tenant_id, st["r"]["renewal_id"]))["stage"] != "paid":
+            raise StepFailed("The CRN statement line didn't move the renewal to Paid.")
+        return "Bank line → Received → Paid."
+
+    async def bound():
+        s = await expect(await http.post(f"{st['base']}/sign", headers=as_("owner")), 200, "Renewal sign")
+        v = await expect(await http.get(f"/api/verifier/{s.json()['verifier_token']}"), 200, "Renewal verifier")
+        if s.json()["stage"] != "bound" or v.json().get("verdict") != "VALID" or not str(v.json().get("effective_from", "")).startswith(exp.date().isoformat()):
+            raise StepFailed(f"Renewal ended at {s.json()['stage']}; verifier {v.json().get('verdict')} from {v.json().get('effective_from')}.")
+        return f"Bound; new certificate VALID from {exp.date():%d/%m/%Y}."
+
+    for key, label, fn in (("renewal.start", "Renewal starts at T-60", start), ("renewal.info", "Renewal checklist", info),
+                           ("renewal.market", "Quotes and recommendation", market), ("renewal.decide", "Client decision", decide),
+                           ("renewal.received", "Renewal premium received", received), ("renewal.bound", "Renewal bound", bound)):
+        await r.step(key, label, fn)
+
+
+async def manual_only_steps(r, store) -> None:
+    """R1.6 ruling: in a manual_only (real) tenant, no MOCKED quote or MOCKED payment details are produced."""
+    from app.kernel import holidays, payments, renewals as rn
+
+    async def check():
+        # tenant-safe: system-only — list tenants to find the manual_only ones
+        tids = [t["tenant_id"] async for t in store.tenants.find({}, {"tenant_id": 1})]
+        manual = [t for t in tids if await holidays.quoting_mode(store, t) == "manual_only"]
+        if not manual:
+            return "warn", "No manual_only tenant exists, so this wasn't exercised."
+        for tid in manual:
+            safe = wrap(store)
+            d = payments.details({"amount": "1.00", "currency": "AUD", "due_date": "2026-01-01", "crn": "0", "state": "owed"},
+                                 await payments.get_settings(store, tid), "manual_only")
+            if d.get("mocked") or any((d.get(k) or {}).get("mocked") for k in ("bpay", "eft")):
+                raise StepFailed("A manual_only tenant would show MOCKED payment details.")
+            try:
+                await rn.request_quotes(store, tid, {}, ["x"], by="release-check", role="release-check")
+                raise StepFailed("The mocked carrier channel accepted a renewal quote request in a manual_only tenant.")
+            except rn.Bad:
+                pass
+            async with use_tenant(tid):
+                mocked_r = await safe.renewals.count_documents({"quotes.mocked": True})
+                mocked_q = await safe.events.count_documents({"type": {"$in": ["CarrierQuoted", "RenewalQuoteRecorded"]},
+                                                              "payload.mocked": True, "ts": {"$gte": QUOTING_MODE_SINCE}})
+            if mocked_r or mocked_q:
+                raise StepFailed(f"A manual_only tenant has {mocked_r + mocked_q} MOCKED quote(s).")
+        return f"{len(manual)} manual_only tenant(s): no MOCKED quotes or payment details; mocked channel refused."
+
+    await r.step("quoting.manual_only", "Real tenants: no mocked quotes or payment details", check)
+
+
+QUOTING_MODE_SINCE = "2026-10-17T21:00:00"  # R1.6 deploy: seeded demo events before this are archived history
 
 
 def _alert_query(env_id: str, policy_id: str, ids: dict, since: datetime | None = None) -> dict:

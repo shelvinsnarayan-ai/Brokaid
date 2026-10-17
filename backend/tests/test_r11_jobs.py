@@ -94,7 +94,7 @@ def test_single_leader_and_idempotent_periodic_buckets():
             await jobs.scheduler_tick(db, f"n{i}", now)
             await jobs.scheduler_tick(db, winner, now + timedelta(seconds=5))
         kinds = sorted([j["kind"] async for j in db.jobs.find({})])
-        assert kinds == ["email.send", "jobs.sweep", "notify.periodic", "push.send"]  # once per bucket
+        assert kinds == ["email.send", "jobs.sweep", "notify.periodic", "push.send", "renewals.tick"]  # once per bucket
         assert await jobs.acquire_leader(db, "late", now + timedelta(seconds=jobs.LEADER_TTL_S + 6))  # takeover after TTL
     run(go)
 

@@ -41,10 +41,25 @@ def _n(v, basis="registry"):
     return {"value": v, "data_basis": basis}
 
 
+async def _renewal_metrics(safe, start) -> list[dict]:
+    """R1.6: weekly-pack renewal numbers from real pipeline stages."""
+    rows = [r async for r in safe.renewals.find({"test": {"$ne": True}}, {"stage": 1, "lapse_alerted": 1, "history": 1})]
+    open_ = [r for r in rows if r["stage"] not in ("bound", "lapsed", "declined")]
+
+    def week(to):
+        return sum(1 for r in rows if any(h["to"] == to and _utc(h["at"]) >= start for h in r.get("history") or []))
+    basis = "renewal pipeline"
+    return [{"key": "renewals_open", "label": "Renewals in progress", **_n(len(open_), basis)},
+            {"key": "renewals_lapse_risk", "label": "Renewals at lapse risk", **_n(sum(1 for r in open_ if r.get("lapse_alerted")), basis)},
+            {"key": "renewals_bound", "label": "Renewals bound this week", **_n(week("bound"), basis)},
+            {"key": "renewals_lapsed", "label": "Renewals lapsed this week", **_n(week("lapsed"), basis)}]
+
+
 async def _weekly(request: Request, tenant_id: str) -> dict:
     safe, now = wrap(request.app.state.mongo_db), datetime.now(timezone.utc)
     start = now - timedelta(days=7)
     async with use_tenant(tenant_id):
+        renewal_rows = await _renewal_metrics(safe, start)
         tids = await test_client_ids(safe)
         open_rows = [r async for r in safe.proj_queue.find({"resolved_at": None, "client_id": {"$nin": tids}})]
         done = [r async for r in safe.proj_queue.find({"resolved_at": {"$gte": start}, "client_id": {"$nin": tids}})]
@@ -67,6 +82,7 @@ async def _weekly(request: Request, tenant_id: str) -> dict:
             {"key": "promises_overdue", "label": "Overdue promises", **_n(overdue, PROMISE_BASIS)},
             {"key": "approvals", "label": "Approvals this week", **_n(approvals)},
             {"key": "spend", "label": "Spend ESTIMATE (sprint to date, USD)", **_n(round(s["cost_usd"], 2), "estimate")},
+            *renewal_rows,
         ],
         "note": "Promises are counted from queue reply-by times and client-thread reply-by times (+1 business day). Kept means answered on time. The full promises engine comes later.",
     }
@@ -101,39 +117,6 @@ async def weekly_pack_pdf(request: Request, session: Session = Depends(require_g
     c.save()
     return Response(buf.getvalue(), media_type="application/pdf",
                     headers={"Content-Disposition": 'attachment; filename="harbourline-weekly-pack.pdf"'})
-
-
-def _renewal_step(days: int) -> str:
-    if days < 0:
-        return "Confirm lapse or late renewal"
-    if days <= 30:
-        return "Send renewal terms"
-    if days <= 60:
-        return "Request insurer renewal terms"
-    if days <= 90:
-        return "Check client details"
-    return "No action yet"
-
-
-@router.get("/renewals")
-async def renewals(request: Request, session: Session = Depends(require_operator_session)) -> dict:
-    safe, now = wrap(request.app.state.mongo_db), datetime.now(timezone.utc)
-    async with use_tenant(session.tenant_id):
-        names = {c["client_id"]: c["display_name"] async for c in safe.clients.find({})}
-        pols = [p async for p in safe.policies.find({"status": "managed", "expiry": {"$ne": None},
-                                                      "client_id": {"$nin": await test_client_ids(safe)}})]
-    rows = []
-    for p in sorted(pols, key=lambda p: _utc(p["expiry"])):
-        exp = _utc(p["expiry"])
-        days = (exp - now).days
-        rows.append({
-            "policy_id": p["policy_id"], "client": names.get(p["client_id"], "Unknown client"),
-            "policy": p.get("product"), "insurer": p.get("insurer_display"),
-            "expiry": _ddmmyyyy(exp), "days_to_go": _n(max(days, 0)), "expired": days < 0,
-            "promise": f"Renewal terms to client by {_ddmmyyyy(exp - timedelta(days=30))}",
-            "next_step": _renewal_step(days),
-        })
-    return {"renewals": rows, "count": _n(len(rows))}
 
 
 def _thread_row(t: dict, now: datetime) -> dict:

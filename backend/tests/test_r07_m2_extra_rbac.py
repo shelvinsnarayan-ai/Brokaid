@@ -73,10 +73,11 @@ def test_old_burmac_logins_blocked():
 def test_weekly_pack_metric_shape():
     body = _as("principal@harbourline.example").get("/api/o/weekly-pack").json()
     keys = [m["key"] for m in body["metrics"]]
-    assert keys == ["promises_kept", "promises_open", "promises_overdue", "approvals", "spend"]
+    assert keys == ["promises_kept", "promises_open", "promises_overdue", "approvals", "spend",
+                    "renewals_open", "renewals_lapse_risk", "renewals_bound", "renewals_lapsed"]  # R1.6
     for m in body["metrics"]:
         assert isinstance(m["value"], (int, float))
-        assert m["data_basis"] in ("registry", "estimate", "queue + inbox reply-by")
+        assert m["data_basis"] in ("registry", "estimate", "queue + inbox reply-by", "renewal pipeline")
     # spend is explicitly estimate
     spend = next(m for m in body["metrics"] if m["key"] == "spend")
     assert spend["data_basis"] == "estimate"
