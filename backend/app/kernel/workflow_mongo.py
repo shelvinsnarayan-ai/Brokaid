@@ -198,7 +198,8 @@ async def fetch_pending_queue(db) -> list[dict[str, Any]]:
     await _ensure_indexes(safe_db)
     now = datetime.now(timezone.utc)
     out = []
-    cursor = safe_db.proj_queue.find({"resolved_at": None}).sort(
+    tids = [c["client_id"] async for c in safe_db.clients.find({"test": True}, {"client_id": 1})]
+    cursor = safe_db.proj_queue.find({"resolved_at": None, "client_id": {"$nin": tids}}).sort(
         [("sla_deadline", ASCENDING), ("hitl_since", ASCENDING)]
     )
     async for r in cursor:

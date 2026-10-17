@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fmtDateTime } from "../../lib/format";
 import { BrandingEditor } from "./BrandingEditor";
+import { ReleaseCheck } from "./ReleaseCheck";
 
 const API = (import.meta as any).env.VITE_API_BASE || "";
 
@@ -310,6 +311,7 @@ export function Governance() {
       <p style={muted}>CONTROL · GOVERNANCE</p>
       <h1 style={{ fontSize: 28, marginBottom: 16 }}>Governance</h1>
       {msg && <p data-testid="gov-message" style={{ ...muted, marginBottom: 12 }}>{msg}</p>}
+      <section style={card}><ReleaseCheck /></section>
       <SpendCard s={spendData} />
       <RegistryCard />
       <section style={card} data-testid="gov-kill-switches">

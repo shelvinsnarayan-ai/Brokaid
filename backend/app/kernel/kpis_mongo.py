@@ -18,10 +18,11 @@ from typing import Any
 from app.db.tenant_safe import wrap
 from app.kernel.kpis import LABELS, KpiValue, _median, _parse_payload
 from app.kernel.tenant_ctx import use_tenant
+from app.kernel.test_data import real_policy_filter, test_client_ids, test_event_filter  # noqa: F401
 
 
 async def _all_events(safe_db, types: list[str] | None = None):
-    q: dict[str, Any] = {}
+    q: dict[str, Any] = await test_event_filter(safe_db)
     if types:
         q["type"] = {"$in": types}
     out = []
@@ -33,7 +34,7 @@ async def _all_events(safe_db, types: list[str] | None = None):
 # ---- KPI 1: Book -----------------------------------------------------
 async def kpi_1_book(safe_db, tenant_id: str) -> KpiValue:
     rows = []
-    async for r in safe_db.policies.find({"status": "managed"}):
+    async for r in safe_db.policies.find({"status": "managed", **(await real_policy_filter(safe_db))}):
         rows.append(r)
     total = float(sum(Decimal(str(r["premium_amount"])) for r in rows)) if rows else 0.0
     by_product: dict[str, float] = {}
@@ -53,7 +54,7 @@ async def kpi_1_book(safe_db, tenant_id: str) -> KpiValue:
 # ---- KPI 2: Income per client ----------------------------------------
 async def kpi_2_income_per_client(safe_db, tenant_id: str) -> KpiValue:
     rows = []
-    async for r in safe_db.policies.find({"status": "managed"}):
+    async for r in safe_db.policies.find({"status": "managed", **(await real_policy_filter(safe_db))}):
         rows.append(r)
     commission_rate = 0.20
     commission = sum(float(r["premium_amount"]) for r in rows) * commission_rate

@@ -28,6 +28,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.db.tenant_safe import TenantSafeDatabase, wrap
 from app.kernel.tenant_ctx import use_tenant
+from app.kernel.test_data import real_policy_filter, test_client_ids, test_event_filter  # noqa: F401
 
 
 _ENDORSEMENT_TYPES = ("EndorsementInstructed", "EndorsementQuoted", "QuotePresented")
@@ -110,10 +111,13 @@ async def _compose_mongo(store, tenant_id: str) -> dict[str, Any]:
         # Tenant display name from the system `tenants` collection.
         t_row = await safe.system("tenants").find_one({"tenant_id": tenant_id})
 
+        real = await test_event_filter(safe)
+        tids = await test_client_ids(safe)
+
         async def _count_ids(types_tuple: tuple[str, ...]) -> tuple[int, list[str]]:
             ids: list[str] = []
             async for r in safe.events.find(
-                {"type": {"$in": list(types_tuple)}}
+                {**real, "type": {"$in": list(types_tuple)}}
             ).sort("seq", -1):
                 ts = r.get("ts")
                 if isinstance(ts, str):
@@ -129,9 +133,9 @@ async def _compose_mongo(store, tenant_id: str) -> dict[str, Any]:
         new_count, new_ids = await _count_ids(("MatterCreated",))
         endo_count, endo_ids = await _count_ids(_ENDORSEMENT_TYPES)
         claim_count, claim_ids = await _count_ids(_CLAIM_TYPES)
-        hitl_size = await safe.proj_queue.count_documents({"resolved_at": None})
+        hitl_size = await safe.proj_queue.count_documents({"resolved_at": None, "client_id": {"$nin": tids}})
         overdue = await safe.proj_queue.count_documents({
-            "resolved_at": None,
+            "resolved_at": None, "client_id": {"$nin": tids},
             "sla_deadline": {"$lt": now},
         })
     return {

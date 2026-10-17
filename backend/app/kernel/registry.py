@@ -8,6 +8,7 @@ from __future__ import annotations
 from app.db.tenant_safe import TenantSafeDatabase, wrap
 from app.kernel.governance import AGENT_LABELS, AGENT_PACKAGES, PACKAGE_LABELS
 from app.kernel.tenant_ctx import use_tenant
+from app.kernel.test_data import real_policy_filter, test_client_ids, test_event_filter  # noqa: F401
 
 AUTONOMY = {
     "L0": "Shadow — observes only, never acts",
@@ -53,9 +54,10 @@ def listing() -> list[dict]:
 async def counts(store, tenant_id: str) -> dict:
     safe = store if isinstance(store, TenantSafeDatabase) else wrap(store)
     async with use_tenant(tenant_id):
-        events = await safe.events.count_documents({})
-        open_cards = await safe.proj_queue.count_documents({"resolved_at": None})
-        matters = await safe.events.count_documents({"type": "ClientChangeRequested"})
+        real = await test_event_filter(safe)
+        events = await safe.events.count_documents(real)
+        open_cards = await safe.proj_queue.count_documents({"resolved_at": None, "client_id": {"$nin": await test_client_ids(safe)}})
+        matters = await safe.events.count_documents({**real, "type": "ClientChangeRequested"})
         things = await safe.things.count_documents({})
         refused = await safe.events.count_documents({"type": "AgentInvocationRefused"})
     # tenant-safe: system-only — tenant registry count

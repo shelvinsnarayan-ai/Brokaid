@@ -15,6 +15,7 @@ from app.db.tenant_safe import wrap
 from app.kernel import inbox as inbox_k, spend
 from app.kernel.tenant_ctx import use_tenant
 from app.middleware.session import require_operator_session
+from app.kernel.test_data import test_client_ids, test_event_filter
 
 router = APIRouter(prefix="/api/o")
 PROMISE_BASIS = "queue + inbox reply-by"
@@ -44,10 +45,11 @@ async def _weekly(request: Request, tenant_id: str) -> dict:
     safe, now = wrap(request.app.state.mongo_db), datetime.now(timezone.utc)
     start = now - timedelta(days=7)
     async with use_tenant(tenant_id):
-        open_rows = [r async for r in safe.proj_queue.find({"resolved_at": None})]
-        done = [r async for r in safe.proj_queue.find({"resolved_at": {"$gte": start}})]
+        tids = await test_client_ids(safe)
+        open_rows = [r async for r in safe.proj_queue.find({"resolved_at": None, "client_id": {"$nin": tids}})]
+        done = [r async for r in safe.proj_queue.find({"resolved_at": {"$gte": start}, "client_id": {"$nin": tids}})]
         approvals = await safe.events.count_documents(
-            {"type": {"$in": ["Approval", "OperatorApproval"]}, "ts": {"$gte": start}})
+            {**(await test_event_filter(safe)), "type": {"$in": ["Approval", "OperatorApproval"]}, "ts": {"$gte": start}})
     overdue = sum(1 for r in open_rows if r.get("sla_deadline") and _utc(r["sla_deadline"]) < now)
     kept = sum(1 for r in done if not r.get("sla_deadline") or _utc(r["resolved_at"]) <= _utc(r["sla_deadline"]))
     open_q = len(open_rows) - overdue
@@ -118,7 +120,8 @@ async def renewals(request: Request, session: Session = Depends(require_operator
     safe, now = wrap(request.app.state.mongo_db), datetime.now(timezone.utc)
     async with use_tenant(session.tenant_id):
         names = {c["client_id"]: c["display_name"] async for c in safe.clients.find({})}
-        pols = [p async for p in safe.policies.find({"status": "managed", "expiry": {"$ne": None}})]
+        pols = [p async for p in safe.policies.find({"status": "managed", "expiry": {"$ne": None},
+                                                      "client_id": {"$nin": await test_client_ids(safe)}})]
     rows = []
     for p in sorted(pols, key=lambda p: _utc(p["expiry"])):
         exp = _utc(p["expiry"])

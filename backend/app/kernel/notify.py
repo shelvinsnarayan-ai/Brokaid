@@ -178,7 +178,7 @@ async def on_event(store, tenant_id: str, type_: str, payload: dict, event_id: s
         who, need = rule["to"]
         recipients = await (_staff(safe, need) if who == "staff" else _members(safe, client_id, need))
         thread_id = p.get("thread_id") or (p.get("envelope_id") if type_ == "ClientQuestionAsked" else None)
-        test = bool(p.get("test"))
+        test = bool(p.get("test")) or bool((client or {}).get("test"))
         if thread_id and not test:
             q = await safe.events.find_one({"type": "ClientQuestionAsked", "payload.envelope_id": thread_id})
             test = bool(((q or {}).get("payload") or {}).get("test"))
@@ -211,7 +211,9 @@ async def run_checks(store, tenant_id: str, now: datetime | None = None) -> dict
     safe, made = wrap(store), {"promise_due": 0, "promise_overdue": 0, "renewal_30": 0}
     async with use_tenant(tenant_id):
         ae, ae_pr = await _staff(safe, ("ae",)), await _staff(safe, ("ae", "principal"))
-        pols = [p async for p in safe.policies.find({"status": "managed", "expiry": {"$gte": now, "$lte": now + timedelta(days=30)}})]
+        tids = [c["client_id"] async for c in safe.clients.find({"test": True}, {"client_id": 1})]
+        pols = [p async for p in safe.policies.find({"status": "managed", "test": {"$ne": True}, "client_id": {"$nin": tids},
+                                                     "expiry": {"$gte": now, "$lte": now + timedelta(days=30)}})]
         names = {c["client_id"]: c["display_name"] async for c in safe.clients.find({})}
     for t in await inbox.load_threads(store, tenant_id, include_tests=True):
         if t["answered"] or not t["reply_by"]:

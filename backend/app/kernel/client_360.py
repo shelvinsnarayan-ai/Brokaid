@@ -31,7 +31,7 @@ async def list_all_clients_with_policy_counts(
         safe = _wrap_safe(store)
         out: list[dict] = []
         async with use_tenant(tenant_id):
-            async for c in safe.clients.find({}).sort("display_name", 1):
+            async for c in safe.clients.find({"test": {"$ne": True}}).sort("display_name", 1):
                 count = 0
                 async for _ in safe.policies.find({"client_id": c["client_id"]}):
                     count += 1

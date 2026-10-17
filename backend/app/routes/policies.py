@@ -10,6 +10,7 @@ from app.db.tenant_safe import wrap as _wrap_safe
 from app.kernel import jurisdiction
 from app.kernel.tenant_ctx import use_tenant
 from app.middleware.session import require_operator_session, require_session
+from app.kernel.test_data import real_policy_filter, test_client_ids, test_event_filter  # noqa: F401
 
 router = APIRouter()
 
@@ -66,7 +67,7 @@ async def _list_policies(
     safe = _wrap_safe(store)
     out: list[dict] = []
     async with use_tenant(tenant_id):
-        filt = {"client_id": client_id} if client_id else {}
+        filt = {"client_id": client_id} if client_id else await real_policy_filter(safe)
         cursor = safe.policies.find(filt).sort("inception", -1)
         packs_by_client: dict[str, tuple] = {}
         async for r in cursor:
