@@ -366,6 +366,7 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
             pass
         await manual_only_steps(r, store)
         await compliance_steps(r, store, tenant_id, ids)
+        await claim_steps(r, store, tenant_id, ids, run_id)
 
         async def probe_client_on_o():
             await expect(await http.get("/api/o/queue", headers=as_("owner")), 403, "Client on broker route")
@@ -552,6 +553,58 @@ async def compliance_steps(r, store, tenant_id, ids) -> None:
     for key, label, fn in (("compliance.fsg", "FSG delivered on invite", fsg), ("compliance.complaint_clock", "Complaint clock", clock),
                            ("ai.eval_gate", "AI eval gate", evalgate)):
         await r.step(key, label, fn)
+
+
+async def claim_steps(r, store, tenant_id, ids, run_id) -> None:
+    """R1.8: a synthetic motor claim lodge → submitted (MOCKED here) → accepted → settled → closed, test-flagged;
+    and no MOCKED insurer claim number in a manual_only tenant."""
+    from app.kernel import claims as ck, holidays
+
+    async def lifecycle():
+        pid = await fresh_policy(store, tenant_id, f"{run_id}:claim")
+        async with use_tenant(tenant_id):
+            pol = await wrap(store).policies.find_one({"policy_id": pid}, {"_id": 0})
+        rego = ((pol.get("schedule") or {}).get("vehicles") or [{}])[0].get("rego")
+        c = await ck.lodge(store, tenant_id, client_id=CLIENT_ID, policy=pol, by=ids["owner"], role="client", channel="in_app", test=True,
+                           body={"claim_class": "motor", "subtype": "accident", "incident_date": datetime.now(timezone.utc).date().isoformat(),
+                                 "where": "Release check car park", "description": "Synthetic release-check bump, rear bumper scratched.",
+                                 "injuries": False, "safe": True, "rego": rego})
+        if any(f["code"] == "asset_not_on_schedule" for f in c["flags"]):
+            raise StepFailed("The scheduled vehicle was flagged as not on the schedule.")
+        await ck.acknowledge(store, tenant_id, c, by="release-check", role="ae")
+        await ck.submit_mocked(store, tenant_id, c, by="release-check", role="ae")
+        letter = await ck.add_file(store, tenant_id, c, kind="decision_letter", data=b"%PDF-1.4 release check decision letter",
+                                   filename="decision.pdf", content_type="application/pdf", keep_location=False, by="release-check",
+                                   role="ae", client_visible=True)
+        await ck.record_decision(store, tenant_id, c, outcome="accepted", reason="Synthetic", letter_file_id=letter["file_id"],
+                                 amount="500", by="release-check", role="ae")
+        await ck.settle(store, tenant_id, c, amount="500", excess_applied="0", payee="repairer", payee_name="Synthetic Repairs",
+                        method="insurer_direct", txn_id=None, by="release-check", role="ae")
+        await ck.close(store, tenant_id, c, note="Release check", by="release-check", role="ae")
+        async with use_tenant(tenant_id):
+            n = await wrap(store).events.count_documents({"type": "ClaimStageChanged", "payload.claim_id": c["claim_id"]})
+        if c["stage"] != "closed" or n != 5:
+            raise StepFailed(f"Claim ended at {c['stage']} with {n} stage events (expected closed, 5: triage, submitted, decision, settlement, closed).")
+        return f"Claim {c['claim_reference']} (test): lodged → triage → submitted (MOCKED {c['insurer_claim']['claim_no']}) → accepted → settled → closed."
+
+    async def manual_only():
+        # tenant-safe: system-only — list tenants to find the manual_only ones
+        tids = [t["tenant_id"] async for t in store.tenants.find({}, {"tenant_id": 1})]
+        manual = [t for t in tids if await holidays.quoting_mode(store, t) == "manual_only"]
+        for tid in manual:
+            try:
+                await ck.submit_mocked(store, tid, {"claim_id": "release-check", "stage": "triage"}, by="release-check", role="ae")
+                raise StepFailed("The MOCKED insurer claim channel accepted a claim in a manual_only tenant.")
+            except ck.Bad:
+                pass
+            async with use_tenant(tid):
+                n = await wrap(store).events.count_documents({"type": "ClaimSubmittedToInsurer", "payload.mocked": True})
+            if n:
+                raise StepFailed(f"A manual_only tenant has {n} MOCKED insurer claim number(s).")
+        return f"{len(manual)} manual_only tenant(s): MOCKED insurer claim channel refused; no MOCKED claim numbers."
+
+    await r.step("claims.lifecycle", "Synthetic motor claim", lifecycle)
+    await r.step("claims.manual_only", "Real tenants: no mocked insurer claim no.", manual_only)
 
 
 def _alert_query(env_id: str, policy_id: str, ids: dict, since: datetime | None = None) -> dict:

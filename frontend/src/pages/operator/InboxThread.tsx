@@ -6,7 +6,8 @@ import { API, PageHead, card, getJson, muted } from "./stubKit";
 import { StatusPill, type ThreadRow } from "./Inbox";
 
 interface Msg { who: "client" | "broker" | "pending"; text: string; at: string; author: string | null }
-interface Thread extends ThreadRow { conversation: Msg[]; can_reply: boolean; kept: { kept_at: string; late: boolean } | null }
+interface Approval { approval_id: string; body: string; status: "pending" | "approved"; requested_at: string }
+interface Thread extends ThreadRow { conversation: Msg[]; can_reply: boolean; kept: { kept_at: string; late: boolean } | null; advice_approvals: Approval[] }
 
 const MAX = 4000;
 
@@ -21,20 +22,61 @@ function Bubble({ m, i }: { m: Msg; i: number }) {
   );
 }
 
+async function post(path: string, body: unknown) {
+  return fetch(`${API}${path}`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+}
+
+/** R1.8: personal-advice replies wait for a Principal; the approval is bound to the exact text. */
+function Approvals({ id, list, onDone }: { id: string; list: Approval[]; onDone: () => void }) {
+  const [err, setErr] = useState<string | null>(null);
+  if (!list?.length) return null;
+  async function approve(a: Approval) {
+    const r = await post(`/api/o/inbox/${encodeURIComponent(id)}/advice-approval/${a.approval_id}/approve`, {});
+    if (!r.ok) { setErr(r.status === 403 ? "Only a Principal can approve personal advice." : "Couldn't approve."); return; }
+    onDone();
+  }
+  async function send(a: Approval) {
+    const r = await post(`/api/o/inbox/${encodeURIComponent(id)}/reply`, { body: a.body, idempotency_key: `approved-${a.approval_id}`, approval_id: a.approval_id });
+    if (!r.ok) { setErr("Reply not sent."); return; }
+    onDone();
+  }
+  return (
+    <section style={{ ...card, marginBottom: 12 }} data-testid="advice-approvals">
+      <p style={muted}>Personal-advice replies (Principal approval required; a Statement of Advice may be needed)</p>
+      {list.map((a) => (
+        <div key={a.approval_id} data-testid={`advice-approval-${a.approval_id}`} style={{ marginTop: 8 }}>
+          <div style={{ whiteSpace: "pre-wrap" }}>{a.body}</div>
+          <span style={muted} data-testid={`advice-approval-status-${a.approval_id}`}>{a.status === "pending" ? "Waiting for a Principal" : "Approved"}</span>{" "}
+          {a.status === "pending" ? <button className="k-btn" onClick={() => void approve(a)} data-testid={`advice-approve-${a.approval_id}`}>Approve (Principal)</button>
+            : <button className="k-btn k-btn--primary" onClick={() => void send(a)} data-testid={`advice-send-${a.approval_id}`}>Send approved reply</button>}
+        </div>
+      ))}
+      {err && <p role="alert" style={muted} data-testid="advice-approval-error">{err}</p>}
+    </section>
+  );
+}
+
 function ReplyBox({ id, onSent }: { id: string; onSent: () => void }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [pAdvice, setPAdvice] = useState<string | null>(null);
   const key = useRef(crypto.randomUUID());
   async function send() {
-    setBusy(true); setErr(null);
-    const r = await fetch(`${API}/api/o/inbox/${encodeURIComponent(id)}/reply`, {
-      method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: text, idempotency_key: key.current }),
-    });
+    setBusy(true); setErr(null); setPAdvice(null);
+    const r = await post(`/api/o/inbox/${encodeURIComponent(id)}/reply`, { body: text, idempotency_key: key.current });
     setBusy(false);
+    if (r.status === 409) {
+      const j = await r.json().catch(() => ({}));
+      if (j.detail?.code === "PersonalAdvice") { setPAdvice(j.detail.detail); return; }
+    }
     if (!r.ok) { setErr(r.status === 403 ? "Your role can read this thread but not reply." : "Reply not sent. Check the text and try again."); return; }
     key.current = crypto.randomUUID(); setText(""); onSent();
+  }
+  async function askApproval() {
+    const r = await post(`/api/o/inbox/${encodeURIComponent(id)}/advice-approval`, { body: text.trim() });
+    if (!r.ok) { setErr("Couldn't request approval."); return; }
+    setPAdvice(null); setText(""); onSent();
   }
   const ok = text.trim().length > 0 && text.length <= MAX;
   return (
@@ -49,6 +91,12 @@ function ReplyBox({ id, onSent }: { id: string; onSent: () => void }) {
         </button>
       </div>
       {err && <p role="alert" style={{ ...muted, marginTop: 8 }} data-testid="thread-reply-error">{err}</p>}
+      {pAdvice && (
+        <div role="alert" data-testid="thread-reply-personal-advice" style={{ marginTop: 8, borderLeft: "3px solid #E5A100", paddingLeft: 10 }}>
+          <p style={{ margin: 0 }}>{pAdvice}</p>
+          <button className="k-btn" onClick={() => void askApproval()} data-testid="thread-reply-request-approval" style={{ marginTop: 6 }}>Ask a Principal to approve</button>
+        </div>
+      )}
     </section>
   );
 }
@@ -75,6 +123,7 @@ export function InboxThread() {
       <ol data-testid="thread-conversation" style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
         {t.conversation.map((m, i) => <Bubble key={i} m={m} i={i} />)}
       </ol>
+      <Approvals id={t.thread_id} list={t.advice_approvals} onDone={() => void load()} />
       {t.can_reply ? <ReplyBox id={t.thread_id} onSent={() => void load()} />
         : <p style={muted} data-testid="thread-read-only">Read only. Replies come from the account executive or the Principal.</p>}
     </div>

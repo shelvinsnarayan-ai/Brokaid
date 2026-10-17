@@ -1,0 +1,27 @@
+.clm-stage { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; text-transform: none; }
+.clm-stage--lodged, .clm-stage--info_requested { color: #b7791f; }
+.clm-stage--decision, .clm-stage--settlement { color: #2b6cb0; }
+.clm-stage--closed { color: #2f855a; }
+.clm-stage--withdrawn { color: #718096; }
+.clm-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.clm-chips button, .clm-yesno button { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line, #cbd5e0); background: transparent; color: inherit; cursor: pointer; transition: background-color 0.15s, border-color 0.15s; }
+.clm-chips button.on, .clm-yesno button.on { background: var(--ink, #1a202c); color: #fff; border-color: var(--ink, #1a202c); }
+.clm-yesno { border: 0; padding: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.clm-yesno legend { font-weight: 600; margin-bottom: 6px; width: 100%; }
+.clm-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.clm-check { border-left: 3px solid #b7791f; padding: 8px 12px; display: grid; gap: 4px; }
+.clm-flag { margin: 0; color: #975a16; }
+.clm-muted { font-size: 12px; opacity: 0.75; }
+.clm-check-row { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+.clm-card { border: 1px solid var(--line, #e2e8f0); border-radius: 10px; padding: 14px 16px; display: grid; gap: 8px; margin: 12px 0; }
+.clm-card--ask { border-color: #b7791f; }
+.clm-card--decision { border-color: #2b6cb0; }
+.clm-status { font-size: 16px; }
+.clm-o-table { width: 100%; border-collapse: collapse; }
+.clm-o-table th, .clm-o-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 14px; }
+.clm-o-table tr.overdue td:first-child { border-left: 3px solid #e53e3e; }
+.clm-o-filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.clm-o-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 1100px) { .clm-o-grid { grid-template-columns: 1fr; } }
+.clm-o-flag { color: #f6ad55; margin: 0; }
+.clm-ai { border-left: 3px solid #9f7aea; padding-left: 10px; white-space: pre-wrap; }

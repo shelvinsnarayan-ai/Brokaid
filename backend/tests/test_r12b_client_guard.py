@@ -11,6 +11,7 @@ from tests.test_r12_auth import run
 from tests.test_r12b import CLIENT, _client_session
 
 ID_PARAMS = {"policy_id", "envelope_id", "certificate_id", "claim_id", "membership_id", "renewal_id"}
+NESTED = {"file_id", "req_id"}  # R1.8: only ever under a guarded claim_id
 
 
 def _c_routes(app):
@@ -42,7 +43,8 @@ async def _foreign(db, tid):
     await af.ledger(db, tid, "CertificateRegenerated", sys, {"certificate_id": cert, "policy_id": p["policy_id"], "envelope_id": env})
     await af.ledger(db, tid, "ClientQuestionAsked", sys, {"envelope_id": thread, "client_id": foreign_cid, "message": "x"})
     return {"policy_id": p["policy_id"], "envelope_id": env, "certificate_id": cert, "claim_id": claim,
-            "membership_id": mem, "thread_id": thread, "renewal_id": renewal}, own["policy_id"]
+            "membership_id": mem, "thread_id": thread, "renewal_id": renewal, "file_id": str(uuid.uuid4()),
+            "req_id": str(uuid.uuid4())}, own["policy_id"]
 
 
 def test_every_c_route_with_an_object_id_hides_foreign_client_objects():
@@ -54,7 +56,8 @@ def test_every_c_route_with_an_object_id_hides_foreign_client_objects():
         assert len(routes) >= 15
         for method, path in routes:
             params = set(re.findall(r"{(\w+)}", path))
-            assert params <= ID_PARAMS, f"new /api/c id param on {path}: add it to client_guard.ID_KEYS and this test"
+            assert params - NESTED <= ID_PARAMS, f"new /api/c id param on {path}: add it to client_guard.ID_KEYS and this test"
+            assert not params & NESTED or "claim_id" in params, f"{path}: nested ids must sit under a guarded claim_id"
             url = path
             for k in params:
                 url = url.replace("{" + k + "}", ids[k])

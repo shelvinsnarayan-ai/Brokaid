@@ -24,7 +24,6 @@ Byte-identical event_hash across backends for identical inputs (R2).
 """
 from __future__ import annotations
 
-import re
 from datetime import date, datetime, timezone
 from typing import Any
 
@@ -103,13 +102,9 @@ async def next_claim_reference(store, tenant_id: str) -> str:
         async with use_tenant(tenant_id):
             async for r in safe.claims.find({}):
                 ref = r.get("claim_reference") or ""
-                if ref.startswith(prefix):
-                    digits = re.sub(r"\D", "", ref)
-                    if digits:
-                        try:
-                            max_n = max(max_n, int(digits))
-                        except ValueError:
-                            pass
+                seq = ref[len(prefix):]
+                if ref.startswith(prefix) and len(seq) == 6 and seq.isdigit():  # R1.8: the year digits no longer leak into the sequence
+                    max_n = max(max_n, int(seq))
         return f"{prefix}{max_n + 1:06d}"
     async with store.acquire() as c:
         async with c.transaction():

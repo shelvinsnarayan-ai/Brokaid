@@ -11,7 +11,7 @@ from typing import Callable
 
 from app.kernel.providers.anthropic_stub import AnthropicProviderStub
 from app.kernel.providers.base import AgentProvider
-from app.kernel.agents.claims_stub import DeterministicClaimsStubProvider
+from app.kernel.agents.claims_live import ClaimsProvider
 from app.kernel.agents.compliance import EmergentLLMProviderCompliance
 from app.kernel.agents.liaison import EmergentLLMProviderLiaison
 from app.kernel.agents.placement import EmergentLLMProviderPlacement
@@ -49,7 +49,7 @@ AGENT_PROVIDERS: dict[str, ProviderFactory] = {
     "mock": _mock_factory("mock"),
     "intake": _intake_factory,           # phase 8 — LIVE
     "placement": _placement_factory,     # phase 9 — LIVE
-    "claims": DeterministicClaimsStubProvider,   # phase 13 — deterministic stub
+    "claims": ClaimsProvider,   # R1.8 — deterministic triage stub + live incident summary (mode=summary)
     "compliance": _compliance_factory,   # phase 10 — LIVE
     "liaison": _liaison_factory,         # phase 12 — LIVE
     "docs": _mock_factory("docs"),

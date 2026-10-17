@@ -16,13 +16,13 @@ from app.db.tenant_safe import wrap
 from app.kernel.tenant_ctx import use_tenant
 
 ALL = {"can_approve": True, "can_pay": True, "can_sign": True, "can_change_bank": True,
-       "can_view": True, "can_request_change": True, "can_claim": True, "can_certificates": True,
+       "can_view": True, "can_request_change": True, "can_lodge_claim": True, "can_certificates": True,
        "can_manage_members": True}
 NONE = {k: False for k in ALL}
 ROLE_AUTHORITY = {
     "owner": ALL,
     "bookkeeper": {**NONE, "can_pay": True, "can_view": True, "can_request_change": True,
-                   "can_claim": True, "can_certificates": True},
+                   "can_lodge_claim": False, "can_certificates": True},
 }
 
 

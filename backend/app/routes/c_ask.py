@@ -126,7 +126,7 @@ async def thread(
             elif m["who"] == "broker":
                 items.append((m["at"], {"who": "broker", "text": m["text"], "attribution": m.get("author"),
                                         "next_step": None, "verified": False, "thread_id": t["thread_id"],
-                                        "reply_id": m.get("reply_id")}))
+                                        "reply_id": m.get("reply_id"), "gaw": m.get("gaw")}))
         if not t["answered"] and t["reply_by"]:
             waiting.append(t["reply_by"])
             items.append((t["last_at"], {"who": "broker_pending", "thread_id": t["thread_id"],

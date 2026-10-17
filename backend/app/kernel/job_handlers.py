@@ -25,8 +25,9 @@ async def _renewals_tick(store, job: dict) -> None:
 
 @jobs.handler("compliance.tick")
 async def _compliance_tick(store, job: dict) -> None:
-    from app.kernel import complaints
+    from app.kernel import claims, complaints
     await complaints.tick(store, job["payload"]["tenant_id"])
+    await claims.tick(store, job["payload"]["tenant_id"])
 
 
 @jobs.handler("privacy.export")

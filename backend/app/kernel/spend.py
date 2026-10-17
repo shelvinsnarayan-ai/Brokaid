@@ -18,7 +18,7 @@ log = logging.getLogger("brokaid.spend")
 
 DEFAULT_RATES = {"claude-sonnet-4-6": {"input": 3.0, "output": 15.0}}
 LIVE_MODEL = "claude-sonnet-4-6"
-AGENT_MODEL = {a: LIVE_MODEL for a in ("intake", "placement", "compliance", "liaison")}
+AGENT_MODEL = {a: LIVE_MODEL for a in ("intake", "placement", "compliance", "liaison", "claims")}
 
 
 def rates() -> dict:

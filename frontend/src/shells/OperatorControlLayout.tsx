@@ -21,6 +21,7 @@ const NAV_GROUPS = [
     { to: "/o/queue",       label: "Today",        kbd: "g q" },
     { to: "/o/clients",     label: "Clients",      kbd: "g c" },
     { to: "/o/renewals",    label: "Renewals",     kbd: "g r" },
+    { to: "/o/claims",      label: "Claims",       kbd: "g l" },
     { to: "/o/inbox",       label: "Inbox",        kbd: "g i" },
   ] },
   { title: "Principal", roles: ["principal", "operator"], items: [

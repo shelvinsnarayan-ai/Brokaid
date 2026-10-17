@@ -21,6 +21,7 @@ type ThreadItem =
       verified?: boolean;
       ts?: string;
       reply_id?: string | null;
+      gaw?: string | null;
     }
   | { who: "broker_pending"; text: string; ts?: string };
 
@@ -201,6 +202,7 @@ export function ClientAsk() {
                 </div>
               )}
               <div className="brokaid-ask__body">{m.text}</div>
+              {m.gaw ? <p className="brokaid-ask__gaw" data-testid={`ask-gaw-${i}`} style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>{m.gaw}</p> : null}
               {m.next_step && (
                 <div
                   className="brokaid-ask__next-step"

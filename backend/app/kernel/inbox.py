@@ -139,7 +139,8 @@ async def load_threads(store, tenant_id: str, *, client_id: str | None = None,
         elif typ == "BrokerReplied":
             m = bodies.get(p["reply_id"]) or {}
             t["messages"].append({"who": "broker", "text": m.get("body", ""), "at": _utc(p["replied_at"]),
-                                  "author": m.get("author_name") or "Your broker", "reply_id": p["reply_id"]})
+                                  "author": m.get("author_name") or "Your broker", "reply_id": p["reply_id"],
+                                  "gaw": m.get("gaw"), "advice_tier": m.get("advice_tier")})
             t["answered"] = True
         elif typ == "PromiseMade":
             t["reply_by"] = _utc(p["reply_by"])
@@ -183,7 +184,56 @@ async def _audit(store, session, client_id, thread_id, outcome):
             "requested_authority": "can_reply", "actual_authority": {"role": session.active_role}})
 
 
-async def reply(store, session, thread_id: str, body: str, idempotency_key: str) -> dict:
+def _sha(body: str) -> str:
+    return hashlib.sha256(body.encode()).hexdigest()
+
+
+async def request_advice_approval(store, session, thread_id: str, body: str) -> dict:
+    """R1.8: a P-tier reply waits for a Principal. The approval is bound to the exact reply text (sha256)."""
+    from app.kernel import notify
+    t = await get_thread(store, session.tenant_id, thread_id)
+    if session.active_role not in REPLY_ROLES:
+        raise HTTPException(status_code=403, detail="your role can read threads but not reply")
+    a = {"approval_id": str(uuid.uuid4()), "thread_id": thread_id, "client_id": t["client_id"], "body": body, "body_sha256": _sha(body),
+         "status": "pending", "requested_by": session.user_id, "requested_at": datetime.now(timezone.utc), "decided_by": None}
+    safe = wrap(store)
+    async with use_tenant(session.tenant_id):
+        await safe.reply_advice_approvals.insert_one(dict(a))
+        principals = await notify._staff(safe, ("principal",))
+    await _emit(store, session.tenant_id, "PersonalAdviceApprovalRequested", {"approval_id": a["approval_id"], "thread_id": thread_id,
+                "client_id": t["client_id"], "body_sha256": a["body_sha256"]}, f"advice_approval:{a['approval_id']}",
+                {"kind": "human", "id": session.user_id, "name": session.active_role})
+    for uid in principals:
+        await notify.deliver(store, session.tenant_id, uid, kind="advice_approval", title="Reply needs Principal approval (personal advice)",
+                             many="Replies need Principal approval", body=body[:140], link=f"/o/inbox/{thread_id}",
+                             dedupe_key=f"advice_approval:{a['approval_id']}", idem=f"advice_approval:{a['approval_id']}")
+    a.pop("_id", None)
+    return a
+
+
+async def approve_advice(store, session, thread_id: str, approval_id: str) -> dict:
+    if session.active_role != "principal":
+        raise HTTPException(status_code=403, detail="Only a Principal can approve personal advice.")
+    async with use_tenant(session.tenant_id):
+        res = await wrap(store).reply_advice_approvals.update_one(
+            {"approval_id": approval_id, "thread_id": thread_id, "status": "pending"},
+            {"$set": {"status": "approved", "decided_by": session.user_id, "decided_at": datetime.now(timezone.utc)}})
+    if not res.modified_count:
+        raise HTTPException(status_code=404, detail="approval_not_found")
+    await _emit(store, session.tenant_id, "PersonalAdviceApproved", {"approval_id": approval_id, "thread_id": thread_id},
+                f"advice_approved:{approval_id}", {"kind": "human", "id": session.user_id, "name": "principal"})
+    return {"approval_id": approval_id, "status": "approved"}
+
+
+async def approvals(store, tenant_id: str, thread_id: str) -> list[dict]:
+    async with use_tenant(tenant_id):
+        return [{**a, "requested_at": a["requested_at"].isoformat()} async for a in wrap(store).reply_advice_approvals.find(
+            {"thread_id": thread_id, "status": {"$in": ["pending", "approved"]}}, {"_id": 0}).sort("requested_at", -1).limit(10)]
+
+
+async def reply(store, session, thread_id: str, body: str, idempotency_key: str, approval_id: str | None = None) -> dict:
+    from app.kernel import compliance_docs
+    from app.kernel.advice_boundary import classify_reply
     tenant_id = session.tenant_id
     t = await get_thread(store, tenant_id, thread_id)
     if session.active_role not in REPLY_ROLES:
@@ -195,18 +245,37 @@ async def reply(store, session, thread_id: str, body: str, idempotency_key: str)
         prior = await safe.thread_messages.find_one({"idempotency_key": idempotency_key})
         if prior:
             return {"reply_id": prior["reply_id"], "thread_id": prior["thread_id"], "replayed": True}
+        verdict = classify_reply(body)
+        approved = None
+        if verdict["tier"] == "P":
+            approved = approval_id and await safe.reply_advice_approvals.find_one(
+                {"approval_id": approval_id, "thread_id": thread_id, "status": "approved", "body_sha256": _sha(body)})
+            if not approved:
+                raise HTTPException(status_code=409, detail={
+                    "code": "PersonalAdvice", "tier": "P", "rule_id": verdict["rule_id"], "reason": verdict["reason"],
+                    "detail": "This reply reads as personal advice. A Principal must approve it before it's sent "
+                              "(a Statement of Advice may be required)."})
+    gaw = (await compliance_docs.settings(store, tenant_id))["gaw_text"] if verdict["tier"] == "G" else None
+    async with use_tenant(tenant_id):
         user = await safe.users.find_one({"user_id": session.user_id}) or {}
         now = datetime.now(timezone.utc)
         reply_id = str(uuid.uuid4())
         await safe.thread_messages.insert_one({
             "reply_id": reply_id, "thread_id": thread_id, "client_id": t["client_id"], "body": body,
             "author_user_id": session.user_id, "author_name": user.get("display_name") or "Your broker",
-            "created_at": now, "idempotency_key": idempotency_key})
+            "created_at": now, "idempotency_key": idempotency_key, "advice_tier": verdict["tier"], "gaw": gaw,
+            "approval_id": approved and approved["approval_id"]})
+        if approved:
+            await safe.reply_advice_approvals.update_one({"approval_id": approved["approval_id"]}, {"$set": {"status": "used"}})
     actor = {"kind": "human", "id": session.user_id, "name": session.active_role}
     await _emit(store, tenant_id, "BrokerReplied", {
         "thread_id": thread_id, "client_id": t["client_id"], "reply_id": reply_id,
         "author_user_id": session.user_id, "replied_at": now.isoformat(),
-        "body_sha256": hashlib.sha256(body.encode()).hexdigest()}, f"reply:{idempotency_key}", actor)
+        "body_sha256": hashlib.sha256(body.encode()).hexdigest(), "advice_tier": verdict["tier"],
+        "principal_approval_id": approved and approved["approval_id"]}, f"reply:{idempotency_key}", actor)
+    if gaw:
+        await _emit(store, tenant_id, "GeneralAdviceWarningGiven", {"thread_id": thread_id, "reply_id": reply_id, "client_id": t["client_id"],
+                    "context": "broker_reply", "gaw_sha256": _sha(gaw)}, f"gaw:reply:{reply_id}", actor)
     late = None
     if t["reply_by"] and not t["kept"]:
         late = now > t["reply_by"]
@@ -220,7 +289,7 @@ async def reply(store, session, thread_id: str, body: str, idempotency_key: str)
             "notification_id": str(uuid.uuid4()), "client_id": t["client_id"], "source_event_id": None,
             "ts": now, "kind": "broker_reply", "subject": "Your broker replied",
             "body_text": body[:140], "read_at": None})
-    return {"reply_id": reply_id, "thread_id": thread_id, "replayed": False, "late": late}
+    return {"reply_id": reply_id, "thread_id": thread_id, "replayed": False, "late": late, "advice_tier": verdict["tier"], "gaw": gaw}
 
 
 async def backfill(store, tenant_id: str) -> dict:

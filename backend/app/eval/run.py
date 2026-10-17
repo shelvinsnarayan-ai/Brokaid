@@ -50,9 +50,48 @@ async def _tenant(store) -> str:
     return tid
 
 
+def _result(case, got, fails, t0, agent, tok) -> dict:
+    from app.kernel import spend
+    return {"id": case["id"], "tags": case["tags"], "safety": case["safety"], "message": case["message"], "expect": case["expect"],
+            "got": got, "pass": not fails, "fails": fails, "ms": round((time.monotonic() - t0) * 1000),
+            "cost_usd": spend.cost_usd(agent, tok.input, tok.output) if tok else 0, "tokens": {"in": tok.input if tok else 0,
+                                                                                               "out": tok.output if tok else 0}}
+
+
+async def run_reply_case(case) -> dict:
+    from app.kernel.advice_boundary import classify_reply
+    t0 = time.monotonic()
+    v = classify_reply(case["message"])
+    fails = [f"tier {v['tier']} ≠ {case['expect']['tier']}"] if v["tier"] != case["expect"]["tier"] else []
+    return _result(case, {"tier": v["tier"], "rule_id": v["rule_id"]}, fails, t0, "none", None)
+
+
+async def run_claim_case(brain, tid, case) -> dict:
+    from app.kernel.agents.claims_live import summary_fails
+    from app.kernel.contracts.models import Actor, ContextEnvelope, InvocationBudget
+    t0 = time.monotonic()
+    text = f"Claim class: motor\nIncident date: not given\nWhere: not given\nWhat happened (client's words): {case['message']}"
+    env = ContextEnvelope(envelope_id=uuid.uuid4(), tenant_id=uuid.UUID(tid), matter_id=None, client_id=uuid.UUID(CLIENT),
+                          class_key="claim_admin", intent="summarise claim incident", inputs={"mode": "summary", "incident_text": text},
+                          context_events=[], risk_schema_refs=[], tenant_config={},
+                          budget=InvocationBudget(max_input_tokens=3000, max_output_tokens=600, max_wall_ms=45000),
+                          caller=Actor(kind="system", id="ai-eval", name="ai-eval"), ts=datetime.now(timezone.utc))
+    try:
+        out = await brain.invoke(env, "claims")
+    except Exception as e:  # noqa: BLE001 — a crashed case is a failed case
+        return {"id": case["id"], "error": f"{type(e).__name__}: {str(e)[:200]}", "pass": False, "safety": case["safety"], "cost_usd": 0}
+    summary = (out.payload or {}).get("summary") or ""
+    fails = summary_fails(summary, text) + ([] if summary.strip() else ["empty summary"])
+    return _result(case, {"summary": summary[:600]}, fails, t0, "claims", out.tokens_used)
+
+
 async def run_case(brain, tid, case) -> dict:
     from app.kernel.contracts.models import Actor, ContextEnvelope, InvocationBudget
     from app.kernel import spend
+    if case.get("kind") == "broker_reply":
+        return await run_reply_case(case)
+    if case.get("kind") == "claim_summary":
+        return await run_claim_case(brain, tid, case)
     t0 = time.monotonic()
     env = ContextEnvelope(envelope_id=uuid.uuid4(), tenant_id=uuid.UUID(tid), matter_id=None, client_id=uuid.UUID(CLIENT),
                           class_key="request_info", intent="parse client change request",

@@ -87,3 +87,21 @@ def classify(raw_message: str, structured_submission: dict | None, policy: dict 
                 return _v("G", "DRIVER-G-01", "Driver add is missing details — broker guides the client", kind)
         return _v("F", f"{kind.upper()}-F-01", f"Factual {kind} update on the policy schedule", kind)
     return _v("X", "UNCLASSIFIED-X-01", "unclassified request type — routed to broker", None)
+
+
+_REPLY_P = re.compile(r"\b((i|we)('d| would)? (recommend|suggest|advise)|you should|you'd be better|best (option|choice|cover|policy) for you|"
+                      r"i'd go with|in your (situation|circumstances|case)|given your|for your business)\b", re.I)
+_REPLY_G = re.compile(r"\b(generally|typically|usually|most policies|policies like|(the )?options? (are|include)|you (can|could) choose|"
+                      r"compare|comparison|covers?\b|cover for|excess(es)?|exclusions?|sum insured|limits? of)\b", re.I)
+
+
+def classify_reply(text: str) -> dict[str, Any]:
+    """R1.8 — a broker's reply to a client question. P if it weighs the client's own circumstances or recommends;
+    G if it gives general product information; F (factual/admin) otherwise."""
+    t = text or ""
+    if _PERSONAL.search(t) or _REPLY_P.search(t):
+        return _v("P", "REPLY-P-01", "The reply weighs the client's own circumstances or recommends — personal advice", "reply")
+    if _REPLY_G.search(t):
+        return _v("G", "REPLY-G-01", "General information about cover — general advice warning applies", "reply")
+    return _v("F", "REPLY-F-01", "Factual / admin reply", "reply")
+

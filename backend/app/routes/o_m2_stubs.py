@@ -60,6 +60,8 @@ async def _weekly(request: Request, tenant_id: str) -> dict:
     start = now - timedelta(days=7)
     async with use_tenant(tenant_id):
         renewal_rows = await _renewal_metrics(safe, start)
+        from app.kernel import claims as claims_k
+        claim_rows = await claims_k.weekly_metrics(safe, now)
         tids = await test_client_ids(safe)
         open_rows = [r async for r in safe.proj_queue.find({"resolved_at": None, "client_id": {"$nin": tids}})]
         done = [r async for r in safe.proj_queue.find({"resolved_at": {"$gte": start}, "client_id": {"$nin": tids}})]
@@ -83,6 +85,7 @@ async def _weekly(request: Request, tenant_id: str) -> dict:
             {"key": "approvals", "label": "Approvals this week", **_n(approvals)},
             {"key": "spend", "label": "Spend ESTIMATE (sprint to date, USD)", **_n(round(s["cost_usd"], 2), "estimate")},
             *renewal_rows,
+            *claim_rows,
         ],
         "note": "Promises are counted from queue reply-by times and client-thread reply-by times (+1 business day). Kept means answered on time. The full promises engine comes later.",
     }
@@ -146,12 +149,14 @@ async def inbox_thread(thread_id: str, request: Request,
             for m in t["messages"]]
     return {**_thread_row(t, now), "conversation": msgs,
             "can_reply": session.active_role in inbox_k.REPLY_ROLES,
+            "advice_approvals": await inbox_k.approvals(request.app.state.mongo_db, session.tenant_id, thread_id),
             "kept": ({"kept_at": t["kept"]["kept_at"].isoformat(), "late": t["kept"]["late"]} if t["kept"] else None)}
 
 
 class ReplyBody(BaseModel):
     body: str = Field(max_length=inbox_k.MAX_BODY)
     idempotency_key: str = Field(min_length=8, max_length=200)
+    approval_id: str | None = None
 
     @field_validator("body")
     @classmethod
@@ -164,4 +169,20 @@ class ReplyBody(BaseModel):
 @router.post("/inbox/{thread_id}/reply")
 async def inbox_reply(thread_id: str, body: ReplyBody, request: Request,
                       session: Session = Depends(require_operator_session)) -> dict:
-    return await inbox_k.reply(request.app.state.mongo_db, session, thread_id, body.body, body.idempotency_key)
+    return await inbox_k.reply(request.app.state.mongo_db, session, thread_id, body.body, body.idempotency_key, body.approval_id)
+
+
+class ApprovalBody(BaseModel):
+    body: str = Field(min_length=1, max_length=inbox_k.MAX_BODY)
+
+
+@router.post("/inbox/{thread_id}/advice-approval")
+async def advice_approval(thread_id: str, body: ApprovalBody, request: Request,
+                          session: Session = Depends(require_operator_session)) -> dict:
+    return await inbox_k.request_advice_approval(request.app.state.mongo_db, session, thread_id, body.body.strip())
+
+
+@router.post("/inbox/{thread_id}/advice-approval/{approval_id}/approve")
+async def advice_approve(thread_id: str, approval_id: str, request: Request,
+                         session: Session = Depends(require_operator_session)) -> dict:
+    return await inbox_k.approve_advice(request.app.state.mongo_db, session, thread_id, approval_id)

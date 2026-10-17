@@ -35,7 +35,8 @@ import { Clients as OperatorClients } from "./pages/operator/Clients";
 import { Client360 } from "./pages/operator/Client360";
 import { OperatorMatters } from "./pages/OperatorMatters";
 import { OperatorPolicies } from "./pages/OperatorPolicies";
-import { OperatorClaim } from "./pages/operator/OperatorClaim";
+import { OperatorClaim } from "./pages/operator/claims/Detail";
+import ClaimsPage from "./pages/operator/Claims";
 import { ShadowMode, ShadowModeDrill } from "./pages/operator/ShadowMode";
 import { Governance } from "./pages/operator/Governance";
 import { TrailExport } from "./pages/operator/TrailExport";
@@ -130,6 +131,7 @@ export function App() {
           <Route path="clients/:id" element={<Client360 />} />
           <Route path="matters" element={<OperatorMatters />} />
           <Route path="policies" element={<OperatorPolicies />} />
+          <Route path="claims" element={<ClaimsPage />} />
           <Route path="claims/:claim_id" element={<OperatorClaim />} />
           <Route path="shadow-mode" element={<ShadowMode />} />
           <Route path="governance" element={<Governance />} />

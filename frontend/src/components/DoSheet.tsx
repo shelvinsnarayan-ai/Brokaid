@@ -25,7 +25,7 @@ export function DoSheet({ onClose }: { onClose: () => void }) {
   const verbs = [
     { id: "certificate", label: "Get a certificate", to: policyId ? `/c/cover/${policyId}/certificate/new` : "/c/cover" },
     { id: "change", label: "Change something", to: policyId ? `/c/cover/${policyId}/request-change` : "/c/cover" },
-    { id: "claim", label: "Report a claim", to: "/c/claims/new" },
+    { id: "claim", label: "Make a claim", to: "/c/claims/new" },
     { id: "add", label: "Add or insure something", to: "/c/ask" },
     { id: "life", label: "Something's changed", to: "/c/ask" },
     { id: "ask", label: "Ask my broker", to: "/c/ask" },

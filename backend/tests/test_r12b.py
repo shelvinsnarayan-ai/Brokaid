@@ -252,7 +252,7 @@ def test_a02_deferred_1_2_4_5_6_7_and_every_client_action_checks_authority():
         ch = (await _events(db, tid, "AuthorityChanged"))[-1]["payload"]
         assert (ch["switch"], ch["before"], ch["after"]) == ("can_request_change", True, False)
         # every client action goes through require_authority: switch everything off → 403 everywhere
-        for sw in ("can_claim", "can_certificates", "can_view", "can_pay"):
+        for sw in ("can_lodge_claim", "can_certificates", "can_view", "can_pay"):
             await c.put(f"/api/c/members/{bea_m['membership_id']}/authority", cookies=kai, json={"switch": sw, "on": False})
         env = "00000000-0000-4000-8000-00000000e999"
         await af.ledger(db, tid, "EnvelopeOpened", {"kind": "system", "id": "t", "name": "t"}, {"envelope_id": env, "policy_id": pol})

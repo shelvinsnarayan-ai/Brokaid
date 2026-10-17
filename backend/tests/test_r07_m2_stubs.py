@@ -23,7 +23,7 @@ def test_weekly_pack_roles_and_basis():
         assert r.status_code == 200
         assert {m["key"] for m in r.json()["metrics"]} == {
             "promises_kept", "promises_open", "promises_overdue", "approvals", "spend",
-            "renewals_open", "renewals_lapse_risk", "renewals_bound", "renewals_lapsed"}
+            "renewals_open", "renewals_lapse_risk", "renewals_bound", "renewals_lapsed", "claims_open", "claims_avg_days", "claims_stale"}
         assert all(m["data_basis"] for m in r.json()["metrics"])
     pdf = _as("principal@harbourline.example").get("/api/o/weekly-pack.pdf")
     assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF"

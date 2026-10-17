@@ -74,10 +74,11 @@ def test_weekly_pack_metric_shape():
     body = _as("principal@harbourline.example").get("/api/o/weekly-pack").json()
     keys = [m["key"] for m in body["metrics"]]
     assert keys == ["promises_kept", "promises_open", "promises_overdue", "approvals", "spend",
-                    "renewals_open", "renewals_lapse_risk", "renewals_bound", "renewals_lapsed"]  # R1.6
+                    "renewals_open", "renewals_lapse_risk", "renewals_bound", "renewals_lapsed",
+                    "claims_open", "claims_avg_days", "claims_stale"]  # R1.6, R1.8
     for m in body["metrics"]:
         assert isinstance(m["value"], (int, float))
-        assert m["data_basis"] in ("registry", "estimate", "queue + inbox reply-by", "renewal pipeline")
+        assert m["data_basis"] in ("registry", "estimate", "queue + inbox reply-by", "renewal pipeline", "claims register")
     # spend is explicitly estimate
     spend = next(m for m in body["metrics"] if m["key"] == "spend")
     assert spend["data_basis"] == "estimate"

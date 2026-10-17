@@ -352,9 +352,9 @@ async def unmatch(store, tid, txn_id, reason, by, role) -> None:
 
 async def record_payment(store, tid, *, by, role, kind, amount=None, txn_id=None, insurer=None, client_id=None,
                          policy_id=None, note="", on_date=None, entry_id=None) -> dict:
-    """Money out of trust: to an insurer or a refund. From an outgoing bank line, or manual (unpresented)."""
-    if kind not in ("insurer_payment", "refund"):
-        raise ValueError("Choose insurer payment or refund.")
+    """Money out of trust: to an insurer, a refund, or a claim settlement (R1.8). From an outgoing bank line, or manual (unpresented)."""
+    if kind not in ("insurer_payment", "refund", "claim_payment"):
+        raise ValueError("Choose insurer payment, refund or claim payment.")
     if kind == "insurer_payment" and not insurer:
         raise ValueError("Choose the insurer paid.")
     safe = wrap(store)

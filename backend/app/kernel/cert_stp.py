@@ -57,6 +57,7 @@ async def facts(store, tenant_id: str, policy_id: str) -> dict[str, Any]:
             changes = (ev.get("payload") or {}).get("changes_applied") or []
             if ts and ts >= since and any("limits." in (c.get("field_path") or "") for c in changes):
                 recent = True
-        claim = await safe.claims.find_one(
-            {"policy_id": policy_id, "status": {"$in": sorted(OPEN_CLAIM_STATES)}})
+        claim = await safe.claims.find_one({"policy_id": policy_id, "$or": [
+            {"stage": {"$exists": True, "$nin": ["closed", "withdrawn"]}},  # R1.8 claim lifecycle
+            {"stage": {"$exists": False}, "status": {"$in": sorted(OPEN_CLAIM_STATES)}}]})
     return {"recent_limit_change": recent, "open_claim": claim is not None}
