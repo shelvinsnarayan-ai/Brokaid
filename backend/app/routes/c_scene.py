@@ -367,6 +367,15 @@ async def _run_intake_placement_async(
     if quote == "awaiting_manual":
         return
     if "ready" not in state:
+        from app.kernel import compliance_docs as cd
+        if not await cd.has_fsg(store, tenant_id, policy["client_id"]):  # R1.7: FSG before the first quote
+            await cd.deliver_fsg(store, tenant_id, policy["client_id"], user_id, "in_app", "before_first_quote")
+        try:  # retail: PDS + TMD with the quote (endorsement: recorded, not blocking — the policy's PDS is usually held)
+            await cd.deliver_quote_docs(store, tenant_id, client_id=policy["client_id"], user_id=user_id,
+                                        context=f"endorsement:{envelope_id_str}",
+                                        options=[{"insurer": policy.get("insurer_display") or "", "product": policy.get("product")}])
+        except cd.Missing:
+            pass
         await _once(scene.emit_endorsement_quote_ready(store, tenant_id=tenant_id, envelope_id=envelope_id_str,
                                                        policy_id=policy_id, quote_id=quote["quote_id"]))
         await mark("ready")

@@ -103,6 +103,8 @@ def create_app(
         await _bankfeed.ensure_indexes(app.state.mongo_db)
         from app.kernel import renewals as _renewals
         await _renewals.ensure_indexes(app.state.mongo_db)
+        from app.kernel import compliance_docs as _cdocs
+        await _cdocs.ensure_indexes(app.state.mongo_db)
         await app.state.mongo_db.push_subscriptions.create_index(
             [("tenant_id", 1), ("user_id", 1), ("endpoint", 1)], unique=True)
         # R1.1: background work runs as durable jobs (notify fan-out, intake chain, email, push, periodic checks).
@@ -153,6 +155,8 @@ def create_app(
     from app.routes.o_bank import router as o_bank_router
     from app.routes.o_renewals import c_router as c_renewals_router
     from app.routes.o_renewals import router as o_renewals_router
+    from app.routes.o_compliance import c_router as c_compliance_router
+    from app.routes.o_compliance import router as o_compliance_router
     from app.routes.c_members import router as c_members_router
     from app.routes.c_ask import router as c_ask_router
     from app.routes.c_cert import router as c_cert_router
@@ -187,7 +191,7 @@ def create_app(
     for r in (
         build_info_router,
         c_envelope_router,
-        auth_login_router, o_invites_router, o_users_router, o_import_router, o_bank_router, c_money_router, o_renewals_router, c_renewals_router, c_members_router,
+        auth_login_router, o_invites_router, o_users_router, o_import_router, o_bank_router, c_money_router, o_renewals_router, c_renewals_router, o_compliance_router, c_compliance_router, c_members_router,
         c_ask_router, c_cert_router, c_claims_router, c_me_router,
         c_next_action_router, c_pending_quote_router, c_scene_router,
         client_360_router, client_preferences_router,

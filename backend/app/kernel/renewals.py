@@ -15,7 +15,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
 from app.db.tenant_safe import wrap
-from app.kernel import holidays, notify, payments
+from app.kernel import compliance_docs, holidays, notify, payments
 from app.kernel.advice_boundary import classify_recommendation
 from app.kernel.mocks import renewal_quotes
 from app.kernel.policy_field_guard import UnmatchedPolicyField, _norm, validate_requested_changes
@@ -44,9 +44,6 @@ STUCK_BD = {"upcoming": 2, "info_requested": 10, "info_received": 2, "market": 5
             "recommendation_ready": 2, "client_decision": 5, "paid": 2, "signed": 1}
 REMINDERS = (45, 30, 21)
 LAPSE_RISK_DAYS = 7
-GENERAL_ADVICE_WARNING = ("General advice warning: this comparison doesn't take into account your objectives, financial situation "
-                          "or needs. Read the policy wording before you decide. (Wording to be finalised in Phase 8.)")
-
 
 class Bad(ValueError):
     pass
@@ -375,9 +372,12 @@ async def recommend(store, tid, r, quote_id, text, reasons, *, by, role, now=Non
         raise Bad("Pick the recommended option and write the recommendation with at least one reason.")
     policy = await _policy(store, tid, r["policy_id"])
     verdict = classify_recommendation(f"{text} {' '.join(reasons)}", q, policy)
+    await _tmd_gate(store, tid, r)
+    cst = await compliance_docs.settings(store, tid)
     rec = {"quote_id": quote_id, "text": text.strip()[:2000], "reasons": reasons, **verdict, "by": by, "at": _now(now),
            "principal_approved_by": None, "principal_approved_at": None, "released_at": None,
-           "general_advice_warning": GENERAL_ADVICE_WARNING}
+           "general_advice_warning": cst["gaw_text"] if verdict["tier"] == "G" else None,
+           "soa_note": cst["soa_note"] if verdict["tier"] == "P" else None}
     async with use_tenant(tid):
         await wrap(store).renewals.update_one({"renewal_id": r["renewal_id"]}, {"$set": {"recommendation": rec}})
     r["recommendation"] = rec
@@ -413,12 +413,83 @@ def released(rec: dict | None) -> bool:
     return bool(rec and rec.get("released_at"))
 
 
+# ---- DDO (R1.7) ----
+TMD_FIT = ("yes", "no", "unsure")
+
+
+async def _is_retail(store, tid, r) -> bool:
+    return (await compliance_docs.client_type(store, tid, r["client_id"]))["client_type"] == "retail"
+
+
+async def _tmd_gate(store, tid, r) -> None:
+    if not await _is_retail(store, tid, r):
+        return
+    t = r.get("tmd_check")
+    if not t:
+        raise Bad("Retail client: record the TMD-fit check (in the target market: yes / no / unsure) before recommending.")
+    if t["fit"] == "no" and not t.get("principal_approved_by"):
+        raise Bad("The TMD-fit check says this client is outside the target market: a Principal must approve before you recommend.")
+
+
+async def tmd_check(store, tid, r, fit, reason, *, by, role) -> dict:
+    if fit not in TMD_FIT or not (reason or "").strip():
+        raise Bad("Pick yes, no or unsure and give the reason.")
+    t = {"fit": fit, "reason": reason.strip()[:500], "by": by, "at": _now(None), "principal_approved_by": None}
+    async with use_tenant(tid):
+        await wrap(store).renewals.update_one({"renewal_id": r["renewal_id"]}, {"$set": {"tmd_check": t}})
+    r["tmd_check"] = t
+    await _event(store, tid, "TmdFitChecked", {"renewal_id": r["renewal_id"], "envelope_id": r["envelope_id"], "policy_id": r["policy_id"],
+                 "client_id": r["client_id"], "fit": fit, "reason_sha256": hashlib.sha256(t["reason"].encode()).hexdigest(),
+                 "test": bool(r.get("test"))}, f"tmd_check:{r['renewal_id']}:{t['at'].isoformat()}", by, role)
+    if fit == "no":
+        await _alert(store, tid, r, "principal", "renewal_tmd", f"Outside the target market: {r.get('client_name')}",
+                     f"The AE recorded a TMD-fit 'No': {t['reason']}", f"tmd_no:{r['renewal_id']}:{t['at'].isoformat()}")
+    return r
+
+
+async def approve_tmd(store, tid, r, *, by) -> dict:
+    t = r.get("tmd_check")
+    if not t or t["fit"] != "no":
+        raise Bad("There's no TMD 'No' waiting for approval.")
+    async with use_tenant(tid):
+        await wrap(store).renewals.update_one({"renewal_id": r["renewal_id"]}, {"$set": {"tmd_check.principal_approved_by": by}})
+    t["principal_approved_by"] = by
+    await _event(store, tid, "TmdOutsideApproved", {"renewal_id": r["renewal_id"], "envelope_id": r["envelope_id"],
+                 "client_id": r["client_id"], "test": bool(r.get("test"))}, f"tmd_ok:{r['renewal_id']}", by, "principal")
+    return r
+
+
+async def _significant_dealing(store, tid, r, dec) -> None:
+    """A dealing outside the TMD is logged for the brokerage's DDO reporting and the Principal is alerted."""
+    row = {"report_id": str(uuid.uuid4()), "renewal_id": r["renewal_id"], "client_id": r["client_id"], "client_name": r.get("client_name"),
+           "insurer": dec.get("insurer"), "product": r.get("product"), "premium": dec.get("premium"), "tmd_reason": r["tmd_check"]["reason"],
+           "approved_by": r["tmd_check"].get("principal_approved_by"), "at": _now(None), "reported_to_issuer": False}
+    async with use_tenant(tid):
+        await wrap(store).ddo_reports.insert_one(dict(row))
+    await _event(store, tid, "SignificantDealingRecorded", {"report_id": row["report_id"], "renewal_id": r["renewal_id"],
+                 "client_id": r["client_id"], "insurer": row["insurer"], "test": bool(r.get("test"))}, f"ddo:{r['renewal_id']}")
+    await _alert(store, tid, r, "principal", "renewal_ddo", f"Dealing outside the TMD: {r.get('client_name')}",
+                 "Logged in the DDO report — check whether the insurer must be notified.", f"ddo:{r['renewal_id']}")
+
+
 async def send_to_client(store, tid, r, *, by, role, now=None) -> dict:
     rec = r.get("recommendation")
     if cur(r) != "recommendation_ready" or not rec:
         raise Bad("Write the recommendation first.")
     if rec["tier"] == "P" and not rec.get("principal_approved_by"):
         raise Bad("This is personal advice: a Principal must approve it before the client sees it.")
+    await _tmd_gate(store, tid, r)
+    try:  # R1.7: FSG before the first quote; retail → PDS + TMD with every option
+        if not await compliance_docs.has_fsg(store, tid, r["client_id"]):
+            await compliance_docs.deliver_fsg(store, tid, r["client_id"], None, "in_app", "before_first_quote")
+        await compliance_docs.deliver_quote_docs(store, tid, client_id=r["client_id"], user_id=None, context=f"renewal:{r['renewal_id']}",
+                                                 options=[{"insurer": q["insurer"], "product": r.get("product")} for q in r["quotes"]])
+    except compliance_docs.Missing as e:
+        raise Bad(str(e)) from None
+    if rec.get("general_advice_warning"):
+        await _event(store, tid, "GeneralAdviceWarningGiven", {"renewal_id": r["renewal_id"], "envelope_id": r["envelope_id"],
+                     "client_id": r["client_id"], "text_sha256": hashlib.sha256(rec["general_advice_warning"].encode()).hexdigest(),
+                     "test": bool(r.get("test"))}, f"gaw:{r['renewal_id']}:{rec['at'].isoformat() if isinstance(rec['at'], datetime) else rec['at']}", by, role)
     async with use_tenant(tid):
         await wrap(store).renewals.update_one({"renewal_id": r["renewal_id"]}, {"$set": {"recommendation.released_at": _now(now)}})
     rec["released_at"] = _now(now)
@@ -449,6 +520,8 @@ async def decide(store, tid, r, choice: str, reason: str | None, *, by, role, no
                  f"renewal_decision:{r['renewal_id']}", by, role)
     if choice == "decline":
         return await _move(store, tid, r, "declined", by=by, role=role, now=now, note=dec["reason"] or None)
+    if (r.get("tmd_check") or {}).get("fit") == "no":
+        await _significant_dealing(store, tid, r, dec)
     p = await payments.ensure_payable(store, tid, envelope_id=r["envelope_id"], policy_id=r["policy_id"], amount=dec["premium"],
                                       kind="renewal_premium")
     async with use_tenant(tid):

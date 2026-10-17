@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Basis } from "../stubKit";
 import { Market } from "./Market";
 import { Recommend } from "./Recommend";
+import { TmdCheck } from "./TmdCheck";
 import { api, aud, get, type Detail } from "./api";
 
 export function RenewalDetail({ id, role, mode, onClose, onChanged }: { id: string; role?: string; mode?: string; onClose: () => void; onChanged: () => void }) {
@@ -60,6 +61,7 @@ export function RenewalDetail({ id, role, mode, onClose, onChanged }: { id: stri
             </tr>))}</tbody>
         </table>
       ) : null}
+      {["quotes_in", "recommendation_ready"].includes(r.current) ? <TmdCheck r={r as any} role={role} act={act} /> : null}
       {["quotes_in", "recommendation_ready"].includes(r.current) ? <Recommend d={d} role={role} act={act} /> : null}
       {d.payable ? <p className="imp-muted" data-testid="renewal-payable">Payment: CRN {d.payable.crn} · {aud(d.payable.amount)} · <b>{d.payable.state}</b></p> : null}
       {d.packet ? (

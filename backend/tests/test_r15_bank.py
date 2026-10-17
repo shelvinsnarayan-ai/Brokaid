@@ -179,3 +179,17 @@ def test_bank_api_roles_and_settings():
     assert ada.post("/api/o/bank/reconciliation/sign-off", json={"as_at": "2026-12-31", "note": "test"}).status_code == 200
     assert kai.get("/api/c/money").status_code == 200 and kai.get("/api/o/bank/txns").status_code in (401, 403)
     assert ada.get("/api/o/bank/reconciliation/export.pdf").content[:4] == b"%PDF"
+
+
+async def test_premium_received_alert_reaches_the_client(mongo_db):
+    from app.kernel import notify
+    tid, cid, uid = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+    async with use_tenant(tid):
+        safe = wrap(mongo_db)
+        await safe.clients.insert_one({"client_id": cid, "display_name": "Bank Alert Client"})
+        await safe.user_client_links.insert_one({"user_id": uid, "client_id": cid})
+        await safe.memberships.insert_one({"user_id": uid, "client_id": cid, "role": "owner", "revoked_at": None})
+    await notify.on_event(mongo_db, tid, "PremiumReceived", {"client_id": cid, "payable_id": "pay-1", "amount": "10.00"}, "ev-1")
+    async with use_tenant(tid):
+        n = await wrap(mongo_db).notifications.find_one({"user_id": uid, "kind": "payment_received"})
+    assert n and n["link"] == "/c/money"

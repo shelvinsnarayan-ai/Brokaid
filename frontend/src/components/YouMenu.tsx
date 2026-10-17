@@ -6,13 +6,13 @@ import { UnreadCount, UnreadDot, useUnreadStore } from "../state/unreadStore";
 
 const ITEMS = [
   { id: "people", label: "People", to: "/c/profile" },
-  { id: "documents", label: "Documents", to: "/c/cover" },
+  { id: "documents", label: "Documents", to: "/c/documents" },
   { id: "messages", label: "Messages", to: "/c/ask" },
   { id: "notifications", label: "Notifications", to: "/c/alerts#settings" },
   { id: "settings", label: "Settings", to: "/c/profile" },
-  { id: "fsg", label: "FSG", to: "/c/profile" },
-  { id: "privacy", label: "Privacy", to: "/c/profile" },
-  { id: "complaint", label: "Make a complaint", to: "/c/ask" },
+  { id: "fsg", label: "FSG", to: "/c/documents" },
+  { id: "privacy", label: "My data and privacy", to: "/c/my-data" },
+  { id: "complaint", label: "Make a complaint", to: "/c/complaint" },
 ];
 
 export function YouMenu() {

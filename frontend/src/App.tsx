@@ -14,6 +14,8 @@ import { VerifyPublic } from "./pages/VerifyPublic";
 import "./styles/cert-phase2.css";
 import { ClientMoney } from "./pages/ClientMoney";
 import { ClientRenewal } from "./pages/ClientRenewal";
+import { ClientComplaint, ClientDocuments, ClientMyData } from "./pages/ClientCompliance";
+import { CompliancePage } from "./pages/operator/Compliance";
 import { ClientClaims, ClaimsNew, ClaimDetail } from "./pages/ClientClaims";
 import { ClientNotifications } from "./pages/ClientNotifications";
 import { ClientAsk } from "./pages/ClientAsk";
@@ -89,6 +91,9 @@ export function App() {
           <Route path="cover/:policy_id/certificate" element={<ClientCertificate />} />
           <Route path="money" element={<ClientMoney />} />
           <Route path="renewal/:renewal_id" element={<ClientRenewal />} />
+          <Route path="documents" element={<ClientDocuments />} />
+          <Route path="complaint" element={<ClientComplaint />} />
+          <Route path="my-data" element={<ClientMyData />} />
           <Route path="claims" element={<ClientClaims />} />
           <Route path="claims/new" element={<ClaimsNew />} />
           <Route path="claims/:claim_id" element={<ClaimDetail />} />
@@ -132,6 +137,7 @@ export function App() {
           <Route path="users" element={<OperatorUsers />} />
           <Route path="import" element={<ImportPage />} />
           <Route path="bank" element={<BankPage />} />
+          <Route path="compliance" element={<CompliancePage />} />
           <Route path="shadow-mode/:agent/:class_key" element={<ShadowModeDrill />} />
           <Route path="export" element={<TrailExport />} />
           <Route path="chase" element={<ChaseLadder />} />

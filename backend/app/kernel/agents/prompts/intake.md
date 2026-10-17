@@ -111,6 +111,14 @@ Output (via the tool call — no prose):
 ```
 
 
+## Addresses
+
+Business, situation and risk addresses live only at `schedule.addresses[i]` (there is no `schedule.insured.address`
+or `schedule.situation.address`). For a change, set the held entry: `{"field_path": "schedule.addresses[0]",
+"operation": "set", "from_value": "<the held address exactly as listed>", "to_value": "<new address>"}`. A vehicle's
+garaging address is `schedule.vehicles[<rego>].garaged_address` (set). If you can't tell which held address changes,
+ask instead of guessing.
+
 ## Vehicles (add / remove / swap)
 
 Write vehicle changes at list level only — never as per-vehicle paths such as

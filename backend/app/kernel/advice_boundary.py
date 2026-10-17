@@ -16,7 +16,7 @@ _ADVICE = re.compile(
     r"is it (better|worth)|worth it|suitab\w*|what do you think|which (is|one|option)|"
     r"better off|or (should|would|do) (i|we))\b", re.I)
 _TEXT_KINDS = [
-    ("limit", re.compile(r"\b(limit|sum insured|cover amount|excess|indemnity|increase (my |the )?cover)\b", re.I)),
+    ("limit", re.compile(r"\b(limits?|sum insured|cover amount|excess|indemnity|increase (my |the )?cover)\b", re.I)),
     ("certificate", re.compile(r"\b(certificate|coc|proof of (insurance|cover)|currency)\b", re.I)),
     ("driver", re.compile(r"\bdrivers?\b", re.I)),
     ("vehicle", re.compile(r"\b(vehicles?|car|ute|truck|van|rego|registration|fleet|hilux|navara)\b", re.I)),
@@ -79,6 +79,8 @@ def classify(raw_message: str, structured_submission: dict | None, policy: dict 
                 return _v("P", "VEHICLE-P-02", "Vehicle reference doesn't match the policy", kind)
         if kind == "driver":
             adds = [c for c in changes if (c.get("operation") or "").lower() == "add"]
+            if not changes:  # R1.7: nothing structured to apply (e.g. "add my son") — the broker guides the client
+                return _v("G", "DRIVER-G-01", "Driver change is missing details — broker guides the client", kind)
             if any(not (isinstance(c.get("to_value"), dict) and c["to_value"].get("name")
                         and (c["to_value"].get("licence_number") or c["to_value"].get("licence")))
                    for c in adds):

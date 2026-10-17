@@ -174,9 +174,14 @@ async def invite_info(token: str, request: Request) -> dict:
         raise HTTPException(status_code=410, detail="This invite link has expired or was already used. Ask for a new one.")
     tenant = await wrap(store).system("tenants").find_one({"tenant_id": inv["tenant_id"]})
     existing, _ = await af.credentialed(store, inv["email"])
-    return {"email": inv["email"], "name": inv["name"], "role": af.ROLE_LABEL[inv["role"]],
-            "brokerage": tenant["display_name"], "kind": "client" if inv["role"] in af.CLIENT_ROLES else "staff",
-            "existing_account": bool(existing and existing.get("mfa_secret"))}
+    out = {"email": inv["email"], "name": inv["name"], "role": af.ROLE_LABEL[inv["role"]],
+           "brokerage": tenant["display_name"], "kind": "client" if inv["role"] in af.CLIENT_ROLES else "staff",
+           "existing_account": bool(existing and existing.get("mfa_secret"))}
+    if out["kind"] == "client":
+        from app.kernel import compliance_docs as cd
+        st = await cd.settings(store, inv["tenant_id"])
+        out |= {"collection_notice": st["collection_notice_text"], "privacy_policy": st["privacy_policy_text"]}
+    return out
 
 
 @router.post("/invite/{token}/accept")
@@ -204,6 +209,9 @@ async def invite_accept(token: str, body: PasswordBody, request: Request, respon
     await af.ledger(store, inv["tenant_id"], "InviteAccepted", af.human(user["user_id"], ctx["active_role"]),
                     {"invite_id": inv["token_id"], "role": inv["role"], "client_id": inv.get("client_id"),
                      "existing_account": bool(existing)})
+    if inv["role"] in af.CLIENT_ROLES and inv.get("client_id"):  # R1.7: FSG before the first service + collection notice record
+        from app.kernel import compliance_docs as cd
+        await cd.on_client_onboarded(store, inv["tenant_id"], inv["client_id"], user["user_id"], "invite_acceptance")
     sid = await af.start_pending(store, user, inv["tenant_id"], ctx)
     af.set_cookie(response, sid, int(af.PENDING_TTL.total_seconds()))
     return {"next": "totp" if existing else "enrol"}

@@ -365,6 +365,7 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
         except StepFailed:
             pass
         await manual_only_steps(r, store)
+        await compliance_steps(r, store, tenant_id, ids)
 
         async def probe_client_on_o():
             await expect(await http.get("/api/o/queue", headers=as_("owner")), 403, "Client on broker route")
@@ -424,6 +425,9 @@ async def renewal_steps(r, http, as_, expect, store, tenant_id, ids, run_id) -> 
     kw = {"by": ids["ae"], "role": "ae"}
 
     async def start():
+        from app.kernel import compliance_docs
+        await compliance_docs.set_client_type(store, tenant_id, pol["client_id"], "wholesale",
+                                              "Synthetic release-check business client", "release-check")
         if (await rn.tick(store, tenant_id, t0, [pid]))["started"] != 1:
             raise StepFailed("The renewal didn't start at T-60 (injected clock).")
         async with use_tenant(tenant_id):
@@ -512,6 +516,42 @@ async def manual_only_steps(r, store) -> None:
 
 
 QUOTING_MODE_SINCE = "2026-10-17T21:00:00"  # R1.6 deploy: seeded demo events before this are archived history
+
+
+async def compliance_steps(r, store, tenant_id, ids) -> None:
+    """R1.7: FSG delivery on the synthetic client's invite, the complaint clock, and the AI eval gate."""
+    from app.eval import gate
+    from app.kernel import complaints, compliance_docs
+
+    async def fsg():
+        d = await compliance_docs.on_client_onboarded(store, tenant_id, CLIENT_ID, ids["owner"], "invite_acceptance")
+        if not d:
+            return "warn", "No FSG is uploaded for this brokerage, so none could be delivered (DocumentDeliveryMissing recorded)."
+        async with use_tenant(tenant_id):
+            ev = await wrap(store).events.find_one({"type": "DocumentDelivered", "payload.delivery_id": d["delivery_id"]})
+        if not ev:
+            raise StepFailed("FSG delivery has no DocumentDelivered ledger event.")
+        return f"FSG v{d['version']} delivered on invite acceptance (sha {d['sha256'][:10]}…)."
+
+    async def clock():
+        c = complaints.clock(datetime(2026, 12, 24, 3, tzinfo=timezone.utc), "NSW")  # Thu 24 Dec 2pm Sydney
+        if c["ack_due"].date().isoformat() != "2026-12-29" or c["response_due"].date().isoformat() != "2027-01-23":
+            raise StepFailed(f"Complaint clock wrong: ack {c['ack_due']}, response {c['response_due']}.")
+        return "Received 24/12/2026 → acknowledge by 29/12 (Christmas + Boxing Day skipped), respond by 23/01/2027."
+
+    async def evalgate():
+        st = await gate.status(store)
+        if not st["last"]:
+            return "warn", "No AI eval run recorded yet."
+        if not st["current"]:
+            return "warn", f"The last eval ({st['last']['prompt_hash'][:10]}) is older than the current prompts ({st['prompt_hash'][:10]})."
+        if not st["last"]["gate_pass"]:
+            raise StepFailed(f"The last eval failed the gate: {st['last']['summary']}.")
+        return f"Eval gate PASS for prompt {st['prompt_hash'][:10]}: {st['last']['summary']}."
+
+    for key, label, fn in (("compliance.fsg", "FSG delivered on invite", fsg), ("compliance.complaint_clock", "Complaint clock", clock),
+                           ("ai.eval_gate", "AI eval gate", evalgate)):
+        await r.step(key, label, fn)
 
 
 def _alert_query(env_id: str, policy_id: str, ids: dict, since: datetime | None = None) -> dict:

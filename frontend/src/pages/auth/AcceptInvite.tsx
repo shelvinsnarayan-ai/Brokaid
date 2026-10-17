@@ -6,7 +6,7 @@ import { MfaEnrol } from "../../components/auth/MfaEnrol";
 import { NewPassword } from "../../components/auth/NewPassword";
 import { TenantChooser, TenantOpt } from "../../components/auth/Tenants";
 
-interface Info { email: string; name: string; role: string; brokerage: string; existing_account: boolean }
+interface Info { email: string; name: string; role: string; brokerage: string; existing_account: boolean; collection_notice?: string; privacy_policy?: string }
 
 function ExistingAccount({ token, onNext }: { token: string; onNext: () => void }) {
   const [pw, setPw] = useState("");
@@ -77,6 +77,7 @@ export default function AcceptInvite() {
     <AuthCard title={`Welcome, ${info.name.split(" ")[0]}`} testid="invite-root"
       lead={<>You've been invited to <strong>{info.brokerage}</strong> as <strong data-testid="invite-role">{info.role}</strong>.</>}>
       <p className="auth-copy" data-testid="invite-email">Signing in as {info.email}</p>
+      {info.collection_notice ? <details className="auth-copy" data-testid="invite-collection-notice" open><summary>How we handle your information</summary><p>{info.collection_notice}</p><p>{info.privacy_policy}</p><p>By continuing you confirm you've read this notice. We'll also give you our Financial Services Guide.</p></details> : null}
       {info.existing_account ? <ExistingAccount token={token} onNext={() => setStep("code")} /> : (
         <>
           <p className="auth-step">Step 1 of 3 · Choose a password</p>

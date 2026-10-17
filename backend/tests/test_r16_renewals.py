@@ -63,7 +63,8 @@ async def _people(db, tid, client_id):
         for key in ("ae", "principal"):
             await safe.user_brokerage_roles.insert_one({"user_id": ids[key], "tenant_id": tid, "brokerage_id": "b", "role": key,
                                                         "active": True})
-        await safe.clients.update_one({"client_id": client_id}, {"$set": {"assigned_ae_user_id": ids["ae"]}})
+        await safe.clients.update_one({"client_id": client_id}, {"$set": {"assigned_ae_user_id": ids["ae"], "client_type": "wholesale",
+                                                                          "client_type_reason": "test business client (R1.7 DDO off)"}})
     cookies = {}
     for key, role in (("owner", "client_owner"), ("bookkeeper", "client_contact")):
         s = await create_session_scoped(db, tid, user_id=ids[key], client_id=client_id, active_role=role, mfa_verified=True,

@@ -218,7 +218,7 @@ async def on_event(store, tenant_id: str, type_: str, payload: dict, event_id: s
         policy_id = ((row or {}).get("payload") or {}).get("policy_id")
     ctx = {"client": (client or {}).get("display_name", "A client"), "author": author or "Your broker",
            "policy_id": policy_id or "",
-           "envelope_id": p.get("envelope_id") or "", "thread_id": thread_id or "",
+           "envelope_id": p.get("envelope_id") or "", "thread_id": thread_id or "", "payable_id": p.get("payable_id") or "",
            "reply_by": inbox.fmt_short(inbox.reply_by_for(inbox._utc(received), hstate))}
     ref = thread_id or p.get("envelope_id") or event_id
     for uid in recipients:

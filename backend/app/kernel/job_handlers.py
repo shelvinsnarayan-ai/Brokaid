@@ -23,6 +23,25 @@ async def _renewals_tick(store, job: dict) -> None:
     await renewals.tick(store, job["payload"]["tenant_id"])
 
 
+@jobs.handler("compliance.tick")
+async def _compliance_tick(store, job: dict) -> None:
+    from app.kernel import complaints
+    await complaints.tick(store, job["payload"]["tenant_id"])
+
+
+@jobs.handler("privacy.export")
+async def _privacy_export(store, job: dict) -> None:
+    from app.kernel import privacy_export
+    p = job["payload"]
+    await privacy_export.build(store, job["tenant_id"], p["matter_id"], p["client_id"], p["user_id"])
+
+
+@jobs.handler("ai.eval")
+async def _ai_eval(store, job: dict) -> None:
+    from app.eval.run import run
+    await run(store, by=job["payload"].get("by") or "governance")
+
+
 @jobs.handler("email.send")
 async def _email_send(store, job: dict) -> None:
     await email_channel.run_once(store)

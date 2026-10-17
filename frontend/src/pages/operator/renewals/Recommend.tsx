@@ -29,7 +29,7 @@ export function Recommend({ d, role, act }: { d: Detail; role?: string; act: (a:
           {rec.tier === "P" ? (rec.principal_approved_by ? " Approved by a Principal." : " A Principal must approve before the client sees it.") : ""}
         </p>
       ) : null}
-      <p className="imp-muted rn-gaw" data-testid="renewal-gaw">{d.general_advice_warning}</p>
+      <p className="imp-muted rn-gaw" data-testid="renewal-gaw">{rec?.tier === "P" ? (rec as any).soa_note : d.general_advice_warning}</p>
       {rec && blocked && role === "principal" ? (
         <button className="k-btn k-btn--primary" onClick={() => act("approve-advice")} data-testid="renewal-approve-advice">Approve this advice</button>
       ) : null}

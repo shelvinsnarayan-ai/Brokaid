@@ -30,6 +30,9 @@ const NAV_GROUPS = [
     { to: "/o/import",      label: "Import",       kbd: "g m" },
     { to: "/o/bank",        label: "Bank & trust", kbd: "g b" },
   ] },
+  { title: "Compliance", roles: ["ae", "principal", "operator"], items: [
+    { to: "/o/compliance",  label: "Compliance",   kbd: "g k" },
+  ] },
   { title: "Operator", roles: ["operator"], items: [
     { to: "/o/governance",  label: "Agent operations", kbd: "g g" },
     { to: "/o/export",      label: "Export",       kbd: "g e" },
@@ -38,7 +41,7 @@ const NAV_GROUPS = [
 ];
 const ROUTE_ROLES: [string, string[]][] = [
   ["/o/governance", ["operator"]], ["/o/export", ["operator"]], ["/o/chase", ["operator"]],
-  ["/o/brief", ["principal", "operator"]], ["/o/weekly-pack", ["principal", "operator"]], ["/o/shadow-mode", ["principal", "operator"]], ["/o/import", ["principal", "operator"]], ["/o/bank", ["principal", "operator"]],
+  ["/o/brief", ["principal", "operator"]], ["/o/weekly-pack", ["principal", "operator"]], ["/o/shadow-mode", ["principal", "operator"]], ["/o/import", ["principal", "operator"]], ["/o/bank", ["principal", "operator"]], ["/o/compliance", ["ae", "principal", "operator"]],
 ];
 const allowed = (p: string, role: string | undefined) => {
   if (p === "/o" || p === "/o/") return role === "principal" || role === "operator";

@@ -78,8 +78,11 @@ def _check_address(schedule: dict, ch: dict) -> None:
     ref = ch.get("from_value")
     if not held:
         raise UnmatchedPolicyField(fp, ref or ch.get("to_value"), "policy holds no addresses")
-    if ref is not None and _norm(ref.get("address") if isinstance(ref, dict) else ref) not in held:
-        raise UnmatchedPolicyField(fp, ref, "address not on the policy schedule")
+    if ref is not None:
+        want = _norm(ref.get("address") if isinstance(ref, dict) else ref)
+        # R1.7: a client naming just the street ("4 Slipway Lane") matches if exactly one held address starts with it
+        if want not in held and not (len(want) >= 6 and sum(1 for h in held if h.startswith(want)) == 1):
+            raise UnmatchedPolicyField(fp, ref, "address not on the policy schedule")
 
 
 def _check_limit(schedule: dict, ch: dict) -> None:
@@ -127,6 +130,23 @@ def validate_requested_changes(policy: dict, changes: list[dict] | None) -> None
 _REGO_FIELDS = {"registration", "rego", "registration_number"}
 
 
+def _resolve_by_description(policy: dict, changes: list[dict]) -> list[dict]:
+    """R1.7 eval fix: 'take the Navara off' → a remove naming make/model but no rego. Fill the rego only when exactly one
+    held vehicle matches every given descriptor; otherwise leave it so the guard parks it."""
+    held = ((policy or {}).get("schedule") or {}).get("vehicles") or []
+    out = []
+    for ch in changes:
+        fv = ch.get("from_value")
+        if (ch.get("field_path") == "schedule.vehicles[]" and (ch.get("operation") or "").lower() == "remove"
+                and isinstance(fv, dict) and not any(fv.get(a) for a in ("rego", "registration", "vin"))):
+            desc = {k: str(fv[k]).strip().lower() for k in ("make", "model", "year", "body_type") if fv.get(k)}
+            hits = [v for v in held if desc and all(d in str(v.get(k, "")).lower() for k, d in desc.items())]
+            if len(hits) == 1:
+                ch = {**ch, "from_value": {**fv, "rego": hits[0]["rego"]}}
+        out.append(ch)
+    return out
+
+
 def normalize_vehicle_ops(policy: dict, changes: list[dict] | None) -> list[dict]:
     """R0.11 follow-up: fold per-vehicle element paths into the canonical list-level ops.
 
@@ -137,6 +157,7 @@ def normalize_vehicle_ops(policy: dict, changes: list[dict] | None) -> list[dict
     """
     if not changes:
         return changes or []
+    changes = _resolve_by_description(policy, changes)
     held = {i for v in ((policy or {}).get("schedule") or {}).get("vehicles") or [] for i in _ident(v, _KEYS["vehicles"])}
     keep, removes, new, explicit_add = [], [], {}, False
     for ch in changes:

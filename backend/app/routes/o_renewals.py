@@ -8,7 +8,7 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 from app.db.tenant_safe import wrap
-from app.kernel import holidays, payments
+from app.kernel import compliance_docs, holidays, payments
 from app.kernel import renewals as rn
 from app.kernel.authority import require_authority
 from app.kernel.tenant_ctx import use_tenant
@@ -172,7 +172,7 @@ async def _detail(store, tid, r) -> dict:
     pay = await rn.payable(store, tid, r)
     return {"renewal": {**r, "stage_label": rn.LABEL[r["stage"]], "current": rn.cur(r)}, "comparison": rn.comparison(r, policy),
             "payable": pay, "packet": rn.packet(r, policy, pay) if r.get("new_policy_id") else None,
-            "general_advice_warning": rn.GENERAL_ADVICE_WARNING}
+            "general_advice_warning": (await compliance_docs.settings(store, tid))["gaw_text"]}
 
 
 @router.get("/renewals/{renewal_id}")
@@ -222,6 +222,12 @@ async def act(renewal_id: str, action: str, request: Request, s=Depends(actor)) 
         if s.active_role != "principal":
             raise HTTPException(status_code=403, detail="Only a Principal can approve personal advice.")
         await _run(rn.approve_advice(store, tid, r, by=s.user_id))
+    elif action == "tmd-check":
+        await _run(rn.tmd_check(store, tid, r, body.get("fit"), body.get("reason"), **kw))
+    elif action == "approve-tmd":
+        if s.active_role != "principal":
+            raise HTTPException(status_code=403, detail="Only a Principal can approve a dealing outside the target market.")
+        await _run(rn.approve_tmd(store, tid, r, by=s.user_id))
     elif action == "send":
         await _run(rn.send_to_client(store, tid, r, **kw))
     else:
@@ -254,7 +260,7 @@ def _client_view(r: dict, pay: dict | None, settings: dict | None, comp: dict, m
            "new_policy_id": r.get("new_policy_id"), "signature": r.get("signature")}
     if rec:
         out["recommendation"] = {"quote_id": rec["quote_id"], "text": rec["text"], "reasons": rec["reasons"],
-                                 "general_advice_warning": rec["general_advice_warning"]}
+                                 "general_advice_warning": rec.get("general_advice_warning"), "tier": rec["tier"]}
         out["options"] = [{k: o[k] for k in ("quote_id", "insurer", "premium", "premium_change", "excess", "excess_change",
                                              "limits_same", "key_differences", "mocked")} for o in comp["options"]]
         out["expiring"] = comp["expiring"]

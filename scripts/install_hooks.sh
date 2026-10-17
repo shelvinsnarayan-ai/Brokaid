@@ -6,6 +6,7 @@ cat > "$H/pre-commit" <<'EOF'
 #!/usr/bin/env bash
 # fast subset: lint, typecheck, source scans (~20s). Skip once with BROKAID_SKIP_HOOKS=1.
 [ "${BROKAID_SKIP_HOOKS:-}" = "1" ] && exit 0
+"$(git rev-parse --show-toplevel)/scripts/eval_gate_check.sh" || exit 1
 exec "$(git rev-parse --show-toplevel)/scripts/test_all.sh" --fast
 EOF
 cat > "$H/commit-msg" <<'EOF'
