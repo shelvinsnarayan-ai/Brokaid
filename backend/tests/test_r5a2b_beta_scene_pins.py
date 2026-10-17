@@ -373,7 +373,7 @@ async def test_r5a2bb_pin_client_change_requested(pool):
     scene = _scene_or_skip()
     ctx = await _tenant_and_client(pool)
     envelope_id = str(uuid.uuid4())
-    ev = await scene.emit_client_change_requested(
+    ev = await scene.emit_client_change_requested(  # noqa: F841
         pool, tenant_id=ctx["tenant_id"],
         user_id=ctx["user_id"],
         envelope_id=envelope_id,

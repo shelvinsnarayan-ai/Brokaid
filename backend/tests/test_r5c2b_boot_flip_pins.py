@@ -23,7 +23,6 @@ Coverage
 """
 from __future__ import annotations
 
-import os
 import uuid
 
 import httpx
@@ -102,7 +101,7 @@ async def test_pin_r5c2b_middleware_mongo_only_binds_tenant(
 
     # Seed a tenant + operator + session directly on Mongo.
     from app.db.tenant_safe import wrap
-    from app.kernel import identity, trail_mongo
+    from app.kernel import identity
     from app.kernel.tenant_ctx import use_tenant
     from app.seeds.ci_deterministic import seed_ci_deterministic_mongo
     await seed_ci_deterministic_mongo(mongo_db)

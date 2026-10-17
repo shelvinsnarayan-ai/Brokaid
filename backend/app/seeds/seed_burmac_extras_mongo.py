@@ -28,7 +28,6 @@ Idempotent via a SeedMarker with key `seed:burmac_extras:v1`.
 """
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timedelta, timezone
 
 from motor.motor_asyncio import AsyncIOMotorDatabase

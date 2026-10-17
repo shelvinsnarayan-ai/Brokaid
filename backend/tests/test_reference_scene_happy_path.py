@@ -8,21 +8,12 @@ Marker: requires_llm_key. Skipped without EMERGENT_LLM_KEY.
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import os
 import time
-import uuid
-from datetime import datetime, timezone
-from typing import Any
 
 import pytest
 
-from app.kernel.certificate import regenerate_certificate
-from app.kernel.endorsement import execute_endorsement
-from app.kernel.mocks import e_sign, payment_rail
-from app.kernel.mocks.carrier_channel import submit_endorsement
-from app.kernel.queue import enqueue as queue_enqueue
 from app.kernel.trail import append
 
 
@@ -63,7 +54,7 @@ async def test_reference_scene_happy_path(app_client, scene_seeded) -> None:
     app, client = app_client
     tenant_id = scene_seeded["tenant_id"]
     policy_id = scene_seeded["policy_ids"]["managed"]
-    client_id = scene_seeded["client_id"]
+    client_id = scene_seeded["client_id"]  # noqa: F841
     user_id = scene_seeded["principal_id"]
 
     # --- Dev-mode session as the client owner (Kai) for the scene actions.
@@ -85,7 +76,7 @@ async def test_reference_scene_happy_path(app_client, scene_seeded) -> None:
     body = r.json()
     assert body["state"] == "awaiting_operator", body
     envelope_id = body["envelope_id"]
-    quote_id = body["quote"]["quote_id"]
+    quote_id = body["quote"]["quote_id"]  # noqa: F841
 
     pool = app.state.pool
 

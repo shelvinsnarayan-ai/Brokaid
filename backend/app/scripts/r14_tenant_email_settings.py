@@ -1,6 +1,7 @@
 """R0.14 — per-brokerage email settings on the Harbourline tenant record. Re-runnable; touches no other tenant.
 Usage: python -m app.scripts.r14_tenant_email_settings
 """
+# tenant-safe: system-only — one-off maintenance script; scopes every query by tenant explicitly.
 import asyncio
 import os
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from app.kernel.gate.classes import CLASSES, ClassDef, get
+from app.kernel.gate.classes import ClassDef, get
 from app.kernel.gate.confidence import Confidence
 from app.kernel.gate.coverage_guard import check as coverage_check
 

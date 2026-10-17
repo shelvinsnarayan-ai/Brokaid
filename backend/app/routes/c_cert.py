@@ -111,7 +111,7 @@ async def certificate_qr(
     used_deeplink = False
     if t:
         hashed = certificate_mongo.hash_token(t)
-        cert_hash = (ctx.get("certificate") or {}).get("qr_token_hash")
+        cert_hash = (ctx.get("certificate") or {}).get("qr_token_hash")  # noqa: F841
         # cert dict doesn't hold token hash; look up verifier_tokens row.
         row = await certificate_mongo.load_cert_by_token_hash(
             _store(request), session.tenant_id, hashed,

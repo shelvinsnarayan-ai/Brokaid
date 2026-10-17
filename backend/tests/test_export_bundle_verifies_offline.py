@@ -7,7 +7,6 @@ import io
 import json
 import shutil
 import subprocess
-import tempfile
 import zipfile
 from pathlib import Path
 

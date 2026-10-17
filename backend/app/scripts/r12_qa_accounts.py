@@ -40,6 +40,9 @@ async def main():
         async with use_tenant(t):
             if not await wrap(store).brokerages.find_one({}):
                 await wrap(store).brokerages.insert_one({"brokerage_id": str(uuid.uuid4()), "slug": slug, "display_name": slug})
+            if slug != "harbourline" and not await wrap(store).clients.find_one({"display_name": "CI Alpha QA Client Pty Ltd"}):
+                await wrap(store).clients.insert_one({"client_id": str(uuid.uuid4()), "display_name": "CI Alpha QA Client Pty Ltd",
+                                                      "domicile": "AU", "industry": "QA", "jurisdiction_code": "AU-NSW"})
         _, inv = await af.create_invite(store, tenant_id=t, email=email, name=name, role=role, client_id=None, created_by="qa_seed")
         await af.use_token(store, inv)
         await af.apply_invite(store, inv, pw, await af.identity(store, email) if slug != slugs[0] else None)

@@ -64,14 +64,12 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ASCENDING
-from pymongo.errors import DuplicateKeyError
 
-from app.auth.sessions import COOKIE_NAME, SESSION_TTL, Session  # re-export shape
+from app.auth.sessions import SESSION_TTL, Session  # re-export shape
 from app.db.tenant_safe import TenantSafeDatabase, wrap
 from app.kernel.tenant_ctx import (
-    NoTenantContextError, get_tenant_id, use_tenant,
+    get_tenant_id, use_tenant,
 )
 
 

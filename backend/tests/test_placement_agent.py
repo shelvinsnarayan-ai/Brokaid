@@ -4,7 +4,6 @@ plus the deterministic mocked CarrierChannel.
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import re
 import uuid
@@ -14,7 +13,6 @@ import pytest
 
 from app.kernel.agents.placement import (
     EmergentLLMProviderPlacement,
-    PLACEMENT_ELIGIBLE_CLASSES,
     PLACEMENT_MODEL,
 )
 from app.kernel.contracts.models import (
@@ -382,7 +380,7 @@ async def test_place_endpoint_emits_all_events(app_client, seeded) -> None:
     result = await seed_all(app.state.pool)
     tenant_id = result["tenant_id"]
     policy_id = result["policy_ids"]["managed"]
-    client_id = result["client_id"]
+    client_id = result["client_id"]  # noqa: F841
 
     # Impersonate as Ada (principal).
     r = await client.post("/api/auth/dev/impersonate",

@@ -43,8 +43,9 @@ async def test_not_yet_measurable_reasons(app_client, seeded):
     r = await client.get("/api/o/kpi/summary")
     body = r.json()
     by_id = {k["kpi_id"]: k for k in body["kpis"]}
-    # KPIs 3, 4, 6, 7, 12 are not yet measurable in phase 7.
-    for kid in (3, 4, 6, 7, 12):
+    # KPIs 4, 6, 7, 12 are not yet measurable. KPI 3 (retention) became measurable when renewals were seeded (R0.9).
+    assert by_id[3]["meta"].get("not_yet_measurable") is not True and "renewed_count" in by_id[3]["meta"]
+    for kid in (4, 6, 7, 12):
         assert by_id[kid]["meta"].get("not_yet_measurable") is True, kid
         assert by_id[kid]["meta"].get("reason"), kid
     # KPI 1 (Book) has managed policies in seed → measurable.

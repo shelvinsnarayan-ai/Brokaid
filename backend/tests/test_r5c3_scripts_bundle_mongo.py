@@ -115,8 +115,11 @@ async def test_pin_r5c3b_bundle_build_is_deterministic(monkeypatch):
     matches the PG archive (R2 byte-identical hash guarantee).
     """
     import importlib.util
+    # R1.3: the script rewrites os.environ["DB_NAME"] on import; pin it so monkeypatch restores it afterwards
+    # (it leaked into every later test on the worker → nested *_bundle_bundle DBs, order-dependent failures).
+    monkeypatch.setenv("DB_NAME", os.environ["DB_NAME"])
     monkeypatch.setenv(
-        "BROKAID_DEMO_BUNDLE_DB", "brokaid_demo_bundle_test",
+        "BROKAID_DEMO_BUNDLE_DB", os.environ["DB_NAME"] + "_bundle",
     )
     monkeypatch.setenv(
         "MONGO_URL", os.environ.get("MONGO_URL", "mongodb://localhost:27017"),
@@ -149,8 +152,11 @@ async def test_pin_r5c3b_new_mongo_bundle_verifies_clean(monkeypatch):
     """Rebuild once against a scratch DB; run the same offline
     `verify_events` against the produced export.json; must PASS."""
     import importlib.util
+    # R1.3: the script rewrites os.environ["DB_NAME"] on import; pin it so monkeypatch restores it afterwards
+    # (it leaked into every later test on the worker → nested *_bundle_bundle DBs, order-dependent failures).
+    monkeypatch.setenv("DB_NAME", os.environ["DB_NAME"])
     monkeypatch.setenv(
-        "BROKAID_DEMO_BUNDLE_DB", "brokaid_demo_bundle_test",
+        "BROKAID_DEMO_BUNDLE_DB", os.environ["DB_NAME"] + "_bundle",
     )
     spec = importlib.util.spec_from_file_location(
         "build_demo_bundle_r5c3b_pin_v", BUILD_SCRIPT,

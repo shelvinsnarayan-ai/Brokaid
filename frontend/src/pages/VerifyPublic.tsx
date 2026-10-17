@@ -41,6 +41,7 @@ type Payload = {
   insurer_display: string;
   product: string;
   cover_types: any[];
+  vehicles?: any[];
   effective_from: string;
   effective_to: string;
   issued_at: string;
@@ -316,11 +317,11 @@ function CertBody({ cert, muted }: { cert: Payload; muted?: boolean }) {
         </div>
       )}
 
-      {cert.vehicles?.length > 0 && (
+      {(cert.vehicles?.length ?? 0) > 0 && (
         <div className="brokaid-verify__cover-list" data-testid="verify-vehicles">
           <p className="brokaid-verify__label">Vehicles</p>
           <ul>
-            {cert.vehicles.map((v: any, i: number) => (
+            {cert.vehicles!.map((v: any, i: number) => (
               <li key={v?.rego ?? i} data-testid={`verify-vehicle-${i}`}>
                 {v.rego} · {[v.year, v.make, v.model].filter(Boolean).join(" ")}
                 {v.driver_assigned ? ` · primary driver ${v.driver_assigned}` : ""}

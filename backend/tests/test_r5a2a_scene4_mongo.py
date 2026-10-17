@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import io
 import json
-import uuid
 
 import numpy as np
 import pytest
@@ -108,7 +107,6 @@ async def test_r5a2a_scene4_cert_regen_writes_verifier_tokens_on_mongo(
     scene4_ctx,
 ):
     from app.db.tenant_safe import wrap
-    from app.kernel.tenant_ctx import use_tenant
 
     r = await scene4_ctx["client"].post(
         "/api/c/certificate/regen",

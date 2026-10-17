@@ -22,8 +22,10 @@ async def test_queue_lists_seeded_cards_sorted(app_client, seeded):
     r = await client.get("/api/o/queue")
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["count"] == 5
     cards = body["cards"]
+    assert body["count"] == len(cards) >= 5  # R1.3: count follows the seed, not a hard-coded 5
+    rank = {"overdue": 0, "warn": 1, "ok": 2}
+    assert [rank.get(c["sla_state"], 3) for c in cards] == sorted(rank.get(c["sla_state"], 3) for c in cards)
     # Overdue first; the two ~5h aged cards have SLA_MINUTES=240 for
     # certificate_issue and structure_risk → both overdue. Also the
     # claim_admin 7h card (SLA 480 min = 8h) is warn/ok, not overdue.

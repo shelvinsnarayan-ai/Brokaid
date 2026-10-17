@@ -12,7 +12,6 @@ Three read helpers:
 """
 from __future__ import annotations
 
-from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 

@@ -13,7 +13,7 @@
  * internal names on screen — user-visible labels only ("Certificate",
  * "Placement", "Broker's assistant").
  */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { fmtDate } from "../lib/format";
 

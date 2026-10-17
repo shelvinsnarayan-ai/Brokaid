@@ -39,7 +39,7 @@ from pymongo import ASCENDING
 from pymongo.errors import DuplicateKeyError
 
 from app.db.tenant_safe import TenantSafeDatabase, wrap
-from app.kernel.tenant_ctx import get_tenant_id, use_tenant
+from app.kernel.tenant_ctx import use_tenant
 
 
 VERIFIER_TOKEN_TTL = timedelta(days=90)

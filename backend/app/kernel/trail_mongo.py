@@ -45,7 +45,7 @@ from pymongo.errors import DuplicateKeyError
 from app.db.tenant_safe import TenantSafeDatabase, wrap as _wrap_safe_db
 from app.kernel.canonicalize import event_hash, jcs
 from app.kernel.tenant_ctx import (
-    NoTenantContextError, TenantMismatchError, get_tenant_id, use_tenant,
+    TenantMismatchError, get_tenant_id,
 )
 
 GENESIS_PREV = "0" * 64

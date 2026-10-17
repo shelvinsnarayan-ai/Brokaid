@@ -72,7 +72,7 @@ async def _main() -> int:
     # TODO(R6): remove — dead since R5c-4a PG removal. The `await None`
     # below is syntactically broken; nothing invokes this entrypoint.
     # Left as an F841 canary + explicit marker for the next cleanup pass.
-    dsn = os.environ["MONGO_URL"]
+    dsn = os.environ["MONGO_URL"]  # noqa: F841
     pool = await None  # PG deleted R5c-4a(dsn=dsn, min_size=1, max_size=4)
     try:
         # Use burmac tenant if it exists; else create a scratch one.

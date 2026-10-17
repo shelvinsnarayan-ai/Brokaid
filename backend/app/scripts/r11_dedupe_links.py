@@ -1,6 +1,7 @@
 """R1.1 — remove duplicate user_client_links / memberships rows (keep the newest per key), then add unique indexes.
 Re-runnable. Ledger untouched. Usage: python -m app.scripts.r11_dedupe_links [--dry-run]
 """
+# tenant-safe: system-only — one-off maintenance script; scopes every query by tenant explicitly.
 import asyncio
 import os
 import sys

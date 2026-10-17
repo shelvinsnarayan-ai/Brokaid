@@ -19,12 +19,11 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ASCENDING
 from pymongo.errors import DuplicateKeyError
 
 from app.db.tenant_safe import TenantSafeDatabase, wrap
-from app.kernel.tenant_ctx import get_tenant_id, use_tenant
+from app.kernel.tenant_ctx import get_tenant_id
 
 
 # ---- Index bootstrap (idempotent) ------------------------------------

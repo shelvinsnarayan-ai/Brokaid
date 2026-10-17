@@ -25,7 +25,6 @@ result is independent of the ledger backend flip.
 """
 from __future__ import annotations
 
-import asyncio
 import uuid
 
 import pytest
@@ -178,7 +177,7 @@ async def test_r4b_compliance_blocks(mongo_db):
 async def test_r4b_envelope_scoped(mongo_db):
     from app.kernel import workflow_mongo
     from app.kernel.tenant_ctx import (
-        NoTenantContextError, TenantMismatchError, use_tenant,
+        NoTenantContextError, use_tenant,
     )
     await _seed_tenants(mongo_db)
 

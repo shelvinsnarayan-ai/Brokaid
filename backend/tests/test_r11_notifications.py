@@ -76,7 +76,13 @@ def test_spine_recipients_and_replay():
     env = f"pytest-spine-{uuid.uuid4()}"
 
     async def go(db, tid):
-        from app.kernel import notify
+        from app.db.tenant_safe import wrap
+        from app.kernel.tenant_ctx import use_tenant
+        from app.kernel import notify, trail_mongo
+        # R1.3: since R1.1 only a priced change (EndorsementQuoteReady) asks the client to approve — arrange one.
+        async with use_tenant(tid):
+            await trail_mongo.append_event(wrap(db), tid, "EndorsementQuoteReady", {"kind": "system", "id": "pytest"},
+                                           {"envelope_id": env, "policy_id": MOTOR, "test": True}, f"pytest-eqr-{env}")
         for typ in ("RequestNeedsHumanReview", "OperatorApproval", "SignatureRequested", "CertificateRegenerated"):
             ev = f"pytest-ev-{typ}-{env}"
             for _ in range(2):  # replaying the same source event must not duplicate

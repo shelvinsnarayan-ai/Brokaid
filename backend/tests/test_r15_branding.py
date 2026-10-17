@@ -112,12 +112,14 @@ def test_roles_and_round_trip():
         assert c.get("/api/o/tenant/branding").status_code == 403 and c.put("/api/o/tenant/branding", json=body).status_code == 403
     assert olly.post("/api/o/tenant/branding/logo", files={"file": ("x.svg", b"<svg/>", "image/svg+xml")}).status_code == 422
     up = olly.post("/api/o/tenant/branding/logo", files={"file": ("l.png", _png(), "image/png")}).json()
-    assert up["width"] == 600 and up["logo_url"].startswith("https://") and "/api/public/brand/" in up["logo_url"]
+    assert up["width"] == 600 and up["logo_url"].startswith(BASE) and "/api/public/brand/" in up["logo_url"]
     img = httpx.get(up["logo_url"], timeout=60)  # no cookies, like a mail app
     assert img.status_code == 200 and img.headers["content-type"] == "image/png"
     name = f"Harbourline Pytest {uuid.uuid4().hex[:6]}"
     pv = olly.post("/api/o/tenant/branding/preview", json={"draft": {**body, "sender_name": name, "logo_url": up["logo_url"]}}).json()
-    assert pv["mode"] == "draft" and name in pv["html"] and up["logo_url"] in pv["html"]
+    # emails only embed https logos; a plain-http test server's logo is dropped, never sent insecurely
+    assert pv["mode"] == "draft" and name in pv["html"]
+    assert (up["logo_url"] in pv["html"]) == up["logo_url"].startswith("https://")
     try:
         r = olly.put("/api/o/tenant/branding", json={**body, "sender_name": name, "logo_url": up["logo_url"]})
         assert r.status_code == 200 and set(r.json()["changed"]) == {"sender_name", "logo_url"}

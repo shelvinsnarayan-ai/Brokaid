@@ -11,8 +11,6 @@ Validates:
 """
 from __future__ import annotations
 
-import hashlib
-import os
 from pathlib import Path
 
 import httpx
@@ -114,7 +112,6 @@ async def test_correct_token_serves_file_once(pool, monkeypatch, tmp_path):
     # Re-derive the raw token: not possible (we only stored the hash).
     # Read it from log record via app.state's private handle: we regenerate
     # the state with a known raw token by rotating.
-    from app.routes import auth_dev as ad_mod
     import secrets
     import hashlib as _hl
     from datetime import datetime as _dt, timedelta as _td, timezone as _tz

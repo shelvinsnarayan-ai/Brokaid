@@ -1,7 +1,6 @@
 """Program View — operator and client scoped policy listings (R5c-4b — Mongo-only)."""
 from __future__ import annotations
 
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 

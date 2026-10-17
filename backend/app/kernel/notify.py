@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pymongo.errors import DuplicateKeyError
 
 from app.db.tenant_safe import wrap
+from app.kernel.authority import effective
 from app.kernel import inbox
 from app.kernel.tenant_ctx import use_tenant
 
@@ -105,7 +106,7 @@ async def _members(safe, client_id: str | None, need: str | None) -> list[str]:
     out = []
     async for link in safe.user_client_links.find({"client_id": client_id}):
         m = await safe.memberships.find_one({"user_id": link["user_id"], "client_id": client_id, "revoked_at": None})
-        if need is None or (m and m["authority"].get(need)):
+        if need is None or (m and effective(m).get(need)):
             out.append(link["user_id"])
     return out
 

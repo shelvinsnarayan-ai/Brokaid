@@ -14,7 +14,6 @@ import asyncio
 import pytest
 
 from app.jobs.runner import (
-    JOBS,
     OPS_TENANT_SLUG,
     register,
     run_job,

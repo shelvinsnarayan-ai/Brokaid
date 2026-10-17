@@ -3,10 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.auth import sessions as sess
-from app.kernel.rbac import requires_role
 from app.kernel.trail import read_events
-from fastapi import Depends, FastAPI, Request
 
 pytestmark = pytest.mark.asyncio
 

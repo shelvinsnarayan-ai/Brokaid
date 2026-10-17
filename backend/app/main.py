@@ -88,7 +88,7 @@ def create_app(
         except Exception as e:  # noqa: BLE001
             logger.warning("policy sanity scan failed (non-fatal): %r", e)
         import os as _os
-        from app.kernel import auth_flows, jobs, notify, push_channel
+        from app.kernel import auth_flows, jobs, notify
         try:
             logger.info("identities migrated: %s", await auth_flows.migrate_identities(app.state.mongo_db))
             logger.info("bootstrap operator: %s", await auth_flows.bootstrap_operator(app.state.mongo_db))

@@ -236,7 +236,6 @@ async def test_r4c_e2e_cross_tenant_approve_no_leak(mongo_e2e):
 async def test_r5a1_dev_impersonate_operator_under_mongo(mongo_e2e):
     """POST /api/auth/dev/impersonate under Mongo mode creates a
     session in Mongo, cookie works, and the operator can list queue."""
-    from app.kernel import identity
     from app.kernel.tenant_ctx import use_tenant
     from app.db.tenant_safe import wrap
 

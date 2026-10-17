@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.db.tenant_safe import TenantSafeDatabase, wrap as _wrap_safe
+from app.db.tenant_safe import wrap as _wrap_safe
 from app.kernel.tenant_ctx import use_tenant
 
 

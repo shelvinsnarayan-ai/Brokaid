@@ -10,11 +10,9 @@ Verifies:
 """
 from __future__ import annotations
 
-import io
 import json
 import shutil
 import subprocess
-import zipfile
 from pathlib import Path
 
 import pytest

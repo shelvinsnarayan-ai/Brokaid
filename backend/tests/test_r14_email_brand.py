@@ -55,6 +55,9 @@ def test_render_uses_tenant_name_and_colour_only():
 
 def test_harbourline_record_drives_sender_and_allowlist():
     async def go(db, tid, uid):
+        # R1.3: arrange our own tenant record (was relying on preview state set by app/scripts/r14_tenant_email_settings.py)
+        await db.tenants.update_one({"tenant_id": tid}, {"$set": {"email_settings": {
+            "sender_name": "Harbourline Insurance Brokers", "reply_to": "", "allowlist": ["luka@underaiter.com", *ALLOW]}}})
         s = await ec.tenant_settings(db, tid)
         rec = (await db.tenants.find_one({"tenant_id": tid}))["email_settings"]
         assert s["sender_name"] == rec["sender_name"] and s["source"] == "tenant"

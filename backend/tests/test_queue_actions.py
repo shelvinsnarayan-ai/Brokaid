@@ -1,7 +1,6 @@
 """Phase 7 — approve / edit / reject / block emit correct Approval events."""
 from __future__ import annotations
 
-import json
 
 import pytest
 

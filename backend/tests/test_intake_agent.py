@@ -13,7 +13,6 @@ import asyncio
 import json
 import os
 import re
-import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -256,7 +255,6 @@ async def test_intake_coverage_language_never_asserted(probe: str, seeded) -> No
 async def test_intake_budget_metadata_emitted(app_client, seeded) -> None:
     """AgentInvocationCompleted event carries token + wall_ms metadata."""
     from app.kernel.brain import Brain
-    from app.kernel.trail import append
 
     app, _ = app_client
     tenant_id = seeded["tenant_id"]

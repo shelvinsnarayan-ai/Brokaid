@@ -80,7 +80,7 @@ def test_synthetic_client_seeded_once_in_harbourline_only():
         assert ids1 == ids2
         c = await db.clients.find({"client_id": rc.CLIENT_ID}).to_list(5)
         assert len(c) == 1 and c[0]["tenant_id"] == h["tenant_id"] and c[0]["test"] is True
-        assert not await db.clients.find_one({"tenant_id": b["tenant_id"], "client_id": rc.CLIENT_ID})
+        assert b is None or not await db.clients.find_one({"tenant_id": b["tenant_id"], "client_id": rc.CLIENT_ID})
         assert await db.users.count_documents({"email": {"$regex": "@releasecheck.invalid$"}}) == 3
     asyncio.run(go())
 

@@ -30,7 +30,6 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any
 
 import pytest
 
@@ -372,7 +371,7 @@ async def test_r5b1a_endorsement_happy_mongo(pool, mongo_db):
     mutation + event pair emission. Not byte-identical to PG (uses
     fresh uuid4 for endorsement_id) — that's covered by pin 3."""
     from app.db.tenant_safe import wrap
-    from app.kernel import trail, trail_mongo
+    from app.kernel import trail_mongo
     from app.kernel.endorsement import execute_endorsement
     from app.kernel.tenant_ctx import use_tenant
 
@@ -381,7 +380,7 @@ async def test_r5b1a_endorsement_happy_mongo(pool, mongo_db):
     client_id = str(uuid.uuid4())
     policy_id = str(uuid.uuid4())
     envelope_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)  # noqa: F841
 
     async with use_tenant(frozen_tid):
         await trail_mongo.create_tenant(

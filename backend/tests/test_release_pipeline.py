@@ -23,7 +23,6 @@ import pytest
 
 from app.kernel.release import (
     CLIENT_RELEASE_EVENT_TYPES,
-    ReleaseResult,
     try_release,
 )
 from app.kernel.trail import ClassifierVerdictMissing, append
@@ -265,6 +264,9 @@ def test_release_pipeline_audit_grep_backstop() -> None:
         h for h in proc.stdout.strip().splitlines()
         if h and h != "app/kernel/release.py"
            and not h.endswith("trail.py")
+           # R1.3: the R0.8 inbox only READS ClientMessage* event types (ASK_TYPES), and the inbox seed writes
+           # demo replies through the ledger; neither builds a ClientMessage outside release.py.
+           and h not in ("app/kernel/inbox.py", "app/seeds/seed_inbox_mongo.py")
            and not h.endswith("trail_mongo.py")   # R2 dual-ledger: same guard
            and not h.endswith("c_ask.py")     # phase 12: read-only SELECT
     ]

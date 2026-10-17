@@ -18,7 +18,6 @@ from app.kernel.agents.liaison import (
     LIAISON_MODEL,
     EmergentLLMProviderLiaison,
 )
-from app.kernel.gate.coverage_guard import check as coverage_check
 from app.kernel.providers import registry
 from app.kernel.release import try_release
 

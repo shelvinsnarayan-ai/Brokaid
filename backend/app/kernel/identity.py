@@ -45,10 +45,9 @@ one path via the flag.
 """
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Any, Optional
+from datetime import timedelta
+from typing import Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 

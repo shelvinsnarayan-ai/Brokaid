@@ -134,17 +134,10 @@ def test_bookkeeper_still_sees_client_data(bookkeeper):
 
 
 def test_bookkeeper_cannot_approve(bookkeeper, kai):
-    # find any awaiting_client_approval envelope via kai; otherwise skip
-    r = kai.get(f"{BASE}/api/c/approvals", timeout=30)
-    if r.status_code != 200:
-        pytest.skip(f"approvals list unavailable: {r.status_code}")
-    data = r.json()
-    items = data if isinstance(data, list) else (data.get("items") or data.get("approvals") or [])
-    env = next((x for x in items if (x.get("status") == "awaiting_client_approval")), None)
-    if not env:
-        pytest.skip("no awaiting_client_approval envelope available")
-    eid = env.get("envelope_id") or env.get("id")
-    r2 = bookkeeper.post(f"{BASE}/api/c/approvals/{eid}/approve", json={}, timeout=30)
+    # R1.3: /api/c/approvals never existed (test skipped forever); use the real approve route on an arranged envelope.
+    from tests.test_r14_client_access import MOTOR, _approved_envelope
+    eid = _approved_envelope()
+    r2 = bookkeeper.post(f"{BASE}/api/c/matters/{MOTOR}/approve/{eid}", timeout=30)
     assert r2.status_code == 403, f"bookkeeper approve expected 403, got {r2.status_code}: {r2.text}"
 
 

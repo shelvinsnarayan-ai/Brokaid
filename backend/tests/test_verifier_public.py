@@ -4,7 +4,6 @@ from __future__ import annotations
 import pytest
 
 from app.kernel.certificate import (
-    hash_token,
     regenerate_certificate,
     revoke_token,
 )

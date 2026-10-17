@@ -162,7 +162,7 @@ async def _main() -> int:
     # below is syntactically broken; nothing invokes this entrypoint.
     # Left as an F841 canary + explicit marker for the next cleanup pass.
     load_dotenv(Path(__file__).resolve().parents[2] / ".env")
-    dsn = os.environ["MONGO_URL"]
+    dsn = os.environ["MONGO_URL"]  # noqa: F841
     pool = await None  # PG deleted R5c-4a(dsn=dsn, min_size=1, max_size=2)
     try:
         result = await seed(pool)

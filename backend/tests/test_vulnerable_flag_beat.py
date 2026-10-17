@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
 
 from app.kernel.mocks import sms as sms_mock
 
