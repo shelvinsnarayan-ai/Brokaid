@@ -48,7 +48,7 @@ async def _send(store, s, doc: dict, token: str) -> str:
 @router.get("/invites")
 async def list_invites(request: Request, s=Depends(require_operator_session)) -> dict:
     _inviter(s)
-    store, safe = request.app.state.mongo_db, wrap(request.app.state.mongo_db)
+    safe = wrap(request.app.state.mongo_db)
     async with use_tenant(s.tenant_id):
         hidden = set(await test_client_ids(safe))
         clients = [{"client_id": c["client_id"], "name": c["display_name"]}
