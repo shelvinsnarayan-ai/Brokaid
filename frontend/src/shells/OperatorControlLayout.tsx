@@ -6,6 +6,7 @@ import { Bell } from "../components/alerts/Bell";
 import { useAlertsPoll } from "../state/alertsStore";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { signOut } from "../lib/authApi";
 import { BrandWordmark } from "../components/BrandWordmark";
 import { KKbd } from "../components/ledger/KKbd";
 import { AppFooter } from "../components/AppFooter";
@@ -55,7 +56,11 @@ export function OperatorControlLayout() {
   const isPrincipal = role === "principal" || role === "operator";
   const NAV = NAV_GROUPS.filter((g) => !g.roles || g.roles.includes(role || ""));
 
-  useEffect(() => { if (!session) void load(); }, [session, load]);
+  const [tried, setTried] = useState(false);
+  useEffect(() => { if (!session) void load().finally(() => setTried(true)); }, [session, load]);
+  useEffect(() => {
+    if (tried && !session && !useOperatorStore.getState().loading) navigate("/login", { replace: true });
+  }, [tried, session, navigate]);
   useEffect(() => {
     if (!session) return;
     if (!allowed(location.pathname, role)) navigate("/o/queue", { replace: true });
@@ -94,8 +99,9 @@ export function OperatorControlLayout() {
   }, [navigate, gPrefix, role]);
 
   async function logout() {
-    document.cookie = "brokaid_session=; Max-Age=0; path=/";
-    navigate("/o/login");
+    await signOut();
+    useOperatorStore.setState({ session: null });
+    navigate("/login");
   }
 
   return (
@@ -124,6 +130,7 @@ export function OperatorControlLayout() {
                 <KKbd testId="user-role">{session.session.active_role}</KKbd>{" "}
                 <strong>{session.user.display_name}</strong>
               </span>
+              <Link to="/account/security" className="k-btn" data-testid="operator-security-link">Security</Link>
               <button className="k-btn" onClick={logout} data-testid="operator-logout">Sign out</button>
             </>
           )}

@@ -202,7 +202,22 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
             return "warn", f"{len(old_dead)} failed background job(s) older than an hour need a look in Background work."
         return f"Queue healthy: {s['counts']['queued']} queued, {s['counts']['running']} running, {s['counts']['dead']} dead."
 
-    for key, label, fn in (("build", "Build", build), ("jobs", "Background work", queue), ("config.email", "Email setting", email_cfg),
+    async def auth_cfg():
+        from app.kernel import auth_flows
+        paths = {getattr(rt, "path", "") for rt in app.routes}
+        if env == "production" and any(p.startswith(("/api/auth/dev", "/api/auth/client", "/api/auth/operator")) for p in paths):
+            raise StepFailed("Dev or legacy sign-in routes are reachable in production.")
+        f = auth_flows.cookie_flags()
+        if not (f["httponly"] and f["samesite"] == "lax" and (f["secure"] or env != "production")):
+            raise StepFailed(f"Session cookie flags are wrong: {f}.")
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://release-check.internal") as h:
+            code = (await h.get("/api/o/queue")).status_code
+        if code != 401:
+            raise StepFailed(f"Signed-out access to staff pages returned {code}, not 401.")
+        return (f"Sign-in checks OK: dev login {'off' if not info.get('auth_dev_mode') else 'on (preview)'}, "
+                f"cookie HttpOnly/SameSite=Lax/{'Secure' if f['secure'] else 'not Secure'}, signed-out staff page → 401.")
+
+    for key, label, fn in (("build", "Build", build), ("auth", "Sign-in", auth_cfg), ("jobs", "Background work", queue), ("config.email", "Email setting", email_cfg),
                            ("config.push", "Push keys", vapid), ("config.storage", "File storage", storage),
                            ("config.llm", "AI key", llm), ("ledger", "Ledger chain", ledger)):
         await r.step(key, label, fn, soft=True)

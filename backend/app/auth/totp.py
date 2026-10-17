@@ -20,7 +20,7 @@ def otpauth_uri(secret: str, account: str, issuer: str = ISSUER) -> str:
 
 
 def qr_svg(uri: str) -> str:
-    img = qrcode.make(uri, image_factory=qrcode.image.svg.SvgImage)
+    img = qrcode.make(uri, image_factory=qrcode.image.svg.SvgPathImage)  # viewBox + plain <path>: renders inline in HTML
     buf = io.BytesIO()
     img.save(buf)
     return buf.getvalue().decode("utf-8")

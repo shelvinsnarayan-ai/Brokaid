@@ -99,8 +99,7 @@ export const useMeStore = create<MeState>((set, get) => ({
     }
   },
   async logout() {
-    // No dedicated endpoint yet — clear cookie client-side + reload state.
-    document.cookie = "brokaid_session=; Max-Age=0; path=/";
+    await fetch(`${API}/api/auth/logout`, { method: "POST", credentials: "include" }).catch(() => undefined);
     set({ me: null });
   },
   async setPreview(code) {

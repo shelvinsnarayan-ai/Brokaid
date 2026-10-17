@@ -2,6 +2,7 @@
  * R0.5 — /o/governance: kill switches, spend ESTIMATE, demo reset.
  */
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { fmtDateTime } from "../../lib/format";
 import { BrandingEditor } from "./BrandingEditor";
 import { ReleaseCheck } from "./ReleaseCheck";
@@ -313,6 +314,7 @@ export function Governance() {
       <h1 style={{ fontSize: 28, marginBottom: 16 }}>Governance</h1>
       {msg && <p data-testid="gov-message" style={{ ...muted, marginBottom: 12 }}>{msg}</p>}
       <section style={card}><ReleaseCheck /></section>
+      <section style={card} data-testid="gov-invites-card"><strong>People</strong> · <Link to="/o/invites" data-testid="gov-invites-link">Invite staff and clients</Link></section>
       <section style={card}><BackgroundWork /></section>
       <SpendCard s={spendData} />
       <RegistryCard />

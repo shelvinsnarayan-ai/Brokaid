@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { Landing } from "./pages/Landing";
 import { ClientLayout } from "./shells/ClientLayout";
 import { ClientHome } from "./pages/ClientHome";
@@ -44,6 +44,11 @@ import { ClientLogin } from "./pages/ClientLogin";
 import { OperatorLogin } from "./pages/OperatorLogin";
 import { OperatorEnrol } from "./pages/OperatorEnrol";
 import { Login } from "./pages/Login";
+import SignIn from "./pages/auth/SignIn";
+import AcceptInvite from "./pages/auth/AcceptInvite";
+import ResetPassword from "./pages/auth/ResetPassword";
+import AccountSecurity from "./pages/auth/AccountSecurity";
+import { Invites as OperatorInvites } from "./pages/operator/Invites";
 import { DevAuthBanner } from "./components/DevAuthBanner";
 
 const DevLogin = lazy(() =>
@@ -59,11 +64,15 @@ export function App() {
       {import.meta.env.BROKAID_AUTH_DEV_MODE ? <DevAuthBanner /> : null}
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<SignIn />} />
+        <Route path="/invite/:token" element={<AcceptInvite />} />
+        <Route path="/reset/:token" element={<ResetPassword />} />
+        <Route path="/account/security" element={<AccountSecurity />} />
+        {import.meta.env.BROKAID_AUTH_DEV_MODE ? <Route path="/demo" element={<Login />} /> : null}
         <Route path="/verify" element={<VerifyPublic />} />
         <Route path="/verify/:token" element={<VerifyPublic />} />
 
-        <Route path="/c/login" element={<ClientLogin />} />
+        <Route path="/c/login" element={import.meta.env.BROKAID_AUTH_DEV_MODE ? <ClientLogin /> : <Navigate to="/login" replace />} />
         <Route path="/c" element={<ClientLayout />}>
           <Route index element={<ClientHome />} />
           <Route path="cover" element={<ClientCover />} />
@@ -94,7 +103,7 @@ export function App() {
           ) : null}
         </Route>
 
-        <Route path="/o/login" element={<OperatorLogin />} />
+        <Route path="/o/login" element={import.meta.env.BROKAID_AUTH_DEV_MODE ? <OperatorLogin /> : <Navigate to="/login" replace />} />
         <Route path="/o/enrol" element={<OperatorEnrol />} />
         <Route path="/o" element={<OperatorControlLayout />}>
           <Route index element={<OperatorDashboard />} />
@@ -114,6 +123,7 @@ export function App() {
           <Route path="claims/:claim_id" element={<OperatorClaim />} />
           <Route path="shadow-mode" element={<ShadowMode />} />
           <Route path="governance" element={<Governance />} />
+          <Route path="invites" element={<OperatorInvites />} />
           <Route path="shadow-mode/:agent/:class_key" element={<ShadowModeDrill />} />
           <Route path="export" element={<TrailExport />} />
           <Route path="chase" element={<ChaseLadder />} />

@@ -71,6 +71,8 @@ _SYSTEM_ALLOW: frozenset[str] = frozenset({
     "magic_link_tokens",    # R4c: magic-link validate — token_hash → tenant_id
     "_counters",            # advisory counters
     "_locks",               # advisory locks
+    "auth_tokens",          # R1.2a: invite/reset token_hash → tenant_id (pre-auth)
+    "auth_lockouts",        # R1.2a: failed-login counters by account/IP (pre-auth)
 })
 
 

@@ -181,6 +181,15 @@ async def read_session(store, session_id: str) -> Optional[Session]:
         exp = exp.replace(tzinfo=timezone.utc)
     if exp < now:
         return None
+    if row.get("pending_mfa"):  # R1.2a: password ok but TOTP not yet passed
+        return None
+    if row.get("idle_s"):  # R1.2a: client idle timeout
+        last = row.get("last_seen_at") or row["created_at"]
+        last = last if last.tzinfo else last.replace(tzinfo=timezone.utc)
+        if last + timedelta(seconds=row["idle_s"]) < now:
+            return None
+        if now - last > timedelta(seconds=60):
+            await safe_db.system("sessions").update_one({"session_id": session_id}, {"$set": {"last_seen_at": now}})
     return _session_from_doc(row)
 
 

@@ -88,7 +88,11 @@ def create_app(
         except Exception as e:  # noqa: BLE001
             logger.warning("policy sanity scan failed (non-fatal): %r", e)
         import os as _os
-        from app.kernel import jobs, notify, push_channel
+        from app.kernel import auth_flows, jobs, notify, push_channel
+        try:
+            logger.info("bootstrap operator: %s", await auth_flows.bootstrap_operator(app.state.mongo_db))
+        except Exception as e:  # noqa: BLE001
+            logger.warning("bootstrap operator failed (non-fatal): %r", e)
         await notify.ensure_indexes(app.state.mongo_db)
         await app.state.mongo_db.push_subscriptions.create_index(
             [("tenant_id", 1), ("user_id", 1), ("endpoint", 1)], unique=True)
@@ -130,6 +134,8 @@ def create_app(
     from app.routes.build_info import router as build_info_router
     from app.routes.c_envelope import router as c_envelope_router
     from app.routes.auth_operator import router as auth_operator_router
+    from app.routes.auth_login import router as auth_login_router
+    from app.routes.o_invites import router as o_invites_router
     from app.routes.c_ask import router as c_ask_router
     from app.routes.c_cert import router as c_cert_router
     from app.routes.c_claims import router as c_claims_router
@@ -163,7 +169,7 @@ def create_app(
     for r in (
         build_info_router,
         c_envelope_router,
-        auth_client_router, auth_operator_router,
+        auth_login_router, o_invites_router,
         c_ask_router, c_cert_router, c_claims_router, c_me_router,
         c_next_action_router, c_pending_quote_router, c_scene_router,
         client_360_router, client_preferences_router,
@@ -173,6 +179,11 @@ def create_app(
         policies_router, queue_router, trail_router, verifier_router,
     ):
         api_router.include_router(r)
+
+    # R1.2a: legacy sign-in routes (magic link, operator-only login) never ship to production.
+    if os.environ.get("ENVIRONMENT", "development").lower() != "production":
+        api_router.include_router(auth_client_router)
+        api_router.include_router(auth_operator_router)
 
     if settings.auth_dev_mode:
         from app.routes.auth_dev import router as auth_dev_router

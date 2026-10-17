@@ -36,8 +36,12 @@ export function YouMenu() {
             </li>
           ))}
           <li>
+            <button type="button" role="menuitem" data-testid="you-security"
+              onClick={() => { setOpen(false); navigate("/account/security"); }}>Sign-in and security</button>
+          </li>
+          <li>
             <button type="button" role="menuitem" data-testid="you-signout"
-              onClick={async () => { setOpen(false); await logout(); navigate("/c/login"); }}>Sign out</button>
+              onClick={async () => { setOpen(false); await logout(); navigate("/login"); }}>Sign out</button>
           </li>
         </ul>
       )}

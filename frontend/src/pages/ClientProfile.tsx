@@ -39,7 +39,7 @@ export function ClientProfile() {
 
   async function doLogout() {
     await logout();
-    nav("/c/login");
+    nav("/login");
   }
 
   return (

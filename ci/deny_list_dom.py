@@ -28,7 +28,8 @@ AE_ONLY = [("confidence decimal", r"\b[01]\.\d{2,3}\b")]
 MOTOR = "00000000-0000-4000-8000-000000000104"
 CLIENT_ROUTES = ["/c", "/c/cover", "/c/money", "/c/claims", "/c/ask", "/c/profile", "/c/alerts",
                  f"/c/cover/{MOTOR}/certificate/new", f"/c/cover/{MOTOR}/request-change", "/c/claims/new"]
-AE_ROUTES = ["/o/queue", "/o/clients", "/o/renewals", "/o/inbox", "/o/inbox/seed-ask-kai-2", "/o/alerts"]
+AE_ROUTES = ["/o/queue", "/o/clients", "/o/renewals", "/o/inbox", "/o/inbox/seed-ask-kai-2", "/o/alerts", "/o/invites", "/account/security"]
+PUBLIC_ROUTES = ["/login", "/invite/not-a-real-token", "/reset/not-a-real-token"]
 
 
 def source_hint(text: str) -> str:
@@ -54,6 +55,17 @@ async def sweep(base: str) -> list[str]:
     hits: list[str] = []
     async with async_playwright() as p:
         browser = await p.chromium.launch()
+        ctx = await browser.new_context(viewport={"width": 390, "height": 844})  # R1.2a: signed-out auth pages
+        page = await ctx.new_page()
+        for route in PUBLIC_ROUTES:
+            await page.goto(f"{base}{route}", wait_until="load")
+            await page.wait_for_timeout(2500)
+            body = await page.inner_text("body")
+            if len(body) < 30:
+                hits.append(f"DENY empty render: {route} rendered no text")
+            print(f"  scanned {route} signed out: {len(body)} chars", file=sys.stderr)
+            hits += scan(route, body, COMMON)
+        await ctx.close()
         for email, routes, rules in [
             ("owner@fictionalclient.example", CLIENT_ROUTES, COMMON + CLIENT_ONLY),
             ("ae@harbourline.example", AE_ROUTES, COMMON + AE_ONLY),
