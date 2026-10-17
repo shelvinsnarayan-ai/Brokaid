@@ -263,3 +263,57 @@ def test_access_log_route_never_carries_tokens_or_emails():
     out = _route(req)
     assert "0lBCxta2Z" not in out and "@" not in out
     assert logging.getLogger("uvicorn.access").disabled
+
+
+# ---- P3: $-keys in query params and form/multipart fields ------------------------------
+@pytest.mark.asyncio
+@pytest.mark.parametrize("url", ["/api/c/things?$where=1", "/api/c/things?email[$ne]=x", '/api/c/things?filter={"$ne":null}'])
+async def test_operator_in_query_rejected(app_client, url):
+    _, http = app_client
+    r = await http.get(url)
+    assert r.status_code == 400 and r.json()["detail"] == "invalid_field_name"
+
+
+@pytest.mark.asyncio
+async def test_operator_in_form_and_multipart_rejected(app_client):
+    _, http = app_client
+    for kw in ({"data": {"$ne": "x"}}, {"data": {"email[$gt]": ""}}, {"data": {"meta": '{"a": {"$ne": 1}}'}},
+               {"data": {"$where": "1"}, "files": {"file": ("a.csv", b"a,b\n1,2\n", "text/csv")}},
+               {"data": {"meta": '[{"$in": []}]'}, "files": {"file": ("a.csv", b"a\n", "text/csv")}}):
+        r = await http.post("/api/o/import/files", **kw)
+        assert r.status_code == 400 and r.json()["detail"] == "invalid_field_name", kw
+
+
+@pytest.mark.asyncio
+async def test_ordinary_dollars_still_pass(app_client):
+    _, http = app_client
+    assert (await http.get("/api/c/things?note=costs+$5")).status_code != 400
+    r = await http.post("/api/o/import/files", data={"note": "costs $5"}, files={"file": ("a.csv", b"Premium $\n5\n", "text/csv")})
+    assert r.status_code != 400  # 401: unauthenticated, but not rejected as an operator
+
+
+def test_cors_lists_are_explicit():
+    from app.main import CORS_HEADERS, CORS_METHODS, create_app
+    assert "*" not in CORS_METHODS and "*" not in CORS_HEADERS
+    assert set(CORS_METHODS) == {"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
+    app = create_app(seed_dev_users=False)
+    cors = next(m for m in app.user_middleware if m.cls.__name__ == "CORSMiddleware")
+    assert cors.kwargs["allow_methods"] == CORS_METHODS and cors.kwargs["allow_headers"] == CORS_HEADERS
+
+
+@pytest.mark.asyncio
+async def test_cors_preflight_refuses_unknown_header(app_client, monkeypatch):
+    _, http = app_client
+    from app.middleware.security import allowed_origins
+    origin = sorted(allowed_origins())[0]
+    ok = await http.options("/api/health", headers={"Origin": origin, "Access-Control-Request-Method": "POST",
+                                                    "Access-Control-Request-Headers": "content-type"})
+    assert ok.status_code == 200
+    bad = await http.options("/api/health", headers={"Origin": origin, "Access-Control-Request-Method": "POST",
+                                                     "Access-Control-Request-Headers": "x-evil"})
+    assert bad.status_code == 400
+
+
+def test_release_check_guards_use_one_prefix_list():
+    src = (APP / "kernel" / "release_check.py").read_text()
+    assert src.count('"/api/auth/dev"') == 1 and "/api/_admin" in src  # only DEV_ROUTE_PREFIXES names them

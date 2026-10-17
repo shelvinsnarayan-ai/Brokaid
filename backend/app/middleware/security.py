@@ -84,16 +84,44 @@ def has_operator_key(v, depth: int = 0) -> bool:
     return False
 
 
-async def _json_has_operator(request) -> bool:
-    if request.method not in WRITE or "json" not in (request.headers.get("content-type") or ""):
-        return False
-    body = await request.body()  # cached by Starlette, replayed to the route
-    if not body or b"$" not in body:
+def _operator_name(k: str) -> bool:
+    return k.startswith("$") or "[$" in k  # `$ne=` or bracket notation `email[$ne]=`
+
+
+def _operator_value(v) -> bool:
+    """A form/query value that is itself JSON (e.g. a `meta` field) must not smuggle operators either."""
+    if not isinstance(v, str) or "$" not in v or v.lstrip()[:1] not in ("{", "["):
         return False
     try:
-        return has_operator_key(json.loads(body))
+        return has_operator_key(json.loads(v))
     except ValueError:
-        return False  # the route answers 422 for bad JSON
+        return False
+
+
+async def _has_operator(request) -> bool:
+    if any(_operator_name(k) or _operator_value(v) for k, v in request.query_params.multi_items()):
+        return True
+    ct = request.headers.get("content-type") or ""
+    if request.method not in WRITE:
+        return False
+    if "json" in ct:
+        body = await request.body()  # cached by Starlette, replayed to the route
+        if not body or b"$" not in body:
+            return False
+        try:
+            return has_operator_key(json.loads(body))
+        except ValueError:
+            return False  # the route answers 422 for bad JSON
+    if ct.startswith(("application/x-www-form-urlencoded", "multipart/form-data")):
+        body = await request.body()  # cache first so the route can parse the form again
+        if b"$" not in body and b"%24" not in body.upper():  # urlencoded forms carry `$` as %24
+            return False
+        form = await request.form()
+        try:
+            return any(_operator_name(k) or _operator_value(v) for k, v in form.multi_items())
+        finally:
+            await form.close()
+    return False
 
 
 class SecurityMiddleware(BaseHTTPMiddleware):
@@ -101,7 +129,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         if path.startswith("/api/") and not csrf_ok(request.method, request.headers, request.cookies):
             return self._harden(JSONResponse({"detail": "csrf_origin_rejected"}, status_code=403))
-        if path.startswith("/api/") and await _json_has_operator(request):
+        if path.startswith("/api/") and await _has_operator(request):
             return self._harden(JSONResponse({"detail": "invalid_field_name"}, status_code=400))
         if path.startswith("/api/") and os.environ.get("RATE_LIMIT_DISABLED") != "1":
             ip, now = client_ip(request), time.monotonic()

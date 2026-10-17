@@ -31,6 +31,10 @@ logger = logging.getLogger("brokaid.api")
 logging.getLogger("uvicorn.access").disabled = True
 
 
+CORS_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+CORS_HEADERS = ["Content-Type", "X-Requested-With", "X-Tenant-Slug", "X-Request-ID"]  # every custom header the frontend sends
+
+
 def create_app(
     *,
     mongo_db_override=None,
@@ -136,8 +140,8 @@ def create_app(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=CORS_METHODS,
+        allow_headers=CORS_HEADERS,
     )
     app.add_middleware(TenantContextMiddleware)
     from app.kernel.ops import AccessLogMiddleware

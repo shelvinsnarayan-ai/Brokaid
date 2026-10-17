@@ -214,7 +214,7 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
         from app.kernel import auth_flows
         from app.kernel.routes_util import all_routes
         paths = {getattr(rt, "path", "") for rt in all_routes(app)}
-        if env == "production" and any(p.startswith(("/api/auth/dev", "/api/auth/client", "/api/auth/operator")) for p in paths):
+        if env == "production" and any(p.startswith(DEV_ROUTE_PREFIXES) for p in paths):
             raise StepFailed("Dev or legacy sign-in routes are reachable in production.")
         f = auth_flows.cookie_flags()
         if not (f["httponly"] and f["samesite"] == "lax" and (f["secure"] or env != "production")):

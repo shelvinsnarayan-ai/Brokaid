@@ -262,7 +262,8 @@ def test_bootstrap_operator_is_idempotent():
 def test_production_has_no_dev_or_legacy_sign_in():
     async def go(db, c, app):
         paths = {getattr(r, "path", "") for r in all_routes(app)}
-        assert not any(p.startswith(("/api/auth/dev", "/api/auth/client", "/api/auth/operator")) for p in paths)
+        from app.kernel.release_check import DEV_ROUTE_PREFIXES
+        assert not any(p.startswith(DEV_ROUTE_PREFIXES) for p in paths)
         assert "/api/auth/login" in paths and af.cookie_flags()["secure"] is True
         assert (await c.post("/api/auth/dev/impersonate", json={"email": "operator@harbourline.example"})).status_code in (404, 405)
         assert (await c.get("/api/o/queue")).status_code == 401
