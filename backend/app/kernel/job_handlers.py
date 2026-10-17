@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from app.kernel import email_channel, jobs, notify, push_channel
+from app.kernel import email_channel, iadviser, jobs, notify, push_channel
 
 
 @jobs.handler("notify.event")
@@ -78,3 +78,8 @@ async def recover_stuck_envelopes(store, now: datetime | None = None, window_h: 
                            key=f"intake:{env}", tenant_id=tid, max_attempts=3)
         n += 1
     return n
+
+
+@jobs.handler("import.commit")
+async def _import_commit(store, job: dict) -> None:
+    await iadviser.commit_run(store, job["tenant_id"], job["payload"]["run_id"])

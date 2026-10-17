@@ -65,6 +65,17 @@ CLEAN_ZIP = OUT_DIR / "ci-alpha.zip"
 TAMPERED_ZIP = OUT_DIR / "ci-alpha-tampered.zip"
 
 
+class _FixedZip(zipfile.ZipFile):
+    """R1.3: writestr(name, ...) stamps the wall-clock time into each entry, so two builds a second apart
+    differed. Pin every entry's timestamp so the bundle really is byte-identical."""
+
+    def writestr(self, name, data, *a, **kw):
+        if isinstance(name, str):
+            name = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            name.compress_type = self.compression
+        return super().writestr(name, data, *a, **kw)
+
+
 def _make_bundle_bytes(export_doc: dict, filename: str) -> bytes:
     verifier_bytes = (
         VERIFIER_JS.read_bytes() if VERIFIER_JS.exists()
@@ -72,7 +83,7 @@ def _make_bundle_bytes(export_doc: dict, filename: str) -> bytes:
     )
     verifier_sha = _verifier_sha256()
     buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+    with _FixedZip(buf, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("export.json", json.dumps(export_doc, indent=2))
         z.writestr("verify.js", verifier_bytes)
         z.writestr("verifier_binary_sha256.txt", verifier_sha + "\n")
@@ -102,7 +113,7 @@ def _make_tampered_bytes(
     )
     verifier_sha = _verifier_sha256()
     buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+    with _FixedZip(buf, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("export.json", json.dumps(doc, indent=2))
         z.writestr("verify.js", verifier_bytes)
         z.writestr("verifier_binary_sha256.txt", verifier_sha + "\n")

@@ -61,8 +61,9 @@ def numbers_for(template: str, item: dict, insurer: str | None) -> list[dict]:
     f = item.get("fields") or {}
     out: list[dict] = []
     if template == "motor":
-        out = [{"label": "Agreed value", "value": _money(f["agreed_value"])},
-               {"label": "Excess", "value": _money(f["excess"])}]
+        # R1.4: imported vehicles may lack a figure — show only what we hold
+        out = [{"label": lbl, "value": _money(f[k])} for lbl, k in (("Agreed value", "agreed_value"), ("Excess", "excess"))
+               if f.get(k) is not None]
     elif template == "home":
         out = [{"label": "Building", "value": _money(f["building_sum"])},
                {"label": "Contents", "value": _money(f["contents_sum"])}]

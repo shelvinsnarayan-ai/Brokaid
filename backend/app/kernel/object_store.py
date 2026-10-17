@@ -36,10 +36,23 @@ def _call(method: str, path: str, **kw) -> requests.Response:
     return resp
 
 
+def _local(path: str):
+    """Test seam: tests/conftest.py points this at a temp dir so pytest never calls the real store."""
+    from pathlib import Path
+    root = os.environ.get("OBJECT_STORE_LOCAL_DIR")
+    return Path(root, path) if root else None
+
+
 async def put_object(path: str, data: bytes, content_type: str) -> dict:
+    if (p := _local(path)) is not None:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
+        return {"path": path, "size": len(data)}
     return (await asyncio.to_thread(_call, "PUT", path, data=data, headers={"Content-Type": content_type})).json()
 
 
 async def get_object(path: str) -> tuple[bytes, str]:
+    if (p := _local(path)) is not None:
+        return p.read_bytes(), "application/octet-stream"
     resp = await asyncio.to_thread(_call, "GET", path)
     return resp.content, resp.headers.get("Content-Type", "application/octet-stream")

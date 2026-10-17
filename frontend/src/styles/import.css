@@ -1,0 +1,24 @@
+.imp-page { display: grid; gap: 20px; }
+.imp-card { background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.12); color: inherit; border-radius: 10px; padding: 20px 22px; display: grid; gap: 12px; }
+.imp-h2 { font-size: 1.05rem; margin: 0; }
+.imp-h3 { font-size: 0.95rem; margin: 8px 0 0; }
+.imp-muted { color: rgba(236, 232, 222, 0.68); font-size: 0.875rem; }
+.imp-drop { display: flex; align-items: center; gap: 12px; border: 1.5px dashed rgba(255, 255, 255, 0.25); border-radius: 8px; padding: 18px; cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease; }
+.imp-drop:hover { border-color: #c98a4b; background-color: rgba(201, 138, 75, 0.06); }
+.imp-sheet { border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 12px; margin-top: 6px; }
+.imp-sheet__head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin-bottom: 8px; }
+.imp-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.imp-table th, .imp-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); vertical-align: top; }
+.imp-table th { font-weight: 600; color: rgba(236, 232, 222, 0.68); }
+.imp-table select, .imp-row input, .imp-sheet select { background: #0d1626; color: inherit; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; padding: 4px 6px; }
+.imp-table select, .imp-row input { max-width: 260px; }
+.imp-missing td:first-child { color: #ff8a7a; font-weight: 600; }
+.imp-req { color: #ff8a7a; }
+.imp-err { color: #ff8a7a; font-weight: 600; }
+.imp-warn { color: #f2c46d; font-weight: 600; }
+.imp-diff s { color: rgba(236, 232, 222, 0.55); }
+.imp-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.imp-tabs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.imp-progress { position: relative; height: 22px; border-radius: 11px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.imp-progress > div { height: 100%; background: #c98a4b; transition: width 400ms ease; }
+.imp-progress > span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 0.75rem; mix-blend-mode: difference; color: #fff; }

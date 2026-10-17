@@ -49,6 +49,7 @@ def pytest_configure(config):
     _guard_db(db)
     os.environ["DB_NAME"] = db
     os.environ.setdefault("ENVIRONMENT", "development")
+    os.environ["OBJECT_STORE_LOCAL_DIR"] = f"/tmp/{db}_objects"  # never the real object store from tests
     is_xdist_controller = bool(getattr(config.option, "numprocesses", None)) and not os.environ.get("PYTEST_XDIST_WORKER")
     if os.environ.get("BROKAID_TEST_NO_SERVER") == "1" or is_xdist_controller:
         return

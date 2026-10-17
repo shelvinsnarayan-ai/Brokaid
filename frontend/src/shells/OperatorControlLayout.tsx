@@ -27,6 +27,7 @@ const NAV_GROUPS = [
     { to: "/o",             label: "Overview",     kbd: "g o" },
     { to: "/o/weekly-pack", label: "Weekly pack",  kbd: "g w" },
     { to: "/o/shadow-mode", label: "Shadow Mode",  kbd: "g s" },
+    { to: "/o/import",      label: "Import",       kbd: "g m" },
   ] },
   { title: "Operator", roles: ["operator"], items: [
     { to: "/o/governance",  label: "Agent operations", kbd: "g g" },
@@ -36,7 +37,7 @@ const NAV_GROUPS = [
 ];
 const ROUTE_ROLES: [string, string[]][] = [
   ["/o/governance", ["operator"]], ["/o/export", ["operator"]], ["/o/chase", ["operator"]],
-  ["/o/brief", ["principal", "operator"]], ["/o/weekly-pack", ["principal", "operator"]], ["/o/shadow-mode", ["principal", "operator"]],
+  ["/o/brief", ["principal", "operator"]], ["/o/weekly-pack", ["principal", "operator"]], ["/o/shadow-mode", ["principal", "operator"]], ["/o/import", ["principal", "operator"]],
 ];
 const allowed = (p: string, role: string | undefined) => {
   if (p === "/o" || p === "/o/") return role === "principal" || role === "operator";

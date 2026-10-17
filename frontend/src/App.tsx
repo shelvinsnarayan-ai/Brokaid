@@ -50,6 +50,7 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import AccountSecurity from "./pages/auth/AccountSecurity";
 import { Invites as OperatorInvites } from "./pages/operator/Invites";
 import { Users as OperatorUsers } from "./pages/operator/Users";
+import { ImportPage } from "./pages/operator/Import";
 import { DevAuthBanner } from "./components/DevAuthBanner";
 
 const DevLogin = lazy(() =>
@@ -126,6 +127,7 @@ export function App() {
           <Route path="governance" element={<Governance />} />
           <Route path="invites" element={<OperatorInvites />} />
           <Route path="users" element={<OperatorUsers />} />
+          <Route path="import" element={<ImportPage />} />
           <Route path="shadow-mode/:agent/:class_key" element={<ShadowModeDrill />} />
           <Route path="export" element={<TrailExport />} />
           <Route path="chase" element={<ChaseLadder />} />

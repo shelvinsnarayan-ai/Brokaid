@@ -4,7 +4,7 @@ import os
 import subprocess
 import sys
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.kernel import job_handlers, jobs  # noqa: F401
@@ -85,7 +85,8 @@ def test_sweeper_requeues_expired_lease_and_keeps_state():
 def test_single_leader_and_idempotent_periodic_buckets():
     async def go(db):
         await db.tenants.insert_one({"tenant_id": "t1", "slug": "t1"})
-        now = jobs.now_utc()
+        # R1.3: injected clock at the start of a 300s bucket (wall clock made now/now+5s straddle a bucket ~8% of runs)
+        now = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
         leaders = await asyncio.gather(*[jobs.acquire_leader(db, f"n{i}", now) for i in range(5)])
         assert sum(leaders) == 1
         winner = f"n{leaders.index(True)}"
