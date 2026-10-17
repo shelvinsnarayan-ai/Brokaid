@@ -241,7 +241,8 @@ async def _once(coro) -> None:
 async def _test_pause(point: str) -> None:
     """Non-production hook so a restart can be tested at a precise step."""
     secs = os.environ.get(f"INTAKE_TEST_PAUSE_{point.upper()}_S")
-    if secs and (os.environ.get("ENVIRONMENT") or "").lower() != "production":
+    from app.kernel import devmode
+    if secs and not devmode.is_production():
         await asyncio.sleep(float(secs))
 
 

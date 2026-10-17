@@ -1,6 +1,7 @@
 """R1.9 — security middleware: headers, CSRF origin check on cookie-auth writes, rate limits (env-tunable)."""
 from __future__ import annotations
 
+import json
 import os
 import time
 from collections import defaultdict, deque
@@ -72,11 +73,36 @@ def client_ip(request) -> str:
     return fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "?")
 
 
+def has_operator_key(v, depth: int = 0) -> bool:
+    """NoSQL operator injection: user JSON never legitimately carries '$'-prefixed keys."""
+    if depth > 32:
+        return True
+    if isinstance(v, dict):
+        return any(str(k).startswith("$") or has_operator_key(x, depth + 1) for k, x in v.items())
+    if isinstance(v, list):
+        return any(has_operator_key(x, depth + 1) for x in v)
+    return False
+
+
+async def _json_has_operator(request) -> bool:
+    if request.method not in WRITE or "json" not in (request.headers.get("content-type") or ""):
+        return False
+    body = await request.body()  # cached by Starlette, replayed to the route
+    if not body or b"$" not in body:
+        return False
+    try:
+        return has_operator_key(json.loads(body))
+    except ValueError:
+        return False  # the route answers 422 for bad JSON
+
+
 class SecurityMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         path = request.url.path
         if path.startswith("/api/") and not csrf_ok(request.method, request.headers, request.cookies):
             return self._harden(JSONResponse({"detail": "csrf_origin_rejected"}, status_code=403))
+        if path.startswith("/api/") and await _json_has_operator(request):
+            return self._harden(JSONResponse({"detail": "invalid_field_name"}, status_code=400))
         if path.startswith("/api/") and os.environ.get("RATE_LIMIT_DISABLED") != "1":
             ip, now = client_ip(request), time.monotonic()
             auth = path.startswith(AUTH_PREFIXES) and request.method in WRITE

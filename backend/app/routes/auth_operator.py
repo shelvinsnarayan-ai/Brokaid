@@ -57,6 +57,8 @@ async def login(
     if role_info is None:
         raise HTTPException(status_code=403, detail="no_login_capable_role")
     tenant_id, brokerage_id, role = role_info
+    from app.kernel import devmode
+    await devmode.require_dev_tenant(store, tenant_id, role)  # SEC-001b: legacy login only for demo tenants
 
     session = await create_session_scoped(
         store, tenant_id,

@@ -1,7 +1,6 @@
 """Shadow-mode route (R5c-4b — Mongo-only)."""
 from __future__ import annotations
 
-import csv
 import io
 import json
 from typing import Literal
@@ -9,6 +8,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 
+from app.kernel.csvsafe import safe_writer
 from app.auth.sessions import Session
 from app.kernel import shadow_mode as shadow_mode_kernel
 from app.middleware.session import require_operator_session
@@ -194,7 +194,7 @@ async def export(
                      f"attachment; filename=shadow-mode_{window}.json"},
         )
     buf = io.StringIO()
-    w = csv.writer(buf)
+    w = safe_writer(buf)
     w.writerow([
         "agent_name", "class_key", "decisions_seen", "agreements",
         "agreement_rate", "eno_misses", "unlocked", "unlock_status",

@@ -20,6 +20,22 @@ from app.kernel.trail_dispatch import append_via_dispatch
 from app.kernel.trail_mongo import DuplicateIdempotencyKey
 
 MAX_BYTES = 20 * 1024 * 1024
+MAX_XLSX_UNCOMPRESSED = 200 * 1024 * 1024  # zip-bomb caps (audit gap)
+MAX_XLSX_MEMBERS = 500
+MAX_SHEETS = 20
+MAX_ROWS = 50_000
+
+
+class FileTooLarge(ValueError):
+    pass
+
+
+def _check_xlsx_zip(data: bytes) -> None:
+    import zipfile
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        infos = z.infolist()
+        if len(infos) > MAX_XLSX_MEMBERS or sum(i.file_size for i in infos) > MAX_XLSX_UNCOMPRESSED:
+            raise FileTooLarge("The workbook expands to more than we can safely read.")
 ORDER = ("clients", "insurers", "policies", "vehicles", "contacts")
 R, O = True, False
 FIELDS: dict[str, dict[str, tuple[bool, tuple[str, ...]]]] = {
@@ -85,14 +101,29 @@ def parse(data: bytes, filename: str) -> list[dict]:
     """→ [{name, headers, rows}] — rows are lists aligned to headers (row 1 = headers)."""
     if filename.lower().endswith((".xlsx", ".xlsm")):
         import openpyxl
+        _check_xlsx_zip(data)
         wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
-        sheets = [(ws.title, [list(r) for r in ws.iter_rows(values_only=True)]) for ws in wb.worksheets]
+        if len(wb.worksheets) > MAX_SHEETS:
+            raise FileTooLarge(f"The workbook has more than {MAX_SHEETS} sheets.")
+        sheets = []
+        for ws in wb.worksheets:
+            rows = []
+            for r in ws.iter_rows(values_only=True):
+                if len(rows) > MAX_ROWS:
+                    raise FileTooLarge(f"A sheet has more than {MAX_ROWS:,} rows.")
+                rows.append(list(r))
+            sheets.append((ws.title, rows))
     else:
         try:
             text = data.decode("utf-8-sig")
         except UnicodeDecodeError:
             text = data.decode("cp1252")
-        sheets = [(filename.rsplit(".", 1)[0], list(csv.reader(io.StringIO(text))))]
+        rows = []
+        for r in csv.reader(io.StringIO(text)):
+            if len(rows) > MAX_ROWS:
+                raise FileTooLarge(f"The file has more than {MAX_ROWS:,} rows.")
+            rows.append(r)
+        sheets = [(filename.rsplit(".", 1)[0], rows)]
     out = []
     for name, rows in sheets:
         rows = [r for r in rows if any(c not in (None, "") for c in r)]

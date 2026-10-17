@@ -32,6 +32,9 @@ async def seed_all_mongo(db: AsyncIOMotorDatabase) -> dict:
     users_result = await seed_users_mongo.seed_mongo(db)
     tenant_id = users_result["tenant_id"]
     brokerage_id = users_result["brokerage_id"]
+    from app.kernel import devmode
+    if not await devmode.is_demo_tenant(db, tenant_id):  # SEC-001b: dev seeds only ever touch a demo tenant
+        raise RuntimeError("dev seed target is not a demo/test tenant; refusing to seed")
 
     await seed_org_mongo.seed_mongo(db, tenant_id, brokerage_id)
     client_id = await seed_client_mongo.seed_mongo(db, tenant_id)

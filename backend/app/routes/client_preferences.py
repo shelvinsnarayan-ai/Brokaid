@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import json
-import os
 
+from app.kernel import devmode
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
@@ -52,7 +52,7 @@ async def set_prefs(
     if body.jurisdiction is not None and body.jurisdiction not in ("AU", "SG"):
         raise HTTPException(status_code=400, detail="unknown_jurisdiction")
     if (body.jurisdiction is not None
-            and os.environ.get("AUTH_DEV_MODE", "false").lower() != "true"):
+            and not devmode.dev_mode()):
         raise HTTPException(status_code=403, detail="preview_only_in_dev_mode")
 
     store = request.app.state.mongo_db

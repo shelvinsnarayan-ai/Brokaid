@@ -1,0 +1,265 @@
+"""Security audit fixes: SEC-001 dev-mode fail-closed, SEC-002 CSV injection, CORS, NoSQL operators, XLSX limits."""
+from __future__ import annotations
+
+import csv
+import io
+import re
+import uuid
+from datetime import timedelta
+from pathlib import Path
+
+import pytest
+from fastapi import HTTPException
+
+from app.auth.dispatch import create_session_scoped
+from app.auth.sessions import COOKIE_NAME
+from app.db.tenant_safe import wrap
+from app.kernel import devmode
+from app.kernel import iadviser as ia
+from app.kernel.csvsafe import safe_csv_cell
+from app.kernel.tenant_ctx import use_tenant
+from app.middleware.security import has_operator_key
+
+APP = Path(__file__).resolve().parent.parent / "app"
+
+
+# ---- SEC-001a: fail closed ------------------------------------------------
+@pytest.mark.parametrize("env,expect", [(None, "production"), ("", "production"), ("staging", "production"),
+                                        ("PROD", "production"), ("production", "production"), ("preview", "preview"),
+                                        ("development", "development"), ("test", "test")])
+def test_unknown_environment_is_production(monkeypatch, env, expect):
+    if env is None:
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
+    else:
+        monkeypatch.setenv("ENVIRONMENT", env)
+    assert devmode.environment() == expect
+
+
+def test_dev_mode_needs_explicit_env_and_flag(monkeypatch):
+    from app.settings import _assert_safe_to_start
+    monkeypatch.setenv("AUTH_DEV_MODE", "true")
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    assert not devmode.dev_mode()
+    with pytest.raises(RuntimeError, match="treated as production"):
+        _assert_safe_to_start()
+    monkeypatch.setenv("ENVIRONMENT", "preview")
+    assert devmode.dev_mode()
+    monkeypatch.setenv("AUTH_DEV_MODE", "false")
+    assert not devmode.dev_mode()
+
+
+# ---- SEC-001b: dev shortcuts only for demo tenants -------------------------
+def test_demo_tenant_rule():
+    assert devmode.is_demo_row({"slug": "harbourline"}) and devmode.is_demo_row({"slug": "ci-alpha"})
+    assert devmode.is_demo_row({"slug": "import-test", "test": True}) and devmode.is_demo_row({"slug": "x", "test": True})
+    for t in ({"slug": "burmac"}, {"slug": "burmac", "test": True}, {"slug": "platform", "kind": "platform"},
+              {"slug": "newco", "kind": "brokerage", "test": True}, {"slug": "anything"}, None):
+        assert not devmode.is_demo_row(t), t
+
+
+async def _tenant(db, slug, **extra):
+    tid = str(uuid.uuid4())
+    await db.tenants.insert_one({"tenant_id": tid, "slug": slug, "display_name": slug, "genesis_hash": "0" * 64,  # tenant-safe: system-only
+                                 "created_at": None, **extra})
+    return tid
+
+
+async def _operator(db, tid, role="operator"):
+    uid, email = str(uuid.uuid4()), f"op-{uuid.uuid4().hex[:6]}@sec.example"
+    async with use_tenant(tid):
+        await wrap(db).users.insert_one({"user_id": uid, "email": email, "kind": "operator", "display_name": "Op"})
+        await wrap(db).user_brokerage_roles.insert_one({"user_id": uid, "tenant_id": tid, "brokerage_id": tid, "role": role,
+                                                        "active": True})
+    return email
+
+
+@pytest.mark.asyncio
+async def test_impersonation_refused_for_real_tenants_and_platform_admin(app_client, mongo_db, monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AUTH_DEV_MODE", "true")
+    _, http = app_client
+    demo = await _operator(mongo_db, await _tenant(mongo_db, f"ci-sec-{uuid.uuid4().hex[:4]}"))
+    assert (await http.post("/api/auth/dev/impersonate", json={"email": demo})).status_code == 200
+    for t in ({"slug": f"real-{uuid.uuid4().hex[:4]}", "kind": "brokerage"}, {"slug": f"plain-{uuid.uuid4().hex[:4]}"}):
+        email = await _operator(mongo_db, await _tenant(mongo_db, **t))
+        assert (await http.post("/api/auth/dev/impersonate", json={"email": email})).status_code == 404, t
+    pa = await _operator(mongo_db, await _tenant(mongo_db, f"ci-pa-{uuid.uuid4().hex[:4]}"), role="platform_admin")
+    assert (await http.post("/api/auth/dev/impersonate", json={"email": pa})).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_require_dev_tenant(mongo_db, monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AUTH_DEV_MODE", "true")
+    demo = await _tenant(mongo_db, f"ci-d-{uuid.uuid4().hex[:4]}")
+    await devmode.require_dev_tenant(mongo_db, demo, "operator")
+    for tid, role in ((demo, "platform_admin"), (await _tenant(mongo_db, "burmac-copy", kind="brokerage"), "operator"),
+                      (await _tenant(mongo_db, f"p-{uuid.uuid4().hex[:4]}", kind="platform"), "operator"), (None, "operator")):
+        with pytest.raises(HTTPException) as e:
+            await devmode.require_dev_tenant(mongo_db, tid, role)
+        assert e.value.status_code == 404
+    monkeypatch.setenv("AUTH_DEV_MODE", "false")
+    with pytest.raises(HTTPException):
+        await devmode.require_dev_tenant(mongo_db, demo, "operator")
+
+
+# ---- SEC-001c: boot guard + import guard ------------------------------------
+@pytest.mark.asyncio
+async def test_boot_guard_refuses_dev_mode_beside_real_data(mongo_db, monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AUTH_DEV_MODE", "true")
+    await devmode.boot_guard(mongo_db)  # only demo/test tenants so far
+    live = await _tenant(mongo_db, f"live-{uuid.uuid4().hex[:4]}", kind="brokerage", status="live")
+    with pytest.raises(RuntimeError, match="REFUSING TO START"):
+        await devmode.boot_guard(mongo_db)
+    await mongo_db.tenants.update_one({"tenant_id": live}, {"$set": {"status": "setup"}})  # tenant-safe: system-only
+    await devmode.boot_guard(mongo_db)
+    await mongo_db.import_runs.insert_one({"tenant_id": live, "run_id": "r"})  # tenant-safe: system-only
+    with pytest.raises(RuntimeError, match="imported data"):
+        await devmode.boot_guard(mongo_db)
+    monkeypatch.setenv("AUTH_DEV_MODE", "false")
+    await devmode.boot_guard(mongo_db)  # dev mode off → production data is allowed
+
+
+@pytest.mark.asyncio
+async def test_import_into_real_tenant_only_in_production(mongo_db, monkeypatch):
+    real = await _tenant(mongo_db, f"r-{uuid.uuid4().hex[:4]}", kind="brokerage")
+    demo = await _tenant(mongo_db, f"ci-i-{uuid.uuid4().hex[:4]}")
+    monkeypatch.setenv("ENVIRONMENT", "preview")
+    await devmode.require_import_allowed(mongo_db, demo)
+    with pytest.raises(HTTPException) as e:
+        await devmode.require_import_allowed(mongo_db, real)
+    assert e.value.status_code == 403
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    await devmode.require_import_allowed(mongo_db, real)
+
+
+# ---- SEC-001d: release check sees dev routes --------------------------------
+def test_dev_routes_absent_in_production_app(monkeypatch):
+    from app.kernel.release_check import exposed_dev_routes
+    from app.main import create_app
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AUTH_DEV_MODE", "true")
+    dev = exposed_dev_routes(create_app(seed_dev_users=False))
+    assert "/api/auth/dev/impersonate" in dev and any(p.startswith("/api/auth/operator") for p in dev)
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("AUTH_DEV_MODE", "false")
+    monkeypatch.setenv("CORS_ORIGINS", "https://app.brokaid.example")
+    assert exposed_dev_routes(create_app(seed_dev_users=False)) == []
+    monkeypatch.delenv("ENVIRONMENT")  # unset = production: still nothing mounted
+    monkeypatch.setenv("AUTH_DEV_MODE", "false")
+    assert exposed_dev_routes(create_app(seed_dev_users=False)) == []
+
+
+# ---- CORS ------------------------------------------------------------------
+def test_cors_never_wildcard_and_production_refuses_it(monkeypatch):
+    from app.settings import _assert_safe_to_start, cors_origins
+    monkeypatch.setenv("APP_BASE_URL", "https://app.brokaid.example")
+    monkeypatch.setenv("CORS_ORIGINS", "*,https://admin.brokaid.example")
+    assert cors_origins() == ["https://admin.brokaid.example", "https://app.brokaid.example"]
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("AUTH_DEV_MODE", "false")
+    with pytest.raises(RuntimeError, match="CORS_ORIGINS"):
+        _assert_safe_to_start()
+
+
+# ---- SEC-002: CSV formula injection ------------------------------------------
+def test_safe_csv_cell():
+    for bad in ("=1+1", "+cmd", "-2+3", "@SUM(A1)", "\t=x", "\r=x"):
+        assert safe_csv_cell(bad).startswith("'"), bad
+    assert safe_csv_cell("=HYPER\x00LINK") == "'=HYPERLINK"
+    assert safe_csv_cell("a\x07b\nc") == "ab\nc"
+    assert safe_csv_cell("Kai Hilux") == "Kai Hilux" and safe_csv_cell(-5) == -5 and safe_csv_cell(None) is None
+
+
+def test_every_csv_writer_is_safe():
+    """Sweep: no raw csv.writer/DictWriter in app code; every CSV-producing module uses safe_writer."""
+    allowed = {"kernel/csvsafe.py", "scripts/iadviser_synth.py"}  # synth builds import *input* fixtures, not exports
+    for p in APP.rglob("*.py"):
+        rel = str(p.relative_to(APP))
+        src = p.read_text()
+        if rel in allowed:
+            continue
+        assert not re.search(r"csv\.(writer|DictWriter)\(", src), rel
+        if "text/csv" in src and re.search(r"media_type=\"text/csv\"", src):
+            assert "safe_writer(" in src, rel
+
+
+def test_csv_routes_are_known():
+    from app.kernel.routes_util import all_routes
+    from app.main import create_app
+    paths = {r.path for r in all_routes(create_app(seed_dev_users=False)) if r.path.endswith(".csv") or "shadow-mode/export" in r.path}
+    assert paths == {"/api/o/import/runs/{run_id}/errors.csv", "/api/o/bank/reconciliation/export.csv",
+                     "/api/o/compliance/complaints-register.csv", "/api/o/shadow-mode/export"}, paths
+
+
+@pytest.mark.asyncio
+async def test_complaints_register_csv_neutralises_formulas(app_client, mongo_db):
+    from tests.test_r17_compliance import _setup
+    _, http = app_client
+    tid, _, ids, ck = await _setup(mongo_db)
+    async with use_tenant(tid):
+        await wrap(mongo_db).clients.update_one({"client_id": "c1"}, {"$set": {"display_name": '=HYPERLINK("http://evil","x")'}})
+    assert (await http.post("/api/c/complaints", headers=ck["owner"], json={"category": "service", "summary": "s"})).status_code == 200
+    s = await create_session_scoped(mongo_db, tid, user_id=ids["principal"], brokerage_id="b", active_role="principal",
+                                    mfa_verified=True, ttl=timedelta(minutes=10))
+    r = await http.get("/api/o/compliance/complaints-register.csv", headers={"Cookie": f"{COOKIE_NAME}={s.session_id}"})
+    assert r.status_code == 200, r.text
+    rows = list(csv.reader(io.StringIO(r.text)))
+    assert rows[1][1].startswith("'=HYPERLINK")
+    assert not any(c.startswith(("=", "+", "@")) for row in rows for c in row)
+
+
+# ---- NoSQL operator injection -------------------------------------------------
+def test_operator_key_detector():
+    assert has_operator_key({"email": {"$ne": None}}) and has_operator_key([{"a": [{"$where": "1"}]}])
+    assert not has_operator_key({"note": "costs $5", "mapping": {"premium": "$ Premium"}})
+
+
+@pytest.mark.asyncio
+async def test_operator_injection_rejected_centrally(app_client):
+    _, http = app_client
+    r = await http.post("/api/auth/login", json={"email": {"$ne": None}, "password": {"$gt": ""}})
+    assert r.status_code == 400 and r.json()["detail"] == "invalid_field_name"
+    r = await http.post("/api/auth/login", json={"email": "nobody@sec.example", "password": "costs $5"})
+    assert r.status_code != 400
+
+
+# ---- XLSX limits ---------------------------------------------------------------
+def _xlsx(sheets=1, rows=3) -> bytes:
+    import openpyxl
+    wb = openpyxl.Workbook()
+    for i in range(sheets):
+        ws = wb.active if i == 0 else wb.create_sheet(f"S{i}")
+        ws.append(["Client name", "ABN"])
+        for r in range(rows):
+            ws.append([f"C{r}", "51824753556"])
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def test_xlsx_limits(monkeypatch):
+    assert ia.parse(_xlsx(), "x.xlsx")[0]["rows"]
+    monkeypatch.setattr(ia, "MAX_ROWS", 5)
+    with pytest.raises(ia.FileTooLarge, match="rows"):
+        ia.parse(_xlsx(rows=10), "x.xlsx")
+    with pytest.raises(ia.FileTooLarge, match="rows"):
+        ia.parse(b"a,b\n" + b"1,2\n" * 10, "x.csv")
+    monkeypatch.setattr(ia, "MAX_SHEETS", 2)
+    with pytest.raises(ia.FileTooLarge, match="sheets"):
+        ia.parse(_xlsx(sheets=3), "x.xlsx")
+    monkeypatch.setattr(ia, "MAX_XLSX_UNCOMPRESSED", 1000)
+    with pytest.raises(ia.FileTooLarge, match="expands"):
+        ia.parse(_xlsx(), "x.xlsx")
+
+
+# ---- logs carry no tokens or PII ---------------------------------------------------
+def test_access_log_route_never_carries_tokens_or_emails():
+    import logging
+    import app.main  # noqa: F401 — disables uvicorn's raw-path access log
+    from app.kernel.ops import _route
+    req = type("R", (), {"scope": {}, "url": type("U", (), {"path": "/api/auth/invite/0lBCxta2Z-UuUSnGzJR_e-ePMFH/kai@fictionalclient.example"})()})()
+    out = _route(req)
+    assert "0lBCxta2Z" not in out and "@" not in out
+    assert logging.getLogger("uvicorn.access").disabled

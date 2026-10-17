@@ -1,7 +1,6 @@
 """R1.5 — /api/o/bank (Operator + Principal), /api/o/payment-settings, /api/c/money."""
 from __future__ import annotations
 
-import csv
 import io
 import json
 import uuid
@@ -11,6 +10,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from app.kernel.csvsafe import safe_writer
 from app.db.tenant_safe import wrap
 from app.kernel import bankfeed as bf
 from app.kernel import object_store, payments
@@ -218,7 +218,7 @@ async def _export_rows(request, s, as_at):
 async def export_csv(request: Request, as_at: str | None = None, s=Depends(staff)) -> Response:
     r, entries = await _export_rows(request, s, _as_at(as_at))
     buf = io.StringIO()
-    w = csv.writer(buf)
+    w = safe_writer(buf)
     w.writerow([LABEL])
     w.writerow(["Trust reconciliation as at", r["as_at"]])
     for k in ("bank_balance", "trust_balance", "expected_bank_balance", "unexplained"):
@@ -239,6 +239,7 @@ async def export_pdf(request: Request, as_at: str | None = None, s=Depends(staff
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table
+    from xml.sax.saxutils import escape as xml_escape  # SEC: Paragraph parses markup; user text is escaped
     r, entries = await _export_rows(request, s, _as_at(as_at))
     st = getSampleStyleSheet()
     buf = io.BytesIO()
@@ -247,7 +248,7 @@ async def export_pdf(request: Request, as_at: str | None = None, s=Depends(staff
     rows = [["Date", "Kind", "Amount", "Client", "On statement", "Note"]] + [
         [e["date"], e["kind"], e["amount"], (e.get("client_id") or "")[:8], "yes" if e.get("presented") else "no", (e.get("note") or "")[:40]]
         for e in entries]
-    SimpleDocTemplate(buf, pagesize=A4).build([Paragraph(f"Trust reconciliation as at {r['as_at']}", st["Title"]),
+    SimpleDocTemplate(buf, pagesize=A4).build([Paragraph(f"Trust reconciliation as at {xml_escape(str(r['as_at']))}", st["Title"]),
                                               Paragraph(LABEL, st["Italic"]), Spacer(1, 12), Table(summary), Spacer(1, 12), Table(rows)])
     return Response(buf.getvalue(), media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="trust-reconciliation-{r["as_at"]}.pdf"'})

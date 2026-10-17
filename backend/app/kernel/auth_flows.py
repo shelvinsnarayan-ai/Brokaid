@@ -58,7 +58,8 @@ def base_url() -> str:
 
 
 def is_production() -> bool:
-    return (os.environ.get("ENVIRONMENT") or "").strip().lower() == "production"
+    from app.kernel import devmode
+    return devmode.is_production()
 
 
 def cookie_flags() -> dict:

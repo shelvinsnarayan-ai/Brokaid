@@ -1,7 +1,6 @@
 """R1.4 — /api/o/import (Operator + Principal, own tenant) and /api/o/clean-start (Operator)."""
 from __future__ import annotations
 
-import csv
 import hashlib
 import io
 import uuid
@@ -11,6 +10,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from app.kernel.csvsafe import safe_writer
 from app.db.tenant_safe import wrap
 from app.kernel import iadviser as ia
 from app.kernel import jobs, object_store, tenant_archive
@@ -31,6 +31,12 @@ async def importer(s=Depends(require_operator_session)):
     return s
 
 
+async def import_writer(request: Request, s=Depends(importer)):
+    from app.kernel import devmode
+    await devmode.require_import_allowed(request.app.state.mongo_db, s.tenant_id)  # SEC-001c
+    return s
+
+
 async def _profile(safe, profile_id: str | None) -> dict | None:
     q = {"profile_id": profile_id} if profile_id else {}
     rows = [p async for p in safe.import_profiles.find(q, {"_id": 0}).sort("updated_at", -1).limit(1)]
@@ -43,7 +49,7 @@ async def fields(s=Depends(importer)) -> dict:
 
 
 @router.post("/import/files")
-async def upload(request: Request, file: UploadFile = File(...), profile_id: str | None = None, s=Depends(importer)) -> dict:
+async def upload(request: Request, file: UploadFile = File(...), profile_id: str | None = None, s=Depends(import_writer)) -> dict:
     ext = (file.filename or "").rsplit(".", 1)[-1].lower()
     if ext not in MIME:
         raise HTTPException(status_code=422, detail="Upload a .csv or .xlsx export.")
@@ -52,6 +58,8 @@ async def upload(request: Request, file: UploadFile = File(...), profile_id: str
         raise HTTPException(status_code=413, detail="That file is over 20 MB.")
     try:
         sheets = ia.parse(data, file.filename)
+    except ia.FileTooLarge as e:
+        raise HTTPException(status_code=413, detail=str(e)) from None
     except Exception:  # noqa: BLE001 — never echo file contents
         raise HTTPException(status_code=422, detail="We couldn't read that file. Export it again as CSV or XLSX.") from None
     if not sheets:
@@ -91,7 +99,7 @@ class RunBody(BaseModel):
 
 
 @router.post("/import/runs")
-async def create_run(body: RunBody, request: Request, s=Depends(importer)) -> dict:
+async def create_run(body: RunBody, request: Request, s=Depends(import_writer)) -> dict:
     store = _store(request)
     safe = wrap(store)
     async with use_tenant(s.tenant_id):
@@ -165,7 +173,7 @@ async def rows(run_id: str, request: Request, status: str | None = None, action:
 async def errors_csv(run_id: str, request: Request, s=Depends(importer)) -> Response:
     safe = wrap(_store(request))
     buf = io.StringIO()
-    w = csv.writer(buf)
+    w = safe_writer(buf)
     w.writerow(["sheet", "row", "data type", "key", "result", "reasons"])
     async with use_tenant(s.tenant_id):
         await _run(safe, run_id)
@@ -176,7 +184,7 @@ async def errors_csv(run_id: str, request: Request, s=Depends(importer)) -> Resp
 
 
 @router.post("/import/runs/{run_id}/commit")
-async def commit(run_id: str, request: Request, s=Depends(importer)) -> dict:
+async def commit(run_id: str, request: Request, s=Depends(import_writer)) -> dict:
     store = _store(request)
     safe = wrap(store)
     async with use_tenant(s.tenant_id):

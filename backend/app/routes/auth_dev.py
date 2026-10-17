@@ -22,7 +22,7 @@ from pydantic import BaseModel, EmailStr
 
 from app.auth import sessions as sess
 from app.auth.dispatch import auth_store, create_session_scoped
-from app.kernel import identity
+from app.kernel import devmode, identity
 from app.kernel.rbac import LOGIN_CAPABLE_ROLES
 from app.kernel.trail_dispatch import append_via_dispatch
 
@@ -45,7 +45,7 @@ async def impersonate(
     user, tenant_hint = await identity.find_user_by_email_across_tenants(
         store, body.email,
     )
-    if user is None:
+    if user is None or not devmode.dev_mode():
         raise HTTPException(status_code=404, detail="user_not_found")
 
     if user.kind == "operator":
@@ -56,8 +56,11 @@ async def impersonate(
             (r for r in roles if r.active and r.role in LOGIN_CAPABLE_ROLES),
             None,
         )
+        if any(r.role == "platform_admin" for r in roles):
+            raise HTTPException(status_code=404, detail="user_not_found")  # SEC-001b: never impersonate a platform admin
         if active is None:
             raise HTTPException(status_code=403, detail="no_login_capable_role")
+        await devmode.require_dev_tenant(store, active.tenant_id, active.role)  # SEC-001b
         session = await create_session_scoped(
             store, active.tenant_id,
             user_id=user.user_id, brokerage_id=active.brokerage_id,
@@ -70,6 +73,7 @@ async def impersonate(
         if not links:
             raise HTTPException(status_code=403, detail="no_client_link")
         first = links[0]
+        await devmode.require_dev_tenant(store, first.tenant_id, first.role)  # SEC-001b
         session = await create_session_scoped(
             store, first.tenant_id,
             user_id=user.user_id, client_id=first.client_id,
@@ -117,7 +121,7 @@ def mount_admin_bundle_route(
     from app.settings import get_settings
 
     settings = get_settings()
-    if settings.environment == "production":
+    if devmode.is_production():
         raise RuntimeError(
             "admin bundle download route refuses to mount in production"
         )
@@ -143,11 +147,11 @@ def mount_admin_bundle_route(
         path=path,
     )
     _log.info(
-        "ADMIN_BUNDLE_ARMED file=%s expires_at=%s ttl_min=%d token=%s",
+        "ADMIN_BUNDLE_ARMED file=%s expires_at=%s ttl_min=%d token_sha256=%s",
         path.name,
         expires_at.isoformat(timespec="seconds"),
         ttl_minutes,
-        raw,
+        token_sha256.hex()[:12],  # the raw token is returned to the caller, never logged
     )
     return raw
 

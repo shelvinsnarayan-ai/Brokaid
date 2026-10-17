@@ -28,8 +28,8 @@ class SelectRequest(BaseModel):
 
 
 def _dev_mode() -> bool:
-    import os
-    return os.environ.get("AUTH_DEV_MODE", "false").lower() == "true"
+    from app.kernel import devmode
+    return devmode.dev_mode()
 
 
 def _resend_available() -> bool:
@@ -58,6 +58,8 @@ async def request_magic_link(body: MagicLinkRequest, request: Request) -> dict:
     if brok is None:
         return {"ok": True, "dev_mode": dev and not resend}
     tenant_id = brok.tenant_id
+    from app.kernel import devmode
+    await devmode.require_dev_tenant(store, tenant_id)  # SEC-001b: legacy magic link only for demo tenants
     async with use_tenant(tenant_id):
         user = await identity.find_user_by_email(store, body.email)
     if user is None or user.kind != "client":
@@ -96,6 +98,8 @@ async def verify_magic_link(
     if error == "expired":
         raise HTTPException(status_code=400, detail="expired")
     assert user_id is not None and tenant_id is not None
+    from app.kernel import devmode
+    await devmode.require_dev_tenant(store, tenant_id)  # SEC-001b
     async with use_tenant(tenant_id):
         links = await identity.list_client_links_for_user(store, user_id)
     if not links:
@@ -146,6 +150,8 @@ async def select_link(body: SelectRequest, request: Request) -> dict:
     ]
     if not matching:
         raise HTTPException(status_code=403, detail="no_such_link")
+    from app.kernel import devmode
+    await devmode.require_dev_tenant(store, body.tenant_id)  # SEC-001b
     async with use_tenant(body.tenant_id):
         await identity.update_active_context(
             store, session.session_id,

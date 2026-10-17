@@ -1,7 +1,6 @@
 """R1.7 — /api/o/compliance (staff) and client compliance routes (documents, complaints, My data)."""
 from __future__ import annotations
 
-import csv
 import io
 from datetime import datetime, timezone
 
@@ -9,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
+from app.kernel.csvsafe import safe_writer
 from app.db.tenant_safe import wrap
 from app.kernel import complaints as cm
 from app.kernel import compliance_docs as cd
@@ -193,7 +193,7 @@ async def move_complaint(matter_id: str, body: MoveBody, request: Request, s=Dep
 async def complaints_csv(request: Request, s=Depends(_lead)) -> PlainTextResponse:
     rows = await cm.register(_store(request), s.tenant_id, "complaint", s)
     buf = io.StringIO()
-    w = csv.writer(buf)
+    w = safe_writer(buf)
     w.writerow(["matter_id", "client", "category", "source", "received", "ack_due", "response_due", "stage", "outcome",
                 "response_sent", "closed", "days_open"])
     for m in rows:

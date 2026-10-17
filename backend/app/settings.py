@@ -5,17 +5,25 @@ import os
 
 from pydantic import BaseModel
 
+from app.kernel import devmode
+
+
+def cors_origins() -> list[str]:
+    """CORS is pinned to the app origin(s): APP_BASE_URL plus CORS_ORIGINS. A '*' is never honoured (credentials are on)."""
+    from app.middleware.security import allowed_origins
+    return sorted(allowed_origins())
+
 
 def _assert_safe_to_start() -> None:
-    """Refuse to boot if AUTH_DEV_MODE=true while ENVIRONMENT=production."""
-    if (
-        os.environ.get("AUTH_DEV_MODE", "false").lower() == "true"
-        and os.environ.get("ENVIRONMENT", "development").lower()
-        == "production"
-    ):
+    """Fail closed: dev login needs an explicit dev ENVIRONMENT; production never boots with a CORS wildcard."""
+    if (os.environ.get("AUTH_DEV_MODE") or "").strip().lower() == "true" and devmode.is_production():
         raise RuntimeError(
-            "AUTH_DEV_MODE=true is forbidden in ENVIRONMENT=production",
+            "AUTH_DEV_MODE=true is forbidden unless ENVIRONMENT is development, preview or test "
+            f"(ENVIRONMENT={os.environ.get('ENVIRONMENT')!r} is treated as production)",
         )
+    raw = [o.strip() for o in (os.environ.get("CORS_ORIGINS") or "").split(",")]
+    if devmode.is_production() and "*" in raw:
+        raise RuntimeError("CORS_ORIGINS='*' with credentials is forbidden in production; list the app origin(s).")
 
 
 class Settings(BaseModel):
@@ -36,9 +44,9 @@ class Settings(BaseModel):
         else:
             cap = int(cap_raw)
         return cls(
-            cors_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
-            auth_dev_mode=os.environ.get("AUTH_DEV_MODE", "false").lower() == "true",
-            environment=os.environ.get("ENVIRONMENT", "development"),
+            cors_origins=cors_origins(),
+            auth_dev_mode=devmode.dev_mode(),
+            environment=devmode.environment(),
             resend_api_key=(os.environ.get("RESEND_API_KEY") or None),
             emergent_llm_key=(os.environ.get("EMERGENT_LLM_KEY") or None),
             sprint_cap_tokens=cap,

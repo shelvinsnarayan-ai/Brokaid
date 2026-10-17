@@ -41,7 +41,7 @@ def scrub(text: str) -> str:
 
 def _route(request) -> str:
     r = request.scope.get("route")
-    return getattr(r, "path", None) or re.sub(r"[0-9a-f-]{16,}", "{id}", request.url.path)
+    return getattr(r, "path", None) or scrub(re.sub(r"[\w-]{16,}", "{id}", request.url.path))  # unmatched: no tokens/PII
 
 
 def _store(request):

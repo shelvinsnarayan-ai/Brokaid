@@ -56,7 +56,8 @@ def email_enabled() -> bool:
     v = (os.environ.get("EMAIL_ENABLED") or "").strip().lower()
     if v:
         return v == "true"
-    return (os.environ.get("ENVIRONMENT") or "").strip().lower() != "production"
+    from app.kernel import devmode
+    return not devmode.is_production()
 
 
 DEFAULT_BRAND_COLOUR = "#0B1B3A"  # button background; white text passes 4.5:1
@@ -289,11 +290,16 @@ async def _process(store, n, now, send, allow, ignore_quiet=False, settings_over
                          reply_to=settings["reply_to"])
         return await _set(store, n, "sent", email_message_id=mid, email_sent_at=now, email_attempts=attempts)
     except Exception as e:  # noqa: BLE001 — never blocks in-app or the ledger
-        log.warning("email send failed (attempt %s): %r", attempts, e)
+        log.warning("email send failed (attempt %s): %s", attempts, _scrubbed(e))  # no recipient/PII in logs
         if attempts >= MAX_ATTEMPTS:
             return await _set(store, n, "failed", email_attempts=attempts, email_error=str(e)[:200])
         return await _set(store, n, "retry", email_attempts=attempts, email_next_at=now + BACKOFF[attempts - 1],
                           email_error=str(e)[:200])
+
+
+def _scrubbed(e: Exception) -> str:
+    from app.kernel.ops import scrub
+    return f"{type(e).__name__}: {scrub(str(e))[:200]}"
 
 
 async def loop(store) -> None:
@@ -301,5 +307,5 @@ async def loop(store) -> None:
         try:
             await run_once(store)
         except Exception as e:  # noqa: BLE001
-            log.warning("email sender failed (non-fatal): %r", e)
+            log.warning("email sender failed (non-fatal): %s", _scrubbed(e))
         await asyncio.sleep(SEND_EVERY_S)

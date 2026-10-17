@@ -235,7 +235,7 @@ def test_auth_email_gating():
             assert await af.send_auth_email(db, tid, to="real@owner.test.com", **kw) == "skipped:auth_email_disabled"
         finally:
             os.environ.pop("EMAIL_AUTH_ENABLED")
-    run(go, {"ENVIRONMENT": "production", "AUTH_DEV_MODE": "false", "EMAIL_ENABLED": "false"})
+    run(go, {"ENVIRONMENT": "production", "AUTH_DEV_MODE": "false", "EMAIL_ENABLED": "false", "CORS_ORIGINS": "https://app.brokaid.example"})
 
 
 def test_bootstrap_operator_is_idempotent():
@@ -266,7 +266,7 @@ def test_production_has_no_dev_or_legacy_sign_in():
         assert "/api/auth/login" in paths and af.cookie_flags()["secure"] is True
         assert (await c.post("/api/auth/dev/impersonate", json={"email": "operator@harbourline.example"})).status_code in (404, 405)
         assert (await c.get("/api/o/queue")).status_code == 401
-    run(go, {"ENVIRONMENT": "production", "AUTH_DEV_MODE": "false"})
+    run(go, {"ENVIRONMENT": "production", "AUTH_DEV_MODE": "false", "CORS_ORIGINS": "https://app.brokaid.example"})
 
 
 def test_production_refuses_dev_mode():

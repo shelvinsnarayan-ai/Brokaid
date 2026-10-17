@@ -26,6 +26,9 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("brokaid.api")
+# Hardening: uvicorn's access log prints raw paths + query strings (invite/magic-link tokens). Our JSON access log
+# (route template, hashed tenant, no bodies) replaces it.
+logging.getLogger("uvicorn.access").disabled = True
 
 
 def create_app(
@@ -38,7 +41,7 @@ def create_app(
     do_seed = (
         seed_dev_users
         if seed_dev_users is not None
-        else settings.auth_dev_mode
+        else settings.auth_dev_mode  # devmode.dev_mode(): explicit dev ENVIRONMENT + AUTH_DEV_MODE
     )
 
     @asynccontextmanager
@@ -56,6 +59,8 @@ def create_app(
             app.state.postgres_version = None
             logger.info("Connected to Mongo (primary store)")
 
+        from app.kernel import devmode as _devmode
+        await _devmode.boot_guard(app.state.mongo_db)  # SEC-001c: dev mode never runs beside real tenant data
         if do_seed:
             try:
                 from app.seeds.seed_all_mongo import seed_all_mongo
@@ -226,7 +231,7 @@ def create_app(
         api_router.include_router(r)
 
     # R1.2a: legacy sign-in routes (magic link, operator-only login) never ship to production.
-    if os.environ.get("ENVIRONMENT", "development").lower() != "production":
+    if settings.auth_dev_mode:  # SEC-001a: explicit dev ENVIRONMENT + AUTH_DEV_MODE only
         api_router.include_router(auth_client_router)
         api_router.include_router(auth_operator_router)
 

@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from app.kernel import devmode
 from fastapi import APIRouter
 
 router = APIRouter()
@@ -51,6 +52,9 @@ def _has_git_tree() -> bool:
 
 def resolve_env() -> str:
     """'production' if any of ENVIRONMENT / EMERGENT_ENV / NODE_ENV says so."""
+    from app.kernel import devmode
+    if devmode.is_production():  # SEC-001a: unset/unknown ENVIRONMENT is production
+        return "production"
     for key in _ENV_KEYS:
         if (os.environ.get(key) or "").strip().lower() in ("production", "prod"):
             return "production"
@@ -101,7 +105,7 @@ async def build_info() -> dict[str, Any]:
     identity = _BAKED_IDENTITY or _resolve_identity()
     return {
         **identity,
-        "auth_dev_mode": (os.environ.get("AUTH_DEV_MODE") or "").lower() == "true",
+        "auth_dev_mode": devmode.dev_mode(),
         "llm_key_present": bool(os.environ.get("EMERGENT_LLM_KEY")),
         "email_enabled": email_channel.email_enabled(),
     }

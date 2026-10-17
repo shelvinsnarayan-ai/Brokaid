@@ -39,12 +39,20 @@ SPINE_TIMEOUT_S = 180
 LOCK_STALE = timedelta(minutes=6)
 
 
+DEV_ROUTE_PREFIXES = ("/api/auth/dev", "/api/auth/client", "/api/auth/operator", "/api/_admin")
+
+
+def exposed_dev_routes(app) -> list[str]:
+    return sorted(p for p in (app.openapi().get("paths") or {}) if p.startswith(DEV_ROUTE_PREFIXES))
+
+
 class StepFailed(Exception):
     pass
 
 
 def environment() -> str:
-    return (os.environ.get("ENVIRONMENT") or "unknown").strip().lower()
+    from app.kernel import devmode
+    return devmode.environment()  # SEC-001a: unset/unknown → production
 
 
 def _is_preview_host() -> bool:
@@ -368,7 +376,7 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
         await manual_only_steps(r, store)
         await compliance_steps(r, store, tenant_id, ids)
         await claim_steps(r, store, tenant_id, ids, run_id)
-        await ops_steps(r, http, store, tenant_id)
+        await ops_steps(r, http, store, tenant_id, app)
 
         async def probe_client_on_o():
             await expect(await http.get("/api/o/queue", headers=as_("owner")), 403, "Client on broker route")
@@ -557,7 +565,7 @@ async def compliance_steps(r, store, tenant_id, ids) -> None:
         await r.step(key, label, fn)
 
 
-async def ops_steps(r, http, store, tenant_id) -> None:
+async def ops_steps(r, http, store, tenant_id, app) -> None:
     """R1.9: readiness, backup age, last restore drill, security headers."""
     from app.kernel import ops
 
@@ -590,6 +598,15 @@ async def ops_steps(r, http, store, tenant_id) -> None:
             raise StepFailed("Missing headers: " + ", ".join(missing))
         return "CSP, HSTS, X-Frame-Options, Referrer-Policy and Permissions-Policy present."
 
+    async def dev_routes():
+        paths = exposed_dev_routes(app)
+        if paths and environment() == "production":
+            raise StepFailed("Dev/legacy sign-in routes are exposed in production: " + ", ".join(sorted(paths)[:6]))
+        if paths:
+            return "info", f"{len(paths)} dev/legacy sign-in route(s) mounted (dev mode on {environment()}; refused for real tenants)."
+        return "No dev or legacy sign-in routes in the API."
+
+    await r.step("security.dev_routes", "No dev sign-in routes in production", dev_routes)
     await r.step("ops.ready", "/api/ready", ready)
     await r.step("ops.backup_age", "Backup under 26h old", backup_age)
     await r.step("ops.restore_drill", "Last restore drill", drill)

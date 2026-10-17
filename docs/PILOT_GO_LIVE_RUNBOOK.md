@@ -11,8 +11,8 @@ Set these in the deployment's secret store. Never commit them. "Req" means the a
 | MONGO_URL | Req | base | Production Mongo connection string |
 | DB_NAME | Req | base | Production database name (unique; never shared with preview) |
 | APP_BASE_URL | Req | R1.2 | `https://<prod host>`. Must be https: it drives the `__Host-brokaid_session` cookie and the CSRF origin check |
-| CORS_ORIGINS | Req | base | Exactly the production frontend origin. No `*` |
-| ENVIRONMENT | Req | R1.1 | `production` |
+| CORS_ORIGINS | Req | base | Exactly the production frontend origin(s), comma-separated. `*` is never honoured, and the app refuses to boot in production if it's present |
+| ENVIRONMENT | Req | R1.1 | `production`. Fails closed: if it's unset or unrecognised, the app treats it as production. Dev mode needs `development`/`preview`/`test` **and** AUTH_DEV_MODE=true |
 | AUTH_DEV_MODE | Req | R1.2 | `false` (removes the red DEV AUTH banner and dev shortcuts) |
 | EMAIL_AUTH_ENABLED | Req | R1.2 | `true` |
 | BOOTSTRAP_OPERATOR_EMAIL / BOOTSTRAP_TENANT_SLUG | first boot | R1.2 | BurMac's first Operator email and `burmac`. Can be removed after the invite has been accepted |
@@ -95,7 +95,14 @@ Ongoing: the nightly backup runs automatically, and a weekly restore drill runs 
 - **Data restore:** restores only ever go into a new scratch database (`brokaid_restore_*`); the live database is never overwritten by the app. To recover data, run a drill/restore for the tenant, inspect the scratch database, and copy back specific records manually under change control. For full-database recovery, use the Mongo provider's snapshot (section 2, step 2).
 - **Revoke platform admin:** remove the email from PLATFORM_ADMIN_EMAILS and restart. It takes effect on the next request.
 
-## 7. Known limits going into the audit
+## 7. Security audit fixes (SEC-001/002 + hardening)
+- Dev impersonation, legacy sign-in routes and dev seeds work only in explicit dev mode, and only for demo/test tenants (Harbourline, import-test, ci-*). They're refused (404) for BurMac, wizard-created brokerages, the platform tenant and platform admins.
+- Boot guard: in dev mode, the app refuses to start if any real tenant is live or holds imported data. iAdviser imports into a real tenant run only with ENVIRONMENT=production.
+- The release check FAILs if dev or legacy sign-in routes appear in the production API.
+- CSV exports neutralise formula cells. JSON bodies with `$` keys are rejected (400). XLSX imports are capped by expanded size, sheets and rows.
+- uvicorn's raw access log is disabled; it was printing invite tokens. **Before go-live:** treat the existing preview supervisor logs as containing preview invite tokens, and expire any open preview invites.
+
+## 8. Known limits going into the audit
 - Object storage has no delete API, so backups past retention (30 daily / 12 monthly) are marked expired in the catalogue but stay stored.
 - `emergentintegrations` pins `openai==1.99.9`; the environment runs openai 2.x (needed by the patched litellm). pip reports the conflict; the live LLM eval passes on it.
 - Low/moderate frontend audit findings remain (0 high/critical). See `scripts/dep_audit.sh` output.
