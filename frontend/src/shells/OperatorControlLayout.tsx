@@ -7,6 +7,7 @@ import { useAlertsPoll } from "../state/alertsStore";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { signOut } from "../lib/authApi";
+import { TenantSwitcher } from "../components/auth/Tenants";
 import { BrandWordmark } from "../components/BrandWordmark";
 import { KKbd } from "../components/ledger/KKbd";
 import { AppFooter } from "../components/AppFooter";
@@ -130,6 +131,8 @@ export function OperatorControlLayout() {
                 <KKbd testId="user-role">{session.session.active_role}</KKbd>{" "}
                 <strong>{session.user.display_name}</strong>
               </span>
+              <TenantSwitcher testid="operator-tenant-switcher" />
+              <Link to="/o/users" className="k-btn" data-testid="operator-users-link">People</Link>
               <Link to="/account/security" className="k-btn" data-testid="operator-security-link">Security</Link>
               <button className="k-btn" onClick={logout} data-testid="operator-logout">Sign out</button>
             </>

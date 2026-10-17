@@ -55,7 +55,10 @@ async def load_client_for_user(
     if _is_mongo(store):
         safe = _wrap_safe(store)
         async with use_tenant(tenant_id):
-            link = await safe.user_client_links.find_one({"user_id": user_id})
+            from app.kernel.tenant_ctx import ACTIVE_CLIENT
+            active = ACTIVE_CLIENT.get()
+            link = (active and await safe.user_client_links.find_one({"user_id": user_id, "client_id": active})) \
+                or await safe.user_client_links.find_one({"user_id": user_id})
             if not link:
                 return None
             client = await safe.clients.find_one(

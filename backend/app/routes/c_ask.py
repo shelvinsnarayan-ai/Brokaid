@@ -14,6 +14,7 @@ from app.kernel import claims_scene, inbox
 from app.kernel.agents.liaison import EmergentLLMProviderLiaison
 from app.kernel.release import try_release
 from app.kernel.tenant_ctx import use_tenant
+from app.kernel.authority import require_client_authority
 from app.middleware.session import require_session
 
 
@@ -38,6 +39,7 @@ async def send_message(
     session: Session = Depends(require_session),
 ) -> dict[str, Any]:
     store = _store(request)
+    await require_client_authority(store, session, action="message_attempt", needed="can_view")
     tenant_id = session.tenant_id
     client = await claims_scene.load_client_for_user(
         store, tenant_id, session.user_id,

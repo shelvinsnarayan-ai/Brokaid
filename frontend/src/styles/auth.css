@@ -55,3 +55,9 @@
 @media (max-width: 420px) { .auth-codes { grid-template-columns: 1fr; } }
 .auth-check { display: flex; gap: 10px; align-items: center; font-size: 14px; min-height: 44px; }
 .auth-check input { width: 20px; height: 20px; }
+.auth-or { display: flex; align-items: center; gap: 12px; color: var(--slate, #5B6B85); font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; }
+.auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: #E3E8F0; }
+.auth-btn--google { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.tenant-switcher { min-height: 36px; border-radius: 999px; padding: 4px 12px; border: 1px solid color-mix(in oklab, currentColor 25%, transparent); background: transparent; color: inherit; font: inherit; font-size: 13px; }
+.auth-section { display: grid; gap: 10px; padding-top: 16px; border-top: 1px solid #E3E8F0; }
+.auth-section h2 { margin: 0; font-size: 16px; }

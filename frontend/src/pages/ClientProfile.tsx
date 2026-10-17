@@ -3,6 +3,7 @@
  * Home Screen CTA, logout.
  */
 import { useEffect, useState } from "react";
+import { authCall } from "../lib/authApi";
 import { useNavigate } from "react-router-dom";
 import { isPreviewMode, useMeStore, usePack } from "../state/meStore";
 
@@ -145,6 +146,7 @@ export function ClientProfile() {
         </footer>
       )}
 
+      <YourBroker />
       <button
         type="button"
         className="brokaid-btn brokaid-btn--secondary"
@@ -155,4 +157,10 @@ export function ClientProfile() {
       </button>
     </section>
   );
+}
+
+function YourBroker() {
+  const [name, setName] = useState<string | null>(null);
+  useEffect(() => { authCall<{ name: string | null }>("c/broker", undefined, "GET").then((r) => setName(r.name)).catch(() => undefined); }, []);
+  return name ? <p className="brokaid-form__msg" data-testid="profile-your-broker">Your broker: {name}</p> : null;
 }

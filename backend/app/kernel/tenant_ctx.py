@@ -106,3 +106,7 @@ def set_tenant_unsafe(tenant_id: Optional[str]) -> Token:
 
 def reset_tenant_unsafe(token: Token) -> None:
     current_tenant_id.reset(token)
+
+
+# R1.2b: the client the current request's session is bound to (set by require_session).
+ACTIVE_CLIENT: ContextVar[str | None] = ContextVar("brokaid_active_client", default=None)

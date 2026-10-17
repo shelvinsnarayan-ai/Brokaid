@@ -61,7 +61,7 @@ async def _accept(c, token, password=PW):
     secret = (await c.post("/api/auth/mfa/setup", cookies=jar)).json()["secret"]
     r = await c.post("/api/auth/mfa/confirm", cookies=jar, json={"code": pyotp.TOTP(secret).now()})
     assert r.status_code == 200, r.text
-    return jar, secret, r.json()
+    return {COOKIE_NAME: r.cookies[COOKIE_NAME]}, secret, r.json()  # R1.2b: the id rotates on verify
 
 
 async def _events(db, tid, type_):
@@ -89,7 +89,8 @@ def test_invite_accept_enrol_and_single_use():
         assert (await c.post("/api/auth/mfa/confirm", cookies=pending, json={"code": "000000"})).status_code == 401
         r = await c.post("/api/auth/mfa/confirm", cookies=pending, json={"code": pyotp.TOTP(secret).now()})
         assert r.json()["redirect"] == "/o" and len(r.json()["recovery_codes"]) == 10
-        assert (await c.get("/api/o/queue", cookies=pending)).status_code == 200
+        assert (await c.get("/api/o/queue", cookies={COOKIE_NAME: r.cookies[COOKIE_NAME]})).status_code == 200
+        assert (await c.get("/api/o/queue", cookies=pending)).status_code == 401  # pending id rotated away
         # client invite → /c, membership with owner authority
         r = await c.post("/api/o/invites", cookies=op, json={"email": "boss@clientco.example", "role": "owner",
                                                             "client_id": clients[0]["client_id"]})
@@ -98,7 +99,9 @@ def test_invite_accept_enrol_and_single_use():
         async with use_tenant(tid):
             u = await wrap(db).users.find_one({"email": "boss@clientco.example"})
             m = await wrap(db).memberships.find_one({"user_id": u["user_id"]})
-        assert m["role"] == "owner" and m["authority"]["can_sign"] and u["mfa_secret"] and u["password_hash"] != PW
+        ident = await db.auth_identities.find_one({"email": "boss@clientco.example"})
+        assert m["role"] == "owner" and m["authority"]["can_sign"] and ident["mfa_secret"] and ident["password_hash"] != PW
+        assert not any(k in u for k in af.CRED_FIELDS)  # credentials never live on tenant user docs
         assert len(await _events(db, tid, "InviteCreated")) == 2 and len(await _events(db, tid, "MfaEnrolled")) == 2
         # expired invites are refused
         tok, doc = await af.create_invite(db, tenant_id=tid, email="late@harbourline.example", name="", role="ae",
@@ -125,7 +128,7 @@ def test_login_totp_recovery_lockout_and_ledger():
         rc = done["recovery_codes"][0]
         r = await c.post("/api/auth/login/verify", cookies=jar, json={"recovery_code": rc})
         assert r.status_code == 200 and r.json()["redirect"] == "/o"
-        s = await db.sessions.find_one({"session_id": jar[COOKIE_NAME]})
+        s = await db.sessions.find_one({"session_id": r.cookies[COOKIE_NAME]})
         assert timedelta(hours=7, minutes=59) < af._aware(s["expires_at"]) - af.now() <= timedelta(hours=8)
         r = await c.post("/api/auth/login", json={"email": "ae@harbourline.example", "password": PW})
         jar2 = {COOKIE_NAME: r.cookies[COOKIE_NAME]}
@@ -165,11 +168,11 @@ def test_reset_change_password_and_sessions():
         async def sign_in(pw):
             r = await c.post("/api/auth/login", json={"email": user["email"], "password": pw})
             j = {COOKIE_NAME: r.cookies[COOKIE_NAME]}
-            await c.post("/api/auth/login/verify", cookies=j, json={"code": pyotp.TOTP(secret).now()})
-            return j
+            r = await c.post("/api/auth/login/verify", cookies=j, json={"code": pyotp.TOTP(secret).now()})
+            return {COOKIE_NAME: r.cookies[COOKIE_NAME]}
         a, b = await sign_in("NewHarbour-Pass-77"), await sign_in("NewHarbour-Pass-77")
         r = await c.post("/api/auth/password/change", cookies=a, json={"current_password": "NewHarbour-Pass-77", "new_password": "Third-Harbour-Pass-9"})
-        assert r.json()["other_sessions_signed_out"] == 1
+        assert r.json().get("other_sessions_signed_out") == 1, r.text
         assert (await c.get("/api/c/me", cookies=b)).status_code == 401 and (await c.get("/api/c/me", cookies=a)).status_code == 200
         await db.sessions.update_one({"session_id": a[COOKIE_NAME]}, {"$set": {"last_seen_at": af.now() - timedelta(hours=13)}})
         assert (await c.get("/api/c/me", cookies=a)).status_code == 401  # client idle timeout
@@ -200,7 +203,7 @@ def test_invite_permissions_and_mfa_reset():
                                         client_id=None, created_by="t")
         jar, _, _ = await _accept(c, tok)
         user, _ = await af.find_user(db, "deputy@harbourline.example")
-        assert (await c.post(f"/api/o/users/{user['user_id']}/reset-mfa", cookies=ada)).status_code == 403
+        assert (await c.post(f"/api/o/users/{user['user_id']}/reset-mfa", cookies=cass)).status_code == 403
         assert (await c.post(f"/api/o/users/{user['user_id']}/reset-mfa", cookies=op)).json()["sessions_revoked"] == 1
         assert (await c.get("/api/o/queue", cookies=jar)).status_code == 401
         r = await c.post("/api/auth/login", json={"email": "deputy@harbourline.example", "password": PW})

@@ -21,11 +21,13 @@ class InviteBody(BaseModel):
 
 
 def _inviter(session) -> None:
-    if session.active_role not in ("operator", "principal"):
-        raise HTTPException(status_code=403, detail="Only the Operator or Principal can invite people.")
+    if session.active_role not in ("operator", "principal", "ae"):
+        raise HTTPException(status_code=403, detail="Only the Operator, a Principal or an AE can invite people.")
 
 
 def _may_invite(session, role: str) -> None:
+    if session.active_role == "ae" and role not in af.CLIENT_ROLES:
+        raise HTTPException(status_code=403, detail="Account executives can invite clients only.")
     if session.active_role == "principal" and role not in af.PRINCIPAL_MAY_INVITE and role not in af.CLIENT_ROLES:
         raise HTTPException(status_code=403, detail="Principals can invite staff and clients, not Operators or Principals.")
 
@@ -53,9 +55,19 @@ async def list_invites(request: Request, s=Depends(require_operator_session)) ->
                    async for c in safe.clients.find({}).sort("display_name", 1) if c["client_id"] not in hidden]
     rows = [_view(t) async for t in safe.system("auth_tokens").find(
         {"kind": "invite", "tenant_id": s.tenant_id}).sort("created_at", -1).limit(50)]
-    roles = [r for r in af.STAFF_ROLES if s.active_role == "operator" or r in af.PRINCIPAL_MAY_INVITE]
+    roles = [r for r in af.STAFF_ROLES if s.active_role == "operator" or
+             (s.active_role == "principal" and r in af.PRINCIPAL_MAY_INVITE)]
+    tenant = await safe.system("tenants").find_one({"tenant_id": s.tenant_id})
     return {"invites": rows, "clients": clients,
-            "roles": [{"value": r, "label": af.ROLE_LABEL[r]} for r in roles + list(af.CLIENT_ROLES)]}
+            "roles": [{"value": r, "label": af.ROLE_LABEL[r]} for r in roles + list(af.CLIENT_ROLES)],
+            "demo_personas_allowed": s.active_role == "operator" and tenant["slug"] == af.DEMO_TENANT}
+
+
+@router.post("/invites/demo-personas")
+async def demo_personas(request: Request, s=Depends(require_operator_session)) -> dict:
+    if s.active_role != "operator":
+        raise HTTPException(status_code=403, detail="Only the Operator can issue demo persona invites.")
+    return {"invites": await af.issue_demo_invites(request.app.state.mongo_db, s.tenant_id, s.user_id)}
 
 
 @router.post("/invites")
@@ -71,6 +83,13 @@ async def create(body: InviteBody, request: Request, s=Depends(require_operator_
                 raise HTTPException(status_code=404, detail="Client not found.")
     token, doc = await af.create_invite(store, tenant_id=s.tenant_id, email=body.email, name=body.name,
                                         role=body.role, client_id=body.client_id, created_by=s.user_id)
+    if s.active_role == "ae" and body.client_id:  # default the client's AE to the inviting AE
+        async with use_tenant(s.tenant_id):
+            r = await wrap(store).clients.update_one({"client_id": body.client_id, "assigned_ae_user_id": None},
+                                                     {"$set": {"assigned_ae_user_id": s.user_id}})
+        if r.modified_count:
+            await af.ledger(store, s.tenant_id, "ClientAeAssigned", af.human(s.user_id, s.active_role),
+                            {"client_id": body.client_id, "before": None, "after": s.user_id, "default": True})
     status = await _send(store, s, doc, token)
     await af.ledger(store, s.tenant_id, "InviteCreated", af.human(s.user_id, s.active_role),
                     {"invite_id": doc["token_id"], "role": doc["role"], "client_id": doc.get("client_id"),
@@ -113,22 +132,16 @@ async def revoke(invite_id: str, request: Request, s=Depends(require_operator_se
 
 
 async def _target(store, s, user_id: str) -> dict:
-    if s.active_role != "operator":
-        raise HTTPException(status_code=403, detail="Only the Operator can do this.")
-    async with use_tenant(s.tenant_id):
-        u = await wrap(store).users.find_one({"user_id": user_id})
-    if u is None:
-        raise HTTPException(status_code=404, detail="User not found.")
-    return u
+    from app.routes.o_users import target
+    return (await target(store, s, user_id))[0]
 
 
 @router.post("/users/{user_id}/reset-mfa")
 async def reset_mfa(user_id: str, request: Request, s=Depends(require_operator_session)) -> dict:
     store = request.app.state.mongo_db
     u = await _target(store, s, user_id)
-    async with use_tenant(s.tenant_id):
-        await wrap(store).users.update_one({"user_id": user_id}, {"$set": {"mfa_secret": None, "recovery_codes": []}})
-    n = await af.revoke_user_sessions(store, s.tenant_id, user_id)
+    await af.set_identity(store, u["email"], {"mfa_secret": None, "recovery_codes": [], "mfa_enrolled_at": None})
+    n = await af.revoke_everywhere(store, u["email"])
     status = await af.send_auth_email(store, s.tenant_id, kind="mfa_reset", to=u["email"], name=u["display_name"],
                                       link=f"{af.base_url()}/login")
     await af.ledger(store, s.tenant_id, "MfaReset", af.human(s.user_id, s.active_role),

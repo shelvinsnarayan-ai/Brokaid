@@ -35,6 +35,7 @@ from app.kernel import cert_stp, certificate_mongo, scene
 from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
 from app.kernel.workflow import enqueue as queue_enqueue
+from app.kernel.authority import require_client_authority
 from app.middleware.session import require_session
 
 
@@ -162,6 +163,7 @@ async def regen(
 ) -> dict:
     if session.active_role not in ("client_owner", "client_contact"):
         raise HTTPException(status_code=403, detail="client_role_required")
+    await require_client_authority(_store(request), session, action="certificate_attempt", needed="can_certificates")
     gate = await _r_coc_01(request, session, body)
     if gate is not None:
         return gate
@@ -232,6 +234,7 @@ async def certificate_pdf(
     """Server-side branded PDF with embedded QR encoding the /verify link."""
     if session.active_role not in ("client_owner", "client_contact"):
         raise HTTPException(status_code=403, detail="client_role_required")
+    await require_client_authority(_store(request), session, action="certificate_attempt", needed="can_certificates")
 
     ctx = await _load_cert_context(request, session.tenant_id, certificate_id)
     if ctx is None:

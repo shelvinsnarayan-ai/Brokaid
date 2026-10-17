@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { authCall } from "../../lib/authApi";
 import { AuthCard, AuthError } from "../../components/auth/AuthCard";
 import { MfaEnrol } from "../../components/auth/MfaEnrol";
+import { googleRedirect, takeGoogleSessionId, TenantChooser, TenantOpt } from "../../components/auth/Tenants";
 
-type Step = "password" | "totp" | "enrol" | "forgot" | "forgot-sent";
+type Step = "password" | "totp" | "enrol" | "forgot" | "forgot-sent" | "choose";
 
 export default function SignIn() {
   const [step, setStep] = useState<Step>("password");
@@ -20,7 +21,14 @@ export default function SignIn() {
     setBusy(true);
     try { await fn(); } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
-  const go = (redirect: string) => { window.location.assign(redirect); };
+  const [done, setDone] = useState<{ redirect: string; tenants: TenantOpt[] } | null>(null);
+  const go = (redirect: string, tenants: TenantOpt[] = []) => {
+    if (tenants.length > 1) { setDone({ redirect, tenants }); setStep("choose"); } else window.location.assign(redirect);
+  };
+  useEffect(() => {
+    const sid = takeGoogleSessionId();
+    if (sid) run(async () => setStep((await authCall<{ next: Step }>("auth/google", { session_id: sid })).next));
+  }, []);
 
   const submitPassword = (e: React.FormEvent) => { e.preventDefault(); run(async () => {
     const r = await authCall<{ next: Step }>("auth/login", { email, password });
@@ -28,14 +36,17 @@ export default function SignIn() {
     setStep(r.next);
   }); };
   const submitCode = (e: React.FormEvent) => { e.preventDefault(); run(async () => {
-    const r = await authCall<{ redirect: string }>("auth/login/verify", useRecovery ? { recovery_code: code } : { code });
-    go(r.redirect);
+    const r = await authCall<{ redirect: string; tenants: TenantOpt[] }>("auth/login/verify", useRecovery ? { recovery_code: code } : { code });
+    go(r.redirect, r.tenants);
   }); };
   const submitForgot = (e: React.FormEvent) => { e.preventDefault(); run(async () => {
     await authCall("auth/password/forgot", { email });
     setStep("forgot-sent");
   }); };
 
+  if (step === "choose" && done) {
+    return <AuthCard title="Choose a brokerage" testid="signin-choose-root"><TenantChooser {...done} /></AuthCard>;
+  }
   if (step === "enrol") {
     return (
       <AuthCard title="Set up your authenticator" testid="signin-enrol-root"
@@ -94,6 +105,13 @@ export default function SignIn() {
         <button type="submit" className="auth-btn" disabled={busy} data-testid="signin-submit">{busy ? "Checking…" : "Continue"}</button>
       </form>
       <AuthError msg={err} testid="signin-error" />
+      <div className="auth-or"><span>or</span></div>
+      <button type="button" className="auth-btn auth-btn--ghost auth-btn--google" onClick={() => googleRedirect("/login")}
+        data-testid="signin-google">
+        <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+        Continue with Google
+      </button>
+      <p className="auth-fine">Google works only for an email your brokerage invited. You'll still enter your authenticator code.</p>
       <button type="button" className="auth-link" onClick={() => { setErr(null); setStep("forgot"); }} data-testid="signin-forgot">Forgot your password?</button>
       <p className="auth-fine">New here? You need an invite from your brokerage.</p>
       {import.meta.env.BROKAID_AUTH_DEV_MODE ? (

@@ -73,6 +73,7 @@ _SYSTEM_ALLOW: frozenset[str] = frozenset({
     "_locks",               # advisory locks
     "auth_tokens",          # R1.2a: invite/reset token_hash → tenant_id (pre-auth)
     "auth_lockouts",        # R1.2a: failed-login counters by account/IP (pre-auth)
+    "auth_identities",      # R1.2b: one sign-in record per person (email) across tenants
 })
 
 

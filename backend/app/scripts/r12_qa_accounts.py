@@ -28,9 +28,8 @@ async def main():
         _, inv = await af.create_invite(store, tenant_id=tid, email=email, name=name, role=role,
                                         client_id=str(FICTIONAL_CLIENT_ID) if role == "owner" else None, created_by="qa_seed")
         await af.use_token(store, inv)
-        user = await af.apply_invite(store, inv, pw)
-        async with use_tenant(tid):
-            await wrap(store).users.update_one({"user_id": user["user_id"]}, {"$set": {"mfa_secret": secret, "qa": True}})
+        await af.apply_invite(store, inv, pw)
+        await af.set_identity(store, email, {"mfa_secret": secret})
         print("ready", email)
 
 

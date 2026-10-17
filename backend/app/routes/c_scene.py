@@ -393,6 +393,8 @@ async def request_change(
     policy = await scene.load_policy(store, session.tenant_id, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="policy_not_found")
+    await require_authority(store, session, client_id=policy["client_id"], action="request_change_attempt",
+                            needed="can_request_change", policy_id=policy_id)
 
     tenant_id = session.tenant_id
     idem = (body.idempotency_key or "").strip() or None
@@ -672,6 +674,7 @@ async def finalise(
     """Run endorsement execution + certificate regeneration."""
     from app.kernel.endorsement import EndorsementLineageIncomplete
     store = _store(request)
+    await _authorise(_store(request), session, policy_id, envelope_id, "finalise_attempt", "can_sign")
     tenant_id = session.tenant_id
     try:
         result = await execute_endorsement(

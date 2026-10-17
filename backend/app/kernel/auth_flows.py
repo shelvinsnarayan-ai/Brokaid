@@ -128,13 +128,87 @@ async def clear_failures(store, email: str) -> None:
 
 
 # ---- users / roles ----------------------------------------------------------
+async def find_users(store, email: str) -> list[tuple[dict, str]]:
+    """Every tenant user doc for this email (one person may belong to several brokerages)."""
+    out, email = [], email.strip().lower()
+    safe = wrap(store)
+    async for t in safe.system("tenants").find({}).sort("slug", 1):
+        async with use_tenant(t["tenant_id"]):
+            doc = await safe.users.find_one({"email": email})
+        if doc:
+            out.append((doc, t["tenant_id"]))
+    return out
+
+
 async def find_user(store, email: str) -> tuple[dict | None, str | None]:
-    from app.kernel import identity
-    user, tid = await identity.find_user_by_email_across_tenants(store, email.strip().lower())
-    if user is None:
+    rows = await find_users(store, email)
+    return rows[0] if rows else (None, None)
+
+
+CRED_FIELDS = ("password_hash", "password_set_at", "mfa_secret", "recovery_codes", "mfa_enrolled_at",
+               "google_email", "google_linked_at")
+
+
+# ---- the person's ONE sign-in record (R1.2b) ---------------------------------
+# Credentials live only in auth_identities (keyed by email); tenant user docs never hold them.
+# Lockout is keyed by email too (auth_lockouts acct:<email>). Disabling stays per tenant user doc.
+async def identity(store, email: str) -> dict | None:
+    return await wrap(store).system("auth_identities").find_one({"email": email.strip().lower()})
+
+
+async def set_identity(store, email: str, fields: dict) -> None:
+    await wrap(store).system("auth_identities").update_one(
+        {"email": email.strip().lower()},
+        {"$set": {**fields, "updated_at": now()},
+         "$setOnInsert": {"identity_id": str(uuid.uuid4()), "email": email.strip().lower(), "created_at": now()}},
+        upsert=True)
+
+
+def merged(user: dict, ident: dict | None) -> dict:
+    """Read-only view: tenant user doc + the person's credentials."""
+    return {**user, **{k: (ident or {}).get(k) for k in CRED_FIELDS}}
+
+
+async def use_recovery_code(store, email: str, code: str) -> bool:
+    r = await wrap(store).system("auth_identities").update_one(
+        {"email": email, "recovery_codes": {"$elemMatch": {"h": h(code.strip().lower()), "used_at": None}}},
+        {"$set": {"recovery_codes.$.used_at": now()}})
+    return r.modified_count == 1
+
+
+async def credentialed(store, email: str) -> tuple[dict | None, str | None]:
+    """The person (merged with their first enabled tenant user) if they have set a password."""
+    ident = await identity(store, email)
+    if not ident or not ident.get("password_set_at"):
         return None, None
-    async with use_tenant(tid):
-        return await wrap(store).users.find_one({"user_id": user.user_id}), tid
+    for doc, tid in await find_users(store, email):
+        if not doc.get("disabled"):
+            return merged(doc, ident), tid
+    return None, None
+
+
+async def migrate_identities(store) -> int:
+    """One-off: move R1.2a per-user credentials into auth_identities, then strip them from user docs."""
+    await wrap(store).system("auth_identities").create_index("email", unique=True, name="auth_identities_email_uniq")
+    moved, safe = 0, wrap(store)
+    async for t in safe.system("tenants").find({}):
+        async with use_tenant(t["tenant_id"]):
+            async for u in safe.users.find({"password_set_at": {"$ne": None}}):
+                if not await identity(store, u["email"]):
+                    await set_identity(store, u["email"], {k: u.get(k) for k in CRED_FIELDS})
+                    moved += 1
+                await safe.users.update_one({"user_id": u["user_id"]}, {"$unset": {k: "" for k in CRED_FIELDS}})
+    return moved
+
+
+async def tenant_options(store, email: str) -> list[dict]:
+    out, ident = [], await identity(store, email)
+    for doc, tid in await find_users(store, email):
+        if doc.get("disabled") or not await login_context(store, doc, tid):
+            continue
+        t = await wrap(store).system("tenants").find_one({"tenant_id": tid})
+        out.append({"tenant_id": tid, "name": t["display_name"], "slug": t["slug"], "user": merged(doc, ident)})
+    return out
 
 
 async def login_context(store, user: dict, tenant_id: str) -> dict | None:
@@ -155,7 +229,7 @@ async def login_context(store, user: dict, tenant_id: str) -> dict | None:
         return {"active_role": link["role"], "brokerage_id": None, "client_id": link["client_id"], "staff": False}
 
 
-async def start_pending(store, user: dict, tenant_id: str, ctx: dict) -> str:
+async def start_pending(store, user: dict, tenant_id: str, ctx: dict, via: str = "password") -> str:
     """Password accepted; session is unusable until TOTP succeeds."""
     sid = str(uuid.uuid4())
     async with use_tenant(tenant_id):
@@ -163,7 +237,7 @@ async def start_pending(store, user: dict, tenant_id: str, ctx: dict) -> str:
             "session_id": sid, "user_id": user["user_id"], "tenant_id": tenant_id,
             "brokerage_id": ctx["brokerage_id"], "client_id": ctx["client_id"],
             "active_role": ctx["active_role"], "mfa_verified": False, "pending_mfa": True,
-            "staff": ctx["staff"], "expires_at": now() + PENDING_TTL, "revoked_at": None,
+            "staff": ctx["staff"], "via": via, "expires_at": now() + PENDING_TTL, "revoked_at": None,
             "client_prefs": {}, "created_at": now(),
         })
     return sid
@@ -178,14 +252,27 @@ async def read_pending(store, sid: str | None) -> dict | None:
     return row
 
 
-async def finalise(store, row: dict) -> tuple[int, str]:
-    staff = row.get("staff", True)
+async def issue_session(store, tenant_id: str, user_id: str, ctx: dict) -> tuple[str, int, str]:
+    """A fresh, fully verified session id (never reuse a pre-auth id: session fixation)."""
+    staff = ctx["staff"]
     ttl = STAFF_TTL if staff else CLIENT_ABS
+    sid = str(uuid.uuid4())
+    async with use_tenant(tenant_id):
+        await wrap(store).sessions.insert_one({
+            "session_id": sid, "user_id": user_id, "tenant_id": tenant_id,
+            "brokerage_id": ctx["brokerage_id"], "client_id": ctx["client_id"], "active_role": ctx["active_role"],
+            "mfa_verified": True, "pending_mfa": False, "staff": staff, "expires_at": now() + ttl,
+            "idle_s": None if staff else int(CLIENT_IDLE.total_seconds()), "last_seen_at": now(),
+            "revoked_at": None, "client_prefs": {}, "created_at": now()})
+    return sid, int(ttl.total_seconds()), "/o" if staff else "/c"
+
+
+async def finalise(store, row: dict) -> tuple[str, int, str]:
+    """TOTP passed: revoke the pending id and issue a new one."""
     async with use_tenant(row["tenant_id"]):
-        await wrap(store).sessions.update_one({"session_id": row["session_id"]}, {"$set": {
-            "pending_mfa": False, "mfa_verified": True, "expires_at": now() + ttl,
-            "idle_s": None if staff else int(CLIENT_IDLE.total_seconds()), "last_seen_at": now()}})
-    return int(ttl.total_seconds()), "/o" if staff else "/c"
+        await wrap(store).sessions.update_one({"session_id": row["session_id"]}, {"$set": {"revoked_at": now()}})
+    ctx = {k: row.get(k) for k in ("brokerage_id", "client_id", "active_role")} | {"staff": row.get("staff", True)}
+    return await issue_session(store, row["tenant_id"], row["user_id"], ctx)
 
 
 async def revoke_user_sessions(store, tenant_id: str, user_id: str, keep: str | None = None) -> int:
@@ -195,6 +282,10 @@ async def revoke_user_sessions(store, tenant_id: str, user_id: str, keep: str | 
             q["session_id"] = {"$ne": keep}
         r = await wrap(store).sessions.update_many(q, {"$set": {"revoked_at": now()}})
     return r.modified_count
+
+
+async def revoke_everywhere(store, email: str, keep: str | None = None) -> int:
+    return sum([await revoke_user_sessions(store, tid, d["user_id"], keep) for d, tid in await find_users(store, email)])
 
 
 def new_recovery_codes() -> tuple[list[str], list[dict]]:
@@ -233,9 +324,8 @@ async def create_invite(store, *, tenant_id: str, email: str, name: str, role: s
         raise HTTPException(status_code=422, detail="Pick a valid role.")
     if role in CLIENT_ROLES and not client_id:
         raise HTTPException(status_code=422, detail="Pick the client this person belongs to.")
-    other, other_tid = await find_user(store, email)
-    if other and other_tid != tenant_id:
-        raise HTTPException(status_code=409, detail="That email already belongs to another brokerage.")
+    async with use_tenant(tenant_id):
+        other = await wrap(store).users.find_one({"email": email})
     if other and other["kind"] != ("client" if role in CLIENT_ROLES else "operator"):
         raise HTTPException(status_code=409, detail="That email is already used for a different kind of account.")
     await wrap(store).system("auth_tokens").update_many(
@@ -247,14 +337,17 @@ async def create_invite(store, *, tenant_id: str, email: str, name: str, role: s
                              created_by=created_by, bootstrap=bootstrap)
 
 
-async def apply_invite(store, inv: dict, password: str) -> dict:
-    """Create/refresh the user and grant the invited role. Fresh TOTP is required afterwards."""
+async def apply_invite(store, inv: dict, password: str, existing: dict | None = None) -> dict:
+    """Create/refresh the user and grant the invited role. A person who already signs in elsewhere keeps
+    their credentials (TOTP verify next); a new person sets a password and enrols TOTP."""
     tid, email, role = inv["tenant_id"], inv["email"], inv["role"]
     safe = wrap(store)
     async with use_tenant(tid):
         user = await safe.users.find_one({"email": email})
-        fields = {"password_hash": passwords.hash_password(password), "password_set_at": now(),
-                  "mfa_secret": None, "recovery_codes": [], "disabled": False}
+        if not existing:
+            await set_identity(store, email, {"password_hash": passwords.hash_password(password), "password_set_at": now(),
+                                              "mfa_secret": None, "recovery_codes": [], "mfa_enrolled_at": None})
+        fields = {"disabled": False}
         if user is None:
             user = {"user_id": str(uuid.uuid4()), "email": email, "display_name": inv["name"],
                     "kind": "client" if role in CLIENT_ROLES else "operator", "created_at": now()}
@@ -281,7 +374,7 @@ async def apply_invite(store, inv: dict, password: str) -> dict:
                 {"user_id": uid, "role": role},
                 {"$set": {"active": True, "brokerage_id": b["brokerage_id"]}, "$setOnInsert": {"user_id": uid, "role": role}},
                 upsert=True)
-        return await safe.users.find_one({"user_id": uid})
+        return merged(await safe.users.find_one({"user_id": uid}), await identity(store, email))
 
 
 # ---- auth email (transactional; separate switch from alert email) ---------
@@ -349,19 +442,26 @@ async def has_active_operator(store, tenant_id: str) -> bool:
     async with use_tenant(tenant_id):
         async for r in safe.user_brokerage_roles.find({"role": "operator", "active": True}):
             u = await safe.users.find_one({"user_id": r["user_id"]})
-            if u and u.get("password_set_at") and u.get("mfa_secret") and not u.get("disabled"):
+            ident = await identity(store, u["email"]) if u else None
+            if u and ident and ident.get("password_set_at") and ident.get("mfa_secret") and not u.get("disabled"):
                 return True
     return False
 
 
 async def bootstrap_operator(store, send=None) -> str:
+    """BOOTSTRAP_TENANT_SLUG is a comma list; one idempotent Operator invite per tenant for the same email."""
     email = (os.environ.get("BOOTSTRAP_OPERATOR_EMAIL") or "").strip().lower()
-    slug = (os.environ.get("BOOTSTRAP_TENANT_SLUG") or "").strip()
+    slugs = [s.strip() for s in (os.environ.get("BOOTSTRAP_TENANT_SLUG") or "").split(",") if s.strip()]
     if not email:
         return "skipped:not_configured"
-    if not slug:
+    if not slugs:
         log.warning("BOOTSTRAP_OPERATOR_EMAIL is set but BOOTSTRAP_TENANT_SLUG is not; skipping")
         return "skipped:no_tenant_slug"
+    out = [f"{s}={await _bootstrap_one(store, email, s, send)}" for s in slugs]
+    return out[0].split("=", 1)[1] if len(out) == 1 else ",".join(out)
+
+
+async def _bootstrap_one(store, email: str, slug: str, send) -> str:
     tenant = await wrap(store).system("tenants").find_one({"slug": slug})
     if tenant is None:
         return "skipped:unknown_tenant"
@@ -381,3 +481,50 @@ async def bootstrap_operator(store, send=None) -> str:
                  {"invite_id": doc["token_id"], "role": "operator", "bootstrap": True, "email_status": status.split(":")[0]})
     log.info("bootstrap operator invite issued for tenant %s (email %s)", slug, status.split(":")[0])
     return "issued"
+
+
+# ---- demo personas (Harbourline only) ---------------------------------------
+DEMO_TENANT = "harbourline"
+DEMO_PERSONAS = [  # (email, role, is_client)
+    ("owner@fictionalclient.example", "owner", True),        # Kai
+    ("bookkeeper@fictionalclient.example", "bookkeeper", True),  # Bea
+    ("ae@harbourline.example", "ae", False),                 # Cass
+    ("principal@harbourline.example", "principal", False),   # Ada
+]
+
+
+async def issue_demo_invites(store, tenant_id: str, created_by: str, personas=DEMO_PERSONAS) -> list[dict]:
+    from app.seeds.seed_users import FICTIONAL_CLIENT_ID
+    t = await wrap(store).system("tenants").find_one({"tenant_id": tenant_id})
+    if (t or {}).get("slug") != DEMO_TENANT:
+        raise HTTPException(status_code=403, detail="Demo persona invites are only for the Harbourline demo brokerage.")
+    out = []
+    for email, role, is_client in personas:
+        async with use_tenant(tenant_id):
+            user = await wrap(store).users.find_one({"email": email})
+            link = await wrap(store).user_client_links.find_one({"user_id": user["user_id"]}) if (user and is_client) else None
+        client_id = (link["client_id"] if link else str(FICTIONAL_CLIENT_ID)) if is_client else None
+        token, doc = await create_invite(store, tenant_id=tenant_id, email=email, name=(user or {}).get("display_name", ""),
+                                         role=role, client_id=client_id, created_by=created_by)
+        await ledger(store, tenant_id, "InviteCreated", {"kind": "human" if created_by != "script" else "system",
+                                                         "id": created_by, "name": "demo_personas"},
+                     {"invite_id": doc["token_id"], "role": role, "client_id": client_id, "email_status": "skipped", "demo": True})
+        out.append({"name": doc["name"], "email": email, "role": ROLE_LABEL[role], "invite_url": invite_url(token)})
+    return out
+
+
+# ---- Emergent-managed Google Auth --------------------------------------------
+GOOGLE_SESSION_DATA = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
+
+
+async def google_profile(session_id: str) -> dict:
+    """Exchange the one-time #session_id for the Google profile (verified email). Backend-only call."""
+    import httpx
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.get(GOOGLE_SESSION_DATA, headers={"X-Session-ID": session_id})
+    if r.status_code != 200:
+        raise HTTPException(status_code=401, detail="Google sign-in didn't complete. Please try again.")
+    d = r.json()
+    if not d.get("email"):
+        raise HTTPException(status_code=401, detail="Google didn't share an email address.")
+    return {"email": d["email"].strip().lower(), "name": d.get("name") or ""}

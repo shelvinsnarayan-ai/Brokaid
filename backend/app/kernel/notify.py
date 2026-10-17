@@ -83,6 +83,22 @@ async def _staff(safe, roles) -> list[str]:
     return [r["user_id"] async for r in safe.user_brokerage_roles.find({"role": {"$in": list(roles)}, "active": True})]
 
 
+async def assigned_ae(safe, client_id: str | None) -> str | None:
+    """The client's assigned AE if still an active AE (R1.2b)."""
+    c = await safe.clients.find_one({"client_id": client_id}) if client_id else None
+    uid = (c or {}).get("assigned_ae_user_id")
+    if uid and await safe.user_brokerage_roles.find_one({"user_id": uid, "role": "ae", "active": True}):
+        return uid
+    return None
+
+
+async def _client_staff(safe, client_id: str | None) -> list[str]:
+    """Client-origin alerts: assigned AE + Principal(s); every AE only when nobody is assigned."""
+    ae = await assigned_ae(safe, client_id)
+    out = [ae] if ae else await _staff(safe, ("ae",))
+    return list(dict.fromkeys(out + await _staff(safe, ("principal",))))
+
+
 async def _members(safe, client_id: str | None, need: str | None) -> list[str]:
     if not client_id:
         return []
@@ -176,7 +192,8 @@ async def on_event(store, tenant_id: str, type_: str, payload: dict, event_id: s
         client_id = await _client_id(safe, p)
         client = await safe.clients.find_one({"client_id": client_id}) if client_id else None
         who, need = rule["to"]
-        recipients = await (_staff(safe, need) if who == "staff" else _members(safe, client_id, need))
+        recipients = await (_client_staff(safe, client_id) if who == "staff" and client_id else
+                            _staff(safe, need) if who == "staff" else _members(safe, client_id, need))
         thread_id = p.get("thread_id") or (p.get("envelope_id") if type_ == "ClientQuestionAsked" else None)
         test = bool(p.get("test")) or bool((client or {}).get("test"))
         if thread_id and not test:
@@ -210,7 +227,8 @@ async def run_checks(store, tenant_id: str, now: datetime | None = None) -> dict
     now = now or datetime.now(timezone.utc)
     safe, made = wrap(store), {"promise_due": 0, "promise_overdue": 0, "renewal_30": 0}
     async with use_tenant(tenant_id):
-        ae, ae_pr = await _staff(safe, ("ae",)), await _staff(safe, ("ae", "principal"))
+        staff_for = {c["client_id"]: await _client_staff(safe, c["client_id"]) async for c in safe.clients.find({}, {"client_id": 1})}
+        everyone = await _client_staff(safe, None)
         tids = [c["client_id"] async for c in safe.clients.find({"test": True}, {"client_id": 1})]
         pols = [p async for p in safe.policies.find({"status": "managed", "test": {"$ne": True}, "client_id": {"$nin": tids},
                                                      "expiry": {"$gte": now, "$lte": now + timedelta(days=30)}})]
@@ -218,10 +236,11 @@ async def run_checks(store, tenant_id: str, now: datetime | None = None) -> dict
     for t in await inbox.load_threads(store, tenant_id, include_tests=True):
         if t["answered"] or not t["reply_by"]:
             continue
+        to = staff_for.get(t.get("client_id")) or everyone
         if now > t["reply_by"]:
-            kind, to, title = "promise_overdue", ae_pr, f"Reply overdue for {t['client']}"
+            kind, title = "promise_overdue", f"Reply overdue for {t['client']}"
         elif t["reply_by"] - now <= timedelta(hours=2):
-            kind, to, title = "promise_due", ae, f"Reply due soon for {t['client']}"
+            kind, title = "promise_due", f"Reply due soon for {t['client']}"
         else:
             continue
         for uid in to:
@@ -234,6 +253,7 @@ async def run_checks(store, tenant_id: str, now: datetime | None = None) -> dict
         exp = inbox._utc(p["expiry"])
         async with use_tenant(tenant_id):
             members = await _members(safe, p["client_id"], None)
+        ae = staff_for.get(p["client_id"]) or everyone
         for uid in members + ae:
             staff = uid in ae
             r = await deliver(store, tenant_id, uid, kind="renewal_30",

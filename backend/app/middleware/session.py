@@ -32,6 +32,8 @@ async def require_session(request: Request):
     session = await session_context(request)
     if session is None:
         raise HTTPException(status_code=401, detail="not_authenticated")
+    from app.kernel.tenant_ctx import ACTIVE_CLIENT
+    ACTIVE_CLIENT.set(session.client_id)
     return session
 
 

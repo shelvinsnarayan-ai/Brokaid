@@ -17,6 +17,7 @@ from app.kernel.contracts.models import Actor, ContextEnvelope, InvocationBudget
 from app.kernel.mocks.insurer_lodgement import lodge_claim
 from app.kernel.notifications import render_and_send
 from app.kernel.tenant_ctx import use_tenant
+from app.kernel.authority import require_client_authority
 from app.middleware.session import require_session
 
 
@@ -60,6 +61,7 @@ async def submit_fnol(
 ) -> dict[str, Any]:
     """FNOL entry. Runs the full claim scene end-to-end."""
     store = _store(request)
+    await require_client_authority(store, session, action="claim_attempt", needed="can_claim")
     tenant_id = session.tenant_id
     client = await claims_scene.load_client_for_user(
         store, tenant_id, session.user_id,

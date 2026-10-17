@@ -96,9 +96,13 @@ async def _ensure_indexes(safe_db: TenantSafeDatabase) -> None:
             # trust the caller's downstream `find_one` checks.
             pass
 
+    try:  # R1.2b: one person may belong to several tenants → email unique per tenant
+        await raw["users"].drop_index("users_email_uniq")
+    except OperationFailure:
+        pass
     await _try_index(
-        "users", [("email", ASCENDING)],
-        unique=True, name="users_email_uniq",
+        "users", [("tenant_id", ASCENDING), ("email", ASCENDING)],
+        unique=True, name="users_tenant_email_uniq",
     )
     await _try_index(
         "users", [("user_id", ASCENDING)],

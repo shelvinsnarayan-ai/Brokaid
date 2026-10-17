@@ -3,6 +3,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { AssignedAe } from "./AssignedAe";
 import { KEmpty } from "../../components/ledger/KEmpty";
 import { KNumber } from "../../components/ledger/KNumber";
 import { KTimeline } from "../../components/ledger/KTimeline";
@@ -48,6 +49,7 @@ export function Client360() {
     <section data-testid="client360-page">
       <p className="ledger-main__eyebrow">Client · {header.jurisdiction_code}</p>
       <h1 className="ledger-main__title">{header.display_name}</h1>
+      <AssignedAe clientId={id} />
 
       <div className="k-meta-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
         <div className="k-meta-cell"><div className="k-meta-cell__label">Industry</div>

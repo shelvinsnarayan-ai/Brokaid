@@ -1,6 +1,30 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { authCall } from "../../lib/authApi";
 import { AuthCard, AuthError } from "../../components/auth/AuthCard";
+import { googleRedirect, takeGoogleSessionId, TenantSwitcher } from "../../components/auth/Tenants";
+
+function GoogleLink({ onMsg, onErr }: { onMsg: (m: string) => void; onErr: (m: string) => void }) {
+  const [linked, setLinked] = useState<string | null>(null);
+  useEffect(() => {
+    authCall<{ google_email: string | null }>("auth/account", undefined, "GET").then((r) => setLinked(r.google_email)).catch(() => undefined);
+    const sid = takeGoogleSessionId();
+    if (sid) authCall<{ google_email: string }>("auth/google/link", { session_id: sid })
+      .then((r) => { setLinked(r.google_email); onMsg("Google is linked. You can now use Continue with Google."); })
+      .catch((e) => onErr(e.message));
+  }, []);
+  return (
+    <section className="auth-section" data-testid="security-google">
+      <h2>Google sign-in</h2>
+      <p className="auth-copy" data-testid="security-google-status">
+        {linked ? `Linked to ${linked}. You'll still enter your authenticator code.` : "Not linked. Google must use the same email as your sign-in."}
+      </p>
+      {!linked && (
+        <button type="button" className="auth-btn auth-btn--ghost" onClick={() => googleRedirect("/account/security")}
+          data-testid="security-google-link">Link Google</button>
+      )}
+    </section>
+  );
+}
 
 export default function AccountSecurity() {
   const [current, setCurrent] = useState("");
@@ -34,6 +58,8 @@ export default function AccountSecurity() {
         <button type="submit" className="auth-btn" data-testid="security-change-submit">Change password</button>
       </form>
       <button type="button" className="auth-btn auth-btn--ghost" onClick={others} data-testid="security-signout-others">Sign out other devices</button>
+      <GoogleLink onMsg={setMsg} onErr={setErr} />
+      <section className="auth-section"><h2>Brokerage</h2><TenantSwitcher testid="security-tenant-switcher" /></section>
       {msg ? <p className="auth-ok" data-testid="security-msg">{msg}</p> : null}
       <AuthError msg={err} testid="security-error" />
       <button type="button" className="auth-link" onClick={() => window.history.back()} data-testid="security-back">Back</button>

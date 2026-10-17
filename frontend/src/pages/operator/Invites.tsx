@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { authCall } from "../../lib/authApi";
 
 interface Invite { invite_id: string; email: string; name: string; role_label: string; state: string; expires_at: string }
-interface Opts { invites: Invite[]; clients: { client_id: string; name: string }[]; roles: { value: string; label: string }[] }
+interface Opts { invites: Invite[]; clients: { client_id: string; name: string }[]; roles: { value: string; label: string }[]; demo_personas_allowed: boolean }
+interface Demo { name: string; email: string; role: string; invite_url: string }
 const CLIENT_ROLES = ["owner", "bookkeeper"];
 const EMAIL_NOTE: Record<string, string> = {
   sent: "Invite email sent.",
@@ -37,6 +38,7 @@ export function Invites() {
   return (
     <section className="ledger-page" data-testid="invites-page" style={{ display: "grid", gap: 20, maxWidth: 760 }}>
       <h1 className="ledger-page__title">Invite people</h1>
+      {opts?.demo_personas_allowed ? <DemoPersonas onDone={load} /> : null}
       <form onSubmit={submit} className="brokaid-form" style={{ maxWidth: 480 }} data-testid="invite-form">
         <label className="brokaid-form__label">Email<input type="email" required value={form.email} onChange={set("email")} data-testid="invite-form-email" /></label>
         <label className="brokaid-form__label">Name<input value={form.name} onChange={set("name")} data-testid="invite-form-name" /></label>
@@ -94,5 +96,30 @@ function InviteList({ invites, act }: { invites: Invite[]; act: (p: string) => v
         ))}
       </tbody>
     </table>
+  );
+}
+
+function DemoPersonas({ onDone }: { onDone: () => void }) {
+  const [rows, setRows] = useState<Demo[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const issue = async () => {
+    setErr(null);
+    try { setRows((await authCall<{ invites: Demo[] }>("o/invites/demo-personas")).invites); onDone(); }
+    catch (e: any) { setErr(e.message); }
+  };
+  return (
+    <div className="brokaid-devbox" data-testid="demo-personas">
+      <strong>Harbourline demo personas</strong>
+      <span>Issues fresh single-use links for Kai, Bea, Cass and Ada. Earlier open links stop working.</span>
+      <button type="button" onClick={issue} data-testid="demo-personas-issue">Issue demo persona invites</button>
+      {err ? <span role="alert" data-testid="demo-personas-error">{err}</span> : null}
+      {rows?.map((r, i) => (
+        <div key={r.email} data-testid={`demo-persona-${i}`} style={{ display: "grid", gap: 4 }}>
+          <span>{r.name} · {r.role} · {r.email}</span>
+          <code style={{ wordBreak: "break-all" }}>{r.invite_url}</code>
+          <button type="button" onClick={() => navigator.clipboard?.writeText(r.invite_url)} data-testid={`demo-persona-copy-${i}`}>Copy link</button>
+        </div>
+      ))}
+    </div>
   );
 }

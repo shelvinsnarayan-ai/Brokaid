@@ -345,8 +345,34 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
             await expect(await http.get("/api/o/kill-switch", headers=as_("ae")), 403, "AE on governance")
             return "AE can't open agent operations (403)."
 
+        async def probe_tenant_binding():
+            # tenant-safe: system-only — another tenant's client/policy whose ids don't also exist here.
+            async def foreign(coll, key):
+                async for d in store[coll].find({"tenant_id": {"$ne": tenant_id}}, {key: 1}):
+                    if not await store[coll].find_one({"tenant_id": tenant_id, key: d[key]}):
+                        return d[key]
+                return None
+            cid, pid = await foreign("clients", "client_id"), await foreign("policies", "policy_id")
+            probes = [(w, p) for w, p, ok in (("ae", f"/api/o/client/{cid}", cid), ("owner", f"/api/c/matters/{pid}/status", pid)) if ok]
+            if not probes:
+                # Seeds reuse client ids across tenants: prove a shared id resolves to THIS tenant's record only.
+                async for d in store.clients.find({"tenant_id": {"$ne": tenant_id}}, {"client_id": 1, "display_name": 1}):
+                    mine = await store.clients.find_one({"tenant_id": tenant_id, "client_id": d["client_id"]})
+                    if mine and mine.get("display_name") != d.get("display_name"):
+                        body = (await http.get(f"/api/o/client/{d['client_id']}", headers=as_("ae"))).text
+                        if d["display_name"] in body:
+                            raise StepFailed("A session for this tenant saw another tenant's client record.")
+                        return "Sessions are bound to one tenant: a client id shared by two tenants shows only this tenant's record."
+                return "warn", "Only one tenant has data; tenant binding not exercised."
+            for who, path in probes:
+                code = (await http.get(path, headers=as_(who))).status_code
+                if code not in (403, 404):
+                    raise StepFailed(f"A {who} session for this tenant read another tenant's data ({path} → {code}).")
+            return f"Sessions are bound to one tenant: {len(probes)} other-tenant probe(s) → 403/404."
+
         await r.step("access.client_on_o", "Client can't open broker routes", probe_client_on_o, soft=True)
         await r.step("access.ae_governance", "AE can't open agent operations", probe_ae_governance, soft=True)
+        await r.step("access.tenant_binding", "Session bound to one tenant", probe_tenant_binding, soft=True)
         if env_id:
             await r.step("notifications", "Alerts stay test-only", lambda: _check_alerts(store, tenant_id, env_id, policy_id, ids, started), soft=True)
         await _cleanup(http, as_, store, tenant_id, env_id, policy_id, ids, sess)
