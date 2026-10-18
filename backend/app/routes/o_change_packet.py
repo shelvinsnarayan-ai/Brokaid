@@ -130,7 +130,8 @@ async def change_packet(
         by: dict[str, dict] = {}
         for e in evs:
             by[e["type"]] = e
-        if "SignatureCompleted" not in by:
+        signed = next((by[t] for t in ("ClientAcceptanceRecorded", "OfflineSignatureRecorded", "SignatureCompleted") if t in by), None)
+        if signed is None:
             raise HTTPException(status_code=409, detail={
                 "code": "ChangePacketNotReady",
                 "detail": "change packet is issued once the request is signed (executing)",
@@ -168,7 +169,7 @@ async def change_packet(
         "insurer_policy_no": policy.get("insurer_policy_no") or "not held",
         "client": client.get("display_name") or "—", "class": policy.get("product") or "—",
         "tier": tier_ev.get("tier") or "not classified (request pre-dates the boundary check)",
-        "effective": _syd(by["SignatureCompleted"]["ts"], with_time=False),
+        "effective": _syd(signed["ts"], with_time=False),
         "generated": _syd(generated_at), "basis": basis, "changes": changes,
         "quote": (by.get("CarrierQuoted") or {}).get("payload") or {},
         "broker": broker, "client_approval": client_appr, "crn": crn,
@@ -191,5 +192,13 @@ async def change_packet(
         ev = await safe.events.find_one({"idempotency_key": key})
     verify = (f"certificate {cert_ev['payload'].get('certificate_id')} — scan its QR to verify"
               if cert_ev else "issued with the certificate on finalise — scan the certificate QR")
-    text = body + f"Ledger hash: {ev['event_hash']}\nVerify     : {verify}\n"
+    sp = signed["payload"]
+    if signed["type"] == "ClientAcceptanceRecorded":
+        acc = (f"{sp['label']} — {sp['typed_name']}, {_syd(signed['ts'])}, doc SHA-256 {sp['doc_sha256']}, "
+               f"ledger event {signed['event_id']}")
+    elif signed["type"] == "OfflineSignatureRecorded":
+        acc = f"{sp['label']} — scan SHA-256 {sp['scan_sha256']}, reason: {sp['reason']}, ledger event {signed['event_id']}"
+    else:
+        acc = f"MOCKED e-sign, ledger event {signed['event_id']}"
+    text = body + f"Acceptance : {acc}\nLedger hash: {ev['event_hash']}\nVerify     : {verify}\n"
     return PlainTextResponse(text, media_type="text/plain; charset=utf-8")

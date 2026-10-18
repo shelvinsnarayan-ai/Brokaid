@@ -284,11 +284,14 @@ async def execute_endorsement(
     byte-identical event_hash for identical inputs.
     """
     lineage = await _load_lineage(store, tenant_id, envelope_id)
-    for required in ("Approval", "payment.advised", "SignatureCompleted"):
+    for required in ("Approval", "payment.advised"):
         if required not in lineage:
             raise EndorsementLineageIncomplete(
                 f"missing upstream event: {required}"
             )
+    # R2.0: mocked e-sign, click-to-accept or signed-offline each complete the signing step
+    if not any(t in lineage for t in ("SignatureCompleted", "ClientAcceptanceRecorded", "OfflineSignatureRecorded")):
+        raise EndorsementLineageIncomplete("missing upstream event: SignatureCompleted or ClientAcceptanceRecorded")
 
     submission = lineage.get("SubmissionDrafted") or {}
     structured = submission.get("structured_submission") or {}

@@ -107,6 +107,10 @@ def create_app(
         except Exception as e:  # noqa: BLE001
             logger.warning("bootstrap operator failed (non-fatal): %r", e)
         await notify.ensure_indexes(app.state.mongo_db)
+        from app.kernel import acceptance as _acceptance
+        await _acceptance.ensure_indexes(app.state.mongo_db)
+        from app.kernel import compliance_library as _library
+        await _library.ensure_indexes(app.state.mongo_db)
         # R1.3: identity uniqueness indexes at boot, not lazily on first domain write (fresh DBs had none).
         from app.db.tenant_safe import wrap as _wrap
         from app.kernel.identity_mongo import _ensure_indexes as _identity_indexes
@@ -206,6 +210,7 @@ def create_app(
     from app.routes.matters import router as matters_router
     from app.routes.o_change_packet import router as o_change_packet_router
     from app.routes.o_claims import router as o_claims_router
+    from app.routes.acceptance import c_router as acceptance_c_router, o_router as acceptance_o_router
     from app.routes.o_governance import router as o_governance_router
     from app.routes.o_branding import router as o_branding_router
     from app.routes.o_release_check import router as o_release_check_router
@@ -229,7 +234,7 @@ def create_app(
         client_360_router, client_preferences_router,
         compliance_router, daily_brief_router, jurisdictions_router,
         kpi_router, matters_router,
-        o_change_packet_router, o_claims_router, o_governance_router, o_branding_router, o_release_check_router, o_jobs_router, o_m2_stubs_router, notifications_router, c_things_router, o_placement_router, o_shadow_mode_router,
+        o_change_packet_router, o_claims_router, acceptance_c_router, acceptance_o_router, o_governance_router, o_branding_router, o_release_check_router, o_jobs_router, o_m2_stubs_router, notifications_router, c_things_router, o_placement_router, o_shadow_mode_router,
         policies_router, queue_router, trail_router, verifier_router,
     ):
         api_router.include_router(r)

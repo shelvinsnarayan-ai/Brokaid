@@ -581,6 +581,17 @@ async def sign(store, tid, r, *, by, role, now=None) -> dict:
     return await bind(store, tid, r, now=now)
 
 
+async def accepted(store, tid, r, rec: dict, *, by, role, now=None) -> dict:
+    """R2.0: click-to-accept or signed-offline completes the renewal in any quoting mode (not mocked)."""
+    if cur(r) != "paid":
+        raise Bad("Acceptance opens once your payment is confirmed by the bank.")
+    r = await _move(store, tid, r, "signed", by=by, role=role, now=now,
+                    signature={"method": rec["method"], "label": rec["label"], "event_id": rec["event_id"],
+                               "doc_sha256": rec["doc_sha256"], "typed_name": rec.get("typed_name"),
+                               "at": rec.get("accepted_at_utc"), "mocked": False})
+    return await bind(store, tid, r, now=now)
+
+
 # ---- bind ----
 def _plus_year(d: datetime) -> datetime:
     try:
@@ -667,6 +678,10 @@ def packet(r: dict, old: dict, pay: dict | None) -> dict:
     for ch in r.get("accepted_changes") or []:
         val = ch.get("to_value") or ch.get("from_value")
         lines.append(("Schedule change", f"{ch['operation']} {ch['field_path']}: {val.get('rego') if isinstance(val, dict) else val}"))
+    sig = r.get("signature") or {}
+    if sig.get("method"):
+        lines.append(("Client acceptance", f"{sig['label']} — {sig.get('typed_name') or 'scan held'} {sig.get('at') or ''} · "
+                                           f"doc SHA-256 {sig['doc_sha256']} · ledger event {sig['event_id']}"))
     text = "brokAId renewal change packet — key these into iAdviser by hand (no write-back)\n" + "\n".join(f"{k}: {v}" for k, v in lines)
     return {"lines": [{"label": k, "value": v} for k, v in lines], "text": text, "write_back": False}
 

@@ -267,6 +267,7 @@ def _client_view(r: dict, pay: dict | None, settings: dict | None, comp: dict, m
     if pay:
         out["payment"] = payments.details(pay, settings, mode)
     out["esign_available"] = mode != "manual_only"
+    out["acceptance_available"] = True  # R2.0 click-to-accept works in every quoting mode
     return out
 
 

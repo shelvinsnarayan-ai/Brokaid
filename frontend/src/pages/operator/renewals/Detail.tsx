@@ -3,6 +3,7 @@ import { Basis } from "../stubKit";
 import { Market } from "./Market";
 import { Recommend } from "./Recommend";
 import { TmdCheck } from "./TmdCheck";
+import { OfflineSign } from "../OfflineSign";
 import { api, aud, get, type Detail } from "./api";
 
 export function RenewalDetail({ id, role, mode, onClose, onChanged }: { id: string; role?: string; mode?: string; onClose: () => void; onChanged: () => void }) {
@@ -32,6 +33,7 @@ export function RenewalDetail({ id, role, mode, onClose, onChanged }: { id: stri
         {r.history.map((h, i) => <li key={i}>{new Date(h.at).toLocaleDateString("en-AU")} — {h.to.replace(/_/g, " ")}{h.note ? ` (${h.note})` : ""}</li>)}
       </ol>
       {err ? <p className="imp-err" role="alert" data-testid="renewal-detail-error">{err}</p> : null}
+      {can && r.current === "paid" ? <OfflineSign kind="renewal" refId={r.renewal_id} onDone={onChanged} /> : null}
       {can && r.current === "upcoming" ? (
         <button className="k-btn k-btn--primary" onClick={() => act("request-info")} data-testid="renewal-request-info">Send the client the renewal checklist</button>
       ) : null}

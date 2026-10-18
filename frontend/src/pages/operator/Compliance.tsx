@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useOperatorStore } from "../../state/operatorStore";
 import { Complaints } from "./compliance/Complaints";
 import { Docs } from "./compliance/Docs";
+import { Library } from "./compliance/Library";
 import { ClientsTab, Retention } from "./compliance/Records";
 import { Privacy } from "./compliance/Privacy";
 import { Settings } from "./compliance/Settings";
@@ -28,7 +29,7 @@ export function CompliancePage() {
         ))}
       </div>
       {tab === "complaints" ? <Complaints role={role} /> : null}
-      {tab === "library" ? <Docs role={role} /> : null}
+      {tab === "library" ? <><Library role={role} /><Docs role={role} /></> : null}
       {tab === "clients" ? <ClientsTab role={role} /> : null}
       {tab === "privacy" ? <Privacy role={role} /> : null}
       {tab === "retention" ? <Retention role={role} /> : null}

@@ -281,7 +281,7 @@ def compute_status(events: list[dict[str, Any]]) -> dict[str, Any]:
         state = "certificate_ready"
     elif "EndorsementExecuted" in env_t:
         state = "executing"
-    elif "SignatureCompleted" in env_t:
+    elif "SignatureCompleted" in env_t or "ClientAcceptanceRecorded" in env_t or "OfflineSignatureRecorded" in env_t:
         state = "executing"
     elif "SignatureRequested" in env_t:
         state = "awaiting_signature"

@@ -108,6 +108,15 @@ def _clean_requirements(r: dict | None) -> dict:
     }
 
 
+async def _acceptance_ref(store, tenant_id: str, envelope_id: str | None) -> dict | None:
+    """R2.0: the certificate names the acceptance record (click-to-accept or signed offline) behind it."""
+    if not envelope_id:
+        return None
+    async with use_tenant(tenant_id):
+        rec = await wrap(store).acceptances.find_one({"envelope_id": envelope_id}, {"_id": 0})
+    return {k: rec.get(k) for k in ("acceptance_id", "method", "label", "event_id", "doc_sha256")} if rec else None
+
+
 async def regenerate_certificate(
     *, store, tenant_id: str, policy_id: str,
     envelope_id: str | None = None,
@@ -142,6 +151,8 @@ async def regenerate_certificate(
         except Exception:
             pass  # duplicate → idempotent
 
+    from app.kernel.holidays import quoting_mode
+    mocked = await quoting_mode(store, tenant_id) != "manual_only"  # R2.0: real tenants' certificates aren't MOCKED
     certificate = {
         "certificate_id": certificate_id,
         "policy_id": policy_id,
@@ -158,7 +169,8 @@ async def regenerate_certificate(
         "effective_from": req_block.get("effective_from") or policy["inception"],
         "effective_to": req_block.get("effective_to") or policy["expiry"],
         "issued_at": now.isoformat(timespec="microseconds"),
-        "mocked_insurer": True,
+        "mocked_insurer": mocked,
+        **({"acceptance": acc} if (acc := await _acceptance_ref(store, tenant_id, envelope_id)) else {}),
     }
     async with use_tenant(tenant_id):
         cert_event = await append_via_dispatch(
@@ -173,10 +185,10 @@ async def regenerate_certificate(
                 "certificate": certificate,
                 "holder": holder_block,
                 "requirements": req_block,
-                "mocked": True,
+                "mocked": mocked,
             },
             idempotency_key=f"cert:regen:{certificate_id}",
-            mocked=True,
+            mocked=mocked,
         )
         await append_via_dispatch(
             store, tenant_id, "VerifierTokenIssued",

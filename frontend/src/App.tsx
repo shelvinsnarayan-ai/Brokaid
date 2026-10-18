@@ -7,7 +7,7 @@ import { ClientCover } from "./pages/ClientCover";
 import { ClientPendingQuote } from "./pages/ClientPendingQuote";
 import { ClientRequestChange } from "./pages/ClientRequestChange";
 import { ClientPay } from "./pages/ClientPay";
-import { ClientSign } from "./pages/ClientSign";
+import { ClientAcceptanceReceipt, ClientSign } from "./pages/ClientSign";
 import { ClientCertificate } from "./pages/ClientCertificate";
 import { ClientCertificateNew } from "./pages/ClientCertificateNew";
 import { VerifyPublic } from "./pages/VerifyPublic";
@@ -89,6 +89,8 @@ export function App() {
           <Route path="cover/:policy_id/request-change" element={<ClientRequestChange />} />
           <Route path="cover/:policy_id/pay/:envelope_id" element={<ClientPay />} />
           <Route path="cover/:policy_id/sign/:envelope_id" element={<ClientSign />} />
+          <Route path="acceptance/endorsement/:ref_id" element={<ClientAcceptanceReceipt kind="endorsement" />} />
+          <Route path="acceptance/renewal/:ref_id" element={<ClientAcceptanceReceipt kind="renewal" />} />
           <Route path="cover/:policy_id/certificate/new" element={<ClientCertificateNew />} />
           <Route path="cover/:policy_id/certificate/:envelope_id" element={<ClientCertificate />} />
           <Route path="cover/:policy_id/certificate" element={<ClientCertificate />} />

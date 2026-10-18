@@ -14,7 +14,7 @@ from fastapi import Depends, HTTPException
 
 from app.db.tenant_safe import wrap
 from app.kernel import auth_flows as af
-from app.kernel import compliance_docs, holidays, trail_mongo
+from app.kernel import holidays, trail_mongo
 from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
 from app.middleware.session import require_session
@@ -141,7 +141,6 @@ async def checklist(store, tid: str) -> list[dict]:
     hs = await holidays.tenant_settings(store, tid)
     async with use_tenant(tid):
         safe = wrap(store)
-        raw = await safe.tenant_settings.find_one({}) or {}
         pay = await safe.payment_settings.find_one({}) or {}
         fsg = await safe.disclosure_docs.find_one({"kind": "FSG", "active": True})
         ops = await safe.user_brokerage_roles.count_documents({"role": "operator", "active": True})
@@ -150,15 +149,16 @@ async def checklist(store, tid: str) -> list[dict]:
         clients = await safe.clients.count_documents({})
         unassigned = await safe.clients.count_documents({"$or": [{"assigned_ae_user_id": None}, {"assigned_ae_user_id": {"$exists": False}}]})
         profile = await safe.import_profiles.find_one({})
-    custom = lambda k: bool((raw.get(k) or "").strip()) and raw.get(k) != compliance_docs.DEFAULTS.get(k)  # noqa: E731
+    from app.kernel import compliance_library
+    live = await compliance_library.live_kinds(store, tid)  # R2.0: only Principal-approved, live documents count
     items = [
         ("operator", "First Operator signed in", ops > 0),
         ("principal", "A Principal is set up", principals > 0),
-        ("fsg", "FSG uploaded", bool(fsg)),
-        ("gaw", "General advice warning set", custom("gaw_text")),
-        ("afca", "AFCA text set", custom("afca_text")),
-        ("privacy", "Privacy policy set", custom("privacy_policy_text")),
-        ("collection", "Collection notice set", custom("collection_notice_text")),
+        ("fsg", "FSG approved by a Principal and live", "FSG" in live and bool(fsg)),
+        ("gaw", "General advice warning approved and live", "GAW" in live),
+        ("afca", "AFCA / complaints text approved and live", "AFCA" in live),
+        ("privacy", "Privacy policy approved and live", "PRIVACY_POLICY" in live),
+        ("collection", "Collection notice approved and live", "COLLECTION_NOTICE" in live),
         ("payment", "Payment settings (account name, BSB, account number)", all(pay.get(k) for k in ("account_name", "bsb", "account_number"))),
         ("email", "Email branding (sender name, reply-to)", bool((t.get("email_settings") or {}).get("reply_to"))),
         ("iadviser", "iAdviser import profile", bool(profile)),

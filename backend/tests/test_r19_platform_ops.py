@@ -66,7 +66,7 @@ async def test_wizard_creates_tenant_with_genesis_event_invite_and_checklist(mon
     assert not any(items[k] for k in ("operator", "fsg", "gaw", "afca", "privacy", "payment", "iadviser", "email"))
     with pytest.raises(HTTPException) as e:
         await platform.set_status(mongo_db, tid, "live", "", "padmin")
-    assert e.value.status_code == 409 and "FSG uploaded" in e.value.detail["missing"]
+    assert e.value.status_code == 409 and "FSG approved by a Principal and live" in e.value.detail["missing"]
     with pytest.raises(HTTPException):
         await platform.create(mongo_db, body={"slug": t["slug"], "abn": "51824753556"}, by="padmin")  # slug taken
 

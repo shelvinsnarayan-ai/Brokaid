@@ -12,6 +12,7 @@ from app.kernel.csvsafe import safe_writer
 from app.db.tenant_safe import wrap
 from app.kernel import complaints as cm
 from app.kernel import compliance_docs as cd
+from app.kernel import compliance_library as lib
 from app.kernel import jobs, object_store, retention
 from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
@@ -94,6 +95,9 @@ async def list_docs(request: Request, s=Depends(_staff)) -> dict:
 async def upload_doc(request: Request, file: UploadFile = File(...), kind: str = Form(...), version: str = Form(...),
                      effective_date: str = Form(...), insurer: str | None = Form(None), product: str | None = Form(None),
                      s=Depends(_lead)) -> dict:
+    if kind == "FSG":  # R2.0: our own FSG only goes live via the library (draft → Principal approval → live)
+        raise HTTPException(status_code=409, detail="Add the FSG through the compliance library: upload the final PDF on its draft, "
+                                                    "have a Principal approve it, then make it live.")
     data = await file.read()
     if not data or len(data) > 20 * 1024 * 1024:
         raise HTTPException(status_code=422, detail="Upload a file up to 20 MB.")
@@ -102,6 +106,84 @@ async def upload_doc(request: Request, file: UploadFile = File(...), kind: str =
                                insurer=insurer, product=product, by=s.user_id))
     doc.pop("storage_path", None)
     return {"doc": doc}
+
+
+# ---- R2.0 compliance library: draft → approved by a Principal → live ----
+async def _lib(coro):
+    try:
+        return await coro
+    except lib.Bad as e:
+        raise HTTPException(status_code=e.status, detail=e.detail) from None
+
+
+class TextBody(BaseModel):
+    text: str = Field(min_length=10, max_length=40000)
+
+
+class ApproveBody(BaseModel):
+    reviewer_name: str = Field(min_length=2, max_length=120)
+    confirmed: bool
+
+
+@router.get("/library")
+async def library(request: Request, s=Depends(_staff)) -> dict:
+    rows = await lib.listing(_store(request), s.tenant_id)
+    for r in rows:
+        for k in ("docx_path", "pdf_path", "final_path", "text"):
+            r.pop(k, None)
+    return {"documents": rows, "confirmation": lib.CONFIRM}
+
+
+@router.post("/library/drafts")
+async def library_drafts(request: Request, s=Depends(_lead)) -> dict:
+    made = await lib.generate_drafts(_store(request), s.tenant_id, by=s.user_id, role=s.active_role)
+    return {"created": [m["kind"] for m in made]}
+
+
+@router.get("/library/drafts.zip")
+async def library_zip(request: Request, s=Depends(_lead)):
+    return Response(await lib.drafts_zip(_store(request), s.tenant_id), media_type="application/zip",
+                    headers={"Content-Disposition": 'attachment; filename="compliance-drafts.zip"'})
+
+
+@router.get("/library/{doc_id}")
+async def library_doc(doc_id: str, request: Request, s=Depends(_staff)) -> dict:
+    d = await _lib(lib.get(_store(request), s.tenant_id, doc_id))
+    return {k: v for k, v in d.items() if not k.endswith("_path")}
+
+
+@router.get("/library/{doc_id}/download")
+async def library_download(doc_id: str, request: Request, fmt: str = "pdf", s=Depends(_staff)):
+    data, ct, name = await _lib(lib.download(_store(request), s.tenant_id, doc_id, fmt if fmt in ("pdf", "docx", "final") else "pdf"))
+    return Response(data, media_type=ct, headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@router.put("/library/{doc_id}/text")
+async def library_text(doc_id: str, body: TextBody, request: Request, s=Depends(_lead)) -> dict:
+    d = await _lib(lib.revise_text(_store(request), s.tenant_id, doc_id, body.text, by=s.user_id, role=s.active_role))
+    return {k: v for k, v in d.items() if not k.endswith("_path")}
+
+
+@router.post("/library/{doc_id}/final")
+async def library_final(doc_id: str, request: Request, file: UploadFile = File(...), s=Depends(_lead)) -> dict:
+    data = await file.read(20 * 1024 * 1024 + 1)
+    if len(data) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Upload a file up to 20 MB.")
+    d = await _lib(lib.upload_final(_store(request), s.tenant_id, doc_id, data, by=s.user_id, role=s.active_role))
+    return {k: v for k, v in d.items() if not k.endswith("_path")}
+
+
+@router.post("/library/{doc_id}/approve")
+async def library_approve(doc_id: str, body: ApproveBody, request: Request, s=Depends(_principal)) -> dict:
+    d = await _lib(lib.approve(_store(request), s.tenant_id, doc_id, reviewer_name=body.reviewer_name, confirmed=body.confirmed,
+                               by=s.user_id, role=s.active_role))
+    return {k: v for k, v in d.items() if not k.endswith("_path")}
+
+
+@router.post("/library/{doc_id}/live")
+async def library_live(doc_id: str, request: Request, s=Depends(_lead)) -> dict:
+    d = await _lib(lib.make_live(_store(request), s.tenant_id, doc_id, by=s.user_id, role=s.active_role))
+    return {k: v for k, v in d.items() if not k.endswith("_path")}
 
 
 # ---- client flags ----

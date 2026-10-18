@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { authCall } from "../lib/authApi";
 import { RenewalChecklist } from "./renewal/Checklist";
+import { AcceptPanel } from "../components/AcceptPanel";
 import "../styles/renewals.css";
 
 const aud = (v: string | number) => `$${Number(v).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -73,8 +74,7 @@ export function ClientRenewal() {
             : <p data-testid="client-renewal-pay-state">Thanks — we'll confirm once the payment reaches the trust account (usually 1–2 business days).</p>}
         </div>
       ) : null}
-      {d.current === "paid" && d.esign_available !== false ? <button className="brokaid-cta" disabled={busy} onClick={() => act("sign")} data-testid="client-renewal-sign">Sign to renew (MOCKED e-sign)</button> : null}
-      {d.current === "paid" && d.esign_available === false ? <p data-testid="client-renewal-sign-offline">Your broker will arrange signing with you.</p> : null}
+      {d.current === "paid" || d.signature?.method ? <AcceptPanel kind="renewal" refId={d.renewal_id} onDone={load} /> : null}
       {d.new_policy_id ? (
         <Link className="brokaid-cta" to={`/c/cover/${d.new_policy_id}/certificate`} data-testid="client-renewal-certificate">See your new certificate →</Link>
       ) : null}

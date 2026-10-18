@@ -52,6 +52,18 @@ async def tenant(tenant_id: str, request: Request, s=Depends(platform.require_pl
     return row
 
 
+@router.get("/tenants/{tenant_id}/compliance-drafts.zip")
+async def compliance_drafts(tenant_id: str, request: Request, s=Depends(platform.require_platform_admin)):
+    """R2.0: the owner downloads the brokerage's DRAFT compliance templates (DOCX + PDF). Templates only — no client data."""
+    from fastapi.responses import Response
+
+    from app.kernel import compliance_library as lib
+    if not next((t for t in await platform.tenants(_store(request)) if t["tenant_id"] == tenant_id), None):
+        raise HTTPException(status_code=404, detail="tenant_not_found")
+    return Response(await lib.drafts_zip(_store(request), tenant_id), media_type="application/zip",
+                    headers={"Content-Disposition": 'attachment; filename="compliance-drafts.zip"'})
+
+
 class StatusBody(BaseModel):
     status: str
     reason: str = Field(default="", max_length=300)

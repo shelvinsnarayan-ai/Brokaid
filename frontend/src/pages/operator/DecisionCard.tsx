@@ -1,6 +1,7 @@
 /**
  * /o/queue/:envelope_id — three-column Decision Card.
  */
+import { OfflineSign } from "./OfflineSign";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { MockedBadge } from "@brokaid/mocks";
@@ -326,6 +327,7 @@ export function DecisionCard() {
               distinct accounts users. First approval will hold in "pending".
             </div>
           )}
+          <OfflineSign kind="endorsement" refId={envelope_id} />
         </div>
       </div>
     </section>

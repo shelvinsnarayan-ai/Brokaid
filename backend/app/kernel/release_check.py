@@ -5,6 +5,7 @@ The spine runs in-process (ASGI) with sessions minted for a dedicated, test-flag
 """
 from __future__ import annotations
 
+import hashlib
 import asyncio
 import copy
 import logging
@@ -482,11 +483,24 @@ async def renewal_steps(r, http, as_, expect, store, tenant_id, ids, run_id) -> 
         return "Bank line → Received → Paid."
 
     async def bound():
-        s = await expect(await http.post(f"{st['base']}/sign", headers=as_("owner")), 200, "Renewal sign")
+        # R2.0: click-to-accept on the synthetic client (not mocked): doc hash, bookkeeper 403, tampered hash 409
+        acc_url = f"/api/c/acceptance/renewal/{st['r']['renewal_id']}"
+        doc = (await expect(await http.get(acc_url, headers=as_("owner")), 200, "Acceptance document")).json()
+        pdf = await expect(await http.get(f"{acc_url}/pdf", headers=as_("owner")), 200, "Acceptance PDF")
+        if hashlib.sha256(pdf.content).hexdigest() != doc["doc_sha256"]:
+            raise StepFailed("The acceptance PDF doesn't match its recorded SHA-256.")
+        async with use_tenant(tenant_id):
+            owner = await wrap(store).users.find_one({"user_id": ids["owner"]}, {"display_name": 1}) or {}
+        body = {"typed_name": owner.get("display_name") or "Release Check Owner", "accepted": True, "doc_sha256": doc["doc_sha256"],
+                "confirm_name": True}
+        await expect(await http.post(acc_url, headers=as_("bookkeeper"), json=body), 403, "Bookkeeper acceptance")
+        await expect(await http.post(acc_url, headers=as_("owner"), json={**body, "doc_sha256": "0" * 64}), 409, "Tampered hash")
+        s = await expect(await http.post(acc_url, headers=as_("owner"), json=body), 200, "Click-to-accept")
         v = await expect(await http.get(f"/api/verifier/{s.json()['verifier_token']}"), 200, "Renewal verifier")
         if s.json()["stage"] != "bound" or v.json().get("verdict") != "VALID" or not str(v.json().get("effective_from", "")).startswith(exp.date().isoformat()):
             raise StepFailed(f"Renewal ended at {s.json()['stage']}; verifier {v.json().get('verdict')} from {v.json().get('effective_from')}.")
-        return f"Bound; new certificate VALID from {exp.date():%d/%m/%Y}."
+        return (f"Accepted in brokAId (not a digital signature), doc {doc['doc_sha256'][:12]}…; bookkeeper 403, tampered hash 409; "
+                f"bound; new certificate VALID from {exp.date():%d/%m/%Y}.")
 
     for key, label, fn in (("renewal.start", "Renewal starts at T-60", start), ("renewal.info", "Renewal checklist", info),
                            ("renewal.market", "Quotes and recommendation", market), ("renewal.decide", "Client decision", decide),
@@ -521,7 +535,17 @@ async def manual_only_steps(r, store) -> None:
                                                               "payload.mocked": True, "ts": {"$gte": QUOTING_MODE_SINCE}})
             if mocked_r or mocked_q:
                 raise StepFailed(f"A manual_only tenant has {mocked_r + mocked_q} MOCKED quote(s).")
-        return f"{len(manual)} manual_only tenant(s): no MOCKED quotes or payment details; mocked channel refused."
+        from fastapi import HTTPException
+
+        from app.routes.c_scene import require_mock_esign
+        for tid in manual:
+            try:
+                await require_mock_esign(store, tid)
+                raise StepFailed("The MOCKED e-sign is available in a manual_only tenant.")
+            except HTTPException:
+                pass
+        return (f"{len(manual)} manual_only tenant(s): no MOCKED quotes, payment details or e-sign; "
+                "click-to-accept is their signing path.")
 
     await r.step("quoting.manual_only", "Real tenants: no mocked quotes or payment details", check)
 

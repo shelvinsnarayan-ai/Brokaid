@@ -3,7 +3,7 @@ import { API, day, useLoad } from "./api";
 
 export function Docs({ role }: { role?: string }) {
   const { data, err, load, setErr } = useLoad<any>("o/compliance/documents");
-  const [f, setF] = useState({ kind: "FSG", version: "", effective_date: "", insurer: "", product: "" });
+  const [f, setF] = useState({ kind: "PDS", version: "", effective_date: "", insurer: "", product: "" });
   const [file, setFile] = useState<File | null>(null);
   const can = role === "principal" || role === "operator";
   async function upload() {
@@ -22,10 +22,10 @@ export function Docs({ role }: { role?: string }) {
       {can ? (
         <div className="imp-card" data-testid="disclosure-upload">
           <h2 className="imp-h2">Upload a disclosure document</h2>
-          <p className="imp-muted">The FSG goes out on invite acceptance and before the first quote. For retail clients, the PDS and TMD go out with every quote or renewal option.</p>
+          <p className="imp-muted">Insurer-issued PDS, TMD and wording. Your own FSG goes live through the library above (Principal approval). For retail clients, the PDS and TMD go out with every quote or renewal option.</p>
           <div className="imp-row">
             <select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} data-testid="disclosure-kind">
-              {(data?.kinds || ["FSG", "PDS", "TMD", "WORDING"]).map((k: string) => <option key={k}>{k}</option>)}</select>
+              {(data?.kinds || ["PDS", "TMD", "WORDING"]).filter((k: string) => k !== "FSG").map((k: string) => <option key={k}>{k}</option>)}</select>
             <input placeholder="Version" value={f.version} onChange={(e) => setF({ ...f, version: e.target.value })} data-testid="disclosure-version" />
             <input type="date" value={f.effective_date} onChange={(e) => setF({ ...f, effective_date: e.target.value })} data-testid="disclosure-effective" />
             {f.kind !== "FSG" ? <>

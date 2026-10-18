@@ -1,0 +1,19 @@
+.acc-card { border: 1px solid var(--line, #d9d4c7); border-radius: 10px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; max-width: 720px; }
+.acc-eyebrow { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.7; margin: 0; }
+.acc-title { margin: 4px 0 0; font-size: 1.15rem; }
+.acc-lines { display: grid; gap: 6px; margin: 0; }
+.acc-line { display: grid; grid-template-columns: 180px 1fr; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line, #e2ddd0); }
+.acc-line dt { opacity: 0.7; }
+.acc-line dd { margin: 0; }
+.acc-hash { font-size: 12px; opacity: 0.8; word-break: break-all; margin: 0; }
+.acc-link { font-size: 14px; }
+.acc-form { display: flex; flex-direction: column; gap: 12px; }
+.acc-tick { display: flex; gap: 10px; align-items: center; }
+.acc-name { display: flex; flex-direction: column; gap: 6px; max-width: 360px; }
+.acc-name input { padding: 9px 11px; border-radius: 6px; border: 1px solid var(--line, #c9c3b4); font: inherit; transition: border-color 120ms ease; }
+.acc-warn { border-left: 3px solid #c9822a; padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; }
+.acc-receipt { border-left: 3px solid #2e7d4f; padding: 8px 12px; }
+.acc-receipt p { margin: 2px 0; }
+.acc-note { font-size: 13px; opacity: 0.75; margin: 0; }
+.acc-offline { display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+@media (max-width: 640px) { .acc-line { grid-template-columns: 1fr; gap: 2px; } }
