@@ -53,6 +53,8 @@ SCHEDULE = {
 
 
 async def seed_mongo(db: AsyncIOMotorDatabase, tenant_id: str, client_id: str) -> str:
+    from app.kernel import devmode
+    await devmode.require_demo_seed(db, tenant_id)
     now = datetime.now(timezone.utc)
     safe = wrap(db)
     async with use_tenant(tenant_id):

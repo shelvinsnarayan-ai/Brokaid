@@ -23,6 +23,8 @@ THREADS = [
 
 
 async def seed_mongo(db, tenant_id: str, client_id: str) -> int:
+    from app.kernel import devmode
+    await devmode.require_demo_seed(db, tenant_id)
     safe, n = wrap(db), 0
     async with use_tenant(tenant_id):
         for env, cid, msgs in THREADS:

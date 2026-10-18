@@ -48,7 +48,6 @@ import "./styles/chase-ladder.css";
 import { ClientLogin } from "./pages/ClientLogin";
 import { OperatorLogin } from "./pages/OperatorLogin";
 import { OperatorEnrol } from "./pages/OperatorEnrol";
-import { Login } from "./pages/Login";
 import SignIn from "./pages/auth/SignIn";
 import AcceptInvite from "./pages/auth/AcceptInvite";
 import ResetPassword from "./pages/auth/ResetPassword";
@@ -59,9 +58,13 @@ import { ImportPage } from "./pages/operator/Import";
 import { BankPage } from "./pages/operator/Bank";
 import { DevAuthBanner } from "./components/DevAuthBanner";
 
-const DevLogin = lazy(() =>
-  import("./pages/DevLogin").then((m) => ({ default: m.DevLogin }))
-);
+// Dev-only pages: the ternary folds to null in production builds, so neither chunk (nor its dev endpoints) is emitted.
+const DevLogin = import.meta.env.BROKAID_AUTH_DEV_MODE
+  ? lazy(() => import("./pages/DevLogin").then((m) => ({ default: m.DevLogin })))
+  : null;
+const DemoPersonas = import.meta.env.BROKAID_AUTH_DEV_MODE
+  ? lazy(() => import("./pages/Login").then((m) => ({ default: m.Login })))
+  : null;
 const KitchenSink = lazy(() =>
   import("./pages/KitchenSink").then((m) => ({ default: m.KitchenSink }))
 );
@@ -77,7 +80,7 @@ export function App() {
         <Route path="/invite/:token" element={<AcceptInvite />} />
         <Route path="/reset/:token" element={<ResetPassword />} />
         <Route path="/account/security" element={<AccountSecurity />} />
-        {import.meta.env.BROKAID_AUTH_DEV_MODE ? <Route path="/demo" element={<Login />} /> : null}
+        {DemoPersonas ? <Route path="/demo" element={<Suspense fallback={null}><DemoPersonas /></Suspense>} /> : null}
         <Route path="/verify" element={<VerifyPublic />} />
         <Route path="/verify/:token" element={<VerifyPublic />} />
 
@@ -149,7 +152,7 @@ export function App() {
           <Route path="chase" element={<ChaseLadder />} />
         </Route>
 
-        {import.meta.env.BROKAID_AUTH_DEV_MODE ? (
+        {DevLogin ? (
           <Route
             path="/dev/login"
             element={

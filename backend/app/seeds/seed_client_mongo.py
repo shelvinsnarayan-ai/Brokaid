@@ -21,6 +21,8 @@ from app.seeds.seed_client import (
 
 
 async def seed_mongo(db: AsyncIOMotorDatabase, tenant_id: str) -> str:
+    from app.kernel import devmode
+    await devmode.require_demo_seed(db, tenant_id)
     safe = wrap(db)
     async with use_tenant(tenant_id):
         existing = await safe.clients.find_one({"client_id": CLIENT_ID})

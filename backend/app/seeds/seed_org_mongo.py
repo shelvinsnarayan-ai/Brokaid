@@ -19,6 +19,8 @@ from app.seeds.seed_org import LICENSEE_ABN, LICENSEE_NAME
 async def seed_mongo(
     db: AsyncIOMotorDatabase, tenant_id: str, brokerage_id: str,
 ) -> None:
+    from app.kernel import devmode
+    await devmode.require_demo_seed(db, tenant_id)
     try:
         await append_via_dispatch(
             db, tenant_id, "LicenseeCreated",

@@ -45,6 +45,12 @@ async def require_dev_tenant(store, tenant_id: str | None, role: str | None = No
         raise HTTPException(status_code=404, detail="not_found")
 
 
+async def require_demo_seed(db, tenant_id: str | None) -> None:
+    """Demo seeds only ever write into a demo/test tenant — never BurMac, wizard brokerages or the platform."""
+    if not await is_demo_tenant(db, tenant_id):
+        raise RuntimeError(f"refusing to seed demo data into non-demo tenant {tenant_id}")
+
+
 async def real_tenant_problems(store) -> list[str]:
     out = []
     async for t in store.tenants.find({}, {"_id": 0, "tenant_id": 1, "slug": 1, "kind": 1, "status": 1, "test": 1, "demo": 1}):

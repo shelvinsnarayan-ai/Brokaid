@@ -184,6 +184,8 @@ async def seed_mongo(db: AsyncIOMotorDatabase) -> dict:
     `seed_users.seed()` for the parity test."""
     safe_db = wrap(db)
     tenant_id = await _ensure_tenant_mongo(safe_db)
+    from app.kernel import devmode
+    await devmode.require_demo_seed(db, tenant_id)
     await _repoint_legacy_logins(db, tenant_id)
     brokerage_id = await _ensure_brokerage_mongo(safe_db, tenant_id)
     ops = []

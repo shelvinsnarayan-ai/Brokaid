@@ -106,7 +106,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       productionDevAuthGuard(),
       react(),
-      devOnlyChunkMarker(),
+      authDev ? devOnlyChunkMarker() : null,
       VitePWA({
         registerType: "autoUpdate",
         // R0.13: push + notificationclick handlers; caching/auto-update stay with the generated SW.
@@ -194,13 +194,13 @@ export default defineConfig(({ mode }) => {
       target: "es2022",
       sourcemap: false,
       rollupOptions: {
-        output: {
+        output: authDev ? {
           manualChunks(id) {
             if (id.includes("DevLogin") || id.includes("DevAuthBanner")) {
               return "dev-auth";
             }
           },
-        },
+        } : {},  // production: dev pages are compiled out, so no dev-auth chunk exists to split
       },
     },
   };

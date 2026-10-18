@@ -29,6 +29,8 @@ from app.seeds.seed_vulnerable import (
 async def seed_mongo(
     db: AsyncIOMotorDatabase, tenant_id: str,
 ) -> dict[str, str]:
+    from app.kernel import devmode
+    await devmode.require_demo_seed(db, tenant_id)
     now = datetime.now(timezone.utc)
     inception = now
     expiry = now + timedelta(days=365)

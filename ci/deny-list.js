@@ -87,14 +87,17 @@ function scanFile(file) {
   const findings = [];
 
   for (const name of CLOSED_SET) {
-    const re = new RegExp(`\\b${name}\\b`);
-    const m = re.exec(contents);
-    if (m) {
+    // Global sweep; a bare URL path segment (e.g. React's "reactjs.org/docs/…") isn't an agent name.
+    const re = new RegExp(`\\b${name}\\b`, "g");
+    let m;
+    while ((m = re.exec(contents)) !== null) {
+      if (contents[m.index - 1] === "/" && contents[m.index + name.length] === "/") continue;
       findings.push({
         file,
         pattern: name,
         snippet: contents.slice(Math.max(0, m.index - 40), m.index + 40),
       });
+      break;
     }
   }
 

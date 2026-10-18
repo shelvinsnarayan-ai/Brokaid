@@ -22,6 +22,8 @@ from app.seeds.seed_policy_tracked import INSURER_DISPLAY, POLICY_ID
 async def seed_mongo(
     db: AsyncIOMotorDatabase, tenant_id: str, client_id: str,
 ) -> str:
+    from app.kernel import devmode
+    await devmode.require_demo_seed(db, tenant_id)
     now = datetime.now(timezone.utc)
     inception = now - timedelta(days=60)
     expiry = now + timedelta(days=305)

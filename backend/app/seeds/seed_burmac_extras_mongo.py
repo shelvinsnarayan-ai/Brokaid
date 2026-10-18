@@ -567,6 +567,8 @@ async def _seed_demo_verifier_tokens(db, tenant_id: str) -> None:
 async def seed_burmac_extras(
     db: AsyncIOMotorDatabase, tenant_id: str
 ) -> dict:
+    from app.kernel import devmode
+    await devmode.require_demo_seed(db, tenant_id)
     already = await _already_seeded(db, tenant_id)
 
     # Demo verifier tokens (R1 #3) run every boot: they are guarded by

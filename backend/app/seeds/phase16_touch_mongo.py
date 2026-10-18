@@ -89,6 +89,8 @@ async def touch_mongo(db: AsyncIOMotorDatabase) -> str:
         tenant_id = tenant.tenant_id
     else:
         tenant_id = row["tenant_id"]
+    from app.kernel import devmode
+    await devmode.require_demo_seed(db, tenant_id)
 
     for name in AGENTS:
         provider = _MockProvider(name)

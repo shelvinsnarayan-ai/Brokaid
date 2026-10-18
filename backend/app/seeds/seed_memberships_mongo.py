@@ -45,6 +45,8 @@ async def _ensure_user(safe, tenant_id: str) -> str:
 
 
 async def seed_mongo(db: AsyncIOMotorDatabase, tenant_id: str) -> None:
+    from app.kernel import devmode
+    await devmode.require_demo_seed(db, tenant_id)
     safe = wrap(db)
     client_id = str(FICTIONAL_CLIENT_ID)
     async with use_tenant(tenant_id):

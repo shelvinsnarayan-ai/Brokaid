@@ -45,6 +45,8 @@ async def _already_seeded_mongo(db, tenant_id: str, key: str) -> bool:
 async def seed_historical_decisions_mongo(
     db: AsyncIOMotorDatabase, tenant_id: str, *, count: int = 30,
 ) -> dict:
+    from app.kernel import devmode
+    await devmode.require_demo_seed(db, tenant_id)
     if await _already_seeded_mongo(db, tenant_id, HISTORICAL_KEY):
         return {"seeded": False, "reason": "already_seeded"}
 
@@ -120,6 +122,8 @@ async def seed_historical_decisions_mongo(
 async def seed_queue_cards_mongo(
     db: AsyncIOMotorDatabase, tenant_id: str, client_id: str | None,
 ) -> dict:
+    from app.kernel import devmode
+    await devmode.require_demo_seed(db, tenant_id)
     if await _already_seeded_mongo(db, tenant_id, CARDS_KEY):
         return {"seeded": False, "reason": "already_seeded"}
     rng = _rng()
