@@ -61,3 +61,9 @@
 .tenant-switcher { min-height: 36px; border-radius: 999px; padding: 4px 12px; border: 1px solid color-mix(in oklab, currentColor 25%, transparent); background: transparent; color: inherit; font: inherit; font-size: 13px; }
 .auth-section { display: grid; gap: 10px; padding-top: 16px; border-top: 1px solid #E3E8F0; }
 .auth-section h2 { margin: 0; font-size: 16px; }
+.demo-signin { display: grid; gap: 10px; margin-top: 8px; padding: 14px; border: 1px dashed #C9772B; border-radius: 12px; background: color-mix(in oklab, #C9772B 7%, transparent); }
+.demo-signin__title { margin: 0; font-size: 14px; letter-spacing: .02em; text-transform: uppercase; color: #8A4B12; }
+.demo-signin__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.demo-signin__btn { display: grid; gap: 2px; text-align: left; padding: 10px 12px; transition: background-color .15s ease, transform .15s ease; }
+.demo-signin__btn:hover:not(:disabled) { transform: translateY(-1px); background: #fff; }
+.demo-signin__btn span { font-size: 12px; color: var(--slate, #5B6B85); font-weight: 400; }

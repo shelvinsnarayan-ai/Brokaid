@@ -36,6 +36,25 @@ class ImpersonateRequest(BaseModel):
     email: EmailStr
 
 
+DEMO_PERSONAS = (  # Harbourline demo tenant only; impersonate re-checks the tenant on every tap
+    ("kai", "Kai Owner", "Client owner", "owner@fictionalclient.example", "/c"),
+    ("bea", "Bea Bookkeeper", "Client bookkeeper", "bookkeeper@fictionalclient.example", "/c"),
+    ("cass", "Cass Executive", "Account executive", "ae@harbourline.example", "/o"),
+    ("ada", "Ada Principal", "Principal", "principal@harbourline.example", "/o"),
+    ("olly", "Olly Operator", "Operator", "operator@harbourline.example", "/o"),
+)
+
+
+@router.get("/personas")
+async def personas(request: Request) -> dict:
+    """Preview-only demo sign-in list for /login. 404 unless dev mode and Harbourline is a demo tenant."""
+    store = auth_store(request)
+    t = await store.tenants.find_one({"slug": "harbourline"})  # tenant-safe: system-only — tenant registry read
+    await devmode.require_dev_tenant(store, (t or {}).get("tenant_id"))
+    return {"label": "Demo sign-in (preview only)", "personas": [
+        {"slug": s, "name": n, "seat": seat, "email": e, "route": r} for s, n, seat, e, r in DEMO_PERSONAS]}
+
+
 @router.post("/impersonate")
 async def impersonate(
     body: ImpersonateRequest, request: Request, response: Response
@@ -72,7 +91,8 @@ async def impersonate(
         )
         if not links:
             raise HTTPException(status_code=403, detail="no_client_link")
-        first = links[0]
+        demo = [lk for lk in links if await devmode.is_demo_tenant(store, lk.tenant_id)]  # never land in a real tenant
+        first = demo[0] if demo else links[0]
         await devmode.require_dev_tenant(store, first.tenant_id, first.role)  # SEC-001b
         session = await create_session_scoped(
             store, first.tenant_id,
@@ -80,11 +100,9 @@ async def impersonate(
             active_role=first.role, mfa_verified=True,
         )
 
-    response.set_cookie(
-        key=sess.COOKIE_NAME, value=session.session_id,
-        httponly=True, samesite="lax", secure=False, path="/",
-        max_age=12 * 3600,
-    )
+    secure = "https" in (request.url.scheme, request.headers.get("x-forwarded-proto"))  # __Host- needs Secure in browsers
+    response.set_cookie(key=sess.COOKIE_NAME, value=session.session_id, httponly=True, samesite="lax",
+                        secure=secure, path="/", max_age=12 * 3600)
     return {
         "session_id": session.session_id,
         "tenant_id": session.tenant_id,

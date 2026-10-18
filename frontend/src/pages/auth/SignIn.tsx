@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { authCall } from "../../lib/authApi";
 import { AuthCard, AuthError } from "../../components/auth/AuthCard";
 import { MfaEnrol } from "../../components/auth/MfaEnrol";
+import { DemoSignIn } from "../../components/auth/DemoSignIn";
 import { googleRedirect, takeGoogleSessionId, TenantChooser, TenantOpt } from "../../components/auth/Tenants";
 
 type Step = "password" | "totp" | "enrol" | "forgot" | "forgot-sent" | "choose";
@@ -114,6 +115,7 @@ export default function SignIn() {
       <p className="auth-fine">Google works only for an email your brokerage invited. You'll still enter your authenticator code.</p>
       <button type="button" className="auth-link" onClick={() => { setErr(null); setStep("forgot"); }} data-testid="signin-forgot">Forgot your password?</button>
       <p className="auth-fine">New here? You need an invite from your brokerage.</p>
+      {import.meta.env.BROKAID_DEMO_SIGNIN ? <DemoSignIn /> : null}
       {import.meta.env.BROKAID_AUTH_DEV_MODE ? (
         <Link to="/demo" className="auth-link" data-testid="signin-demo-link">Preview only: demo personas</Link>
       ) : null}

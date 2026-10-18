@@ -100,6 +100,8 @@ function csp(dev: boolean): string {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const authDev = (env.AUTH_DEV_MODE ?? "false").toLowerCase() === "true";
+  // Fail-closed like the backend: unset/unknown ENVIRONMENT is production → the demo panel is compiled out.
+  const demoSignIn = ["development", "preview", "test"].includes((env.ENVIRONMENT ?? "").trim().toLowerCase());
   return {
     plugins: [
       productionDevAuthGuard(),
@@ -166,6 +168,7 @@ export default defineConfig(({ mode }) => {
     ],
     define: {
       "import.meta.env.BROKAID_AUTH_DEV_MODE": JSON.stringify(authDev),
+      "import.meta.env.BROKAID_DEMO_SIGNIN": JSON.stringify(demoSignIn),
       "import.meta.env.BROKAID_BUILD_SHA": JSON.stringify(readBuildIdentity().sha),
       "import.meta.env.BROKAID_BUILD_SIGNED": JSON.stringify(readBuildIdentity().signed),
     },
