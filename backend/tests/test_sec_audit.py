@@ -190,7 +190,7 @@ def test_csv_routes_are_known():
     from app.main import create_app
     paths = {r.path for r in all_routes(create_app(seed_dev_users=False)) if r.path.endswith(".csv") or "shadow-mode/export" in r.path}
     assert paths == {"/api/o/import/runs/{run_id}/errors.csv", "/api/o/bank/reconciliation/export.csv",
-                     "/api/o/compliance/complaints-register.csv", "/api/o/shadow-mode/export"}, paths
+                     "/api/o/compliance/complaints-register.csv", "/api/o/shadow-mode/export", "/api/o/renewal-review.csv"}, paths
 
 
 @pytest.mark.asyncio

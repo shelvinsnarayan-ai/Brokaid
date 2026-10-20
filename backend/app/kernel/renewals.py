@@ -789,9 +789,11 @@ async def past_due_review(store, tid) -> list[dict]:
                 async for r in wrap(store).renewals.find({"lapse_hold": True, "stage": {"$nin": list(TERMINAL)}}, {"_id": 0})]
 
 
-async def confirm_lapse(store, tid, r, *, by, role) -> dict:
+async def confirm_lapse(store, tid, r, *, by, role, reason: str | None = None) -> dict:
     if not r.get("lapse_hold"):
         raise Bad("This renewal isn't waiting for a lapse decision.")
+    await _event(store, tid, "RenewalLapseConfirmed", {"renewal_id": r["renewal_id"], "envelope_id": r["envelope_id"],
+                 "reason": reason, "test": bool(r.get("test"))}, f"renewal_lapse_confirmed:{r['renewal_id']}", by, role)
     return await lapse(store, tid, r, by=by, role=role)
 
 

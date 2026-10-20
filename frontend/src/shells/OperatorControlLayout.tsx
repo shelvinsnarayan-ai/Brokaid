@@ -1,3 +1,4 @@
+import { authCall } from "../lib/authApi";
 /**
  * OperatorControlLayout — top bar + left rail + keyboard shortcuts
  * overlay ('?'). Wraps all /o/* routes for phase 7.
@@ -30,6 +31,7 @@ const NAV_GROUPS = [
     { to: "/o/shadow-mode", label: "Shadow Mode",  kbd: "g s" },
     { to: "/o/import",      label: "Import",       kbd: "g m" },
     { to: "/o/bank",        label: "Bank & trust", kbd: "g b" },
+    { to: "/o/renewal-review", label: "Renewal review", kbd: "g x" },
   ] },
   { title: "Compliance", roles: ["ae", "principal", "operator"], items: [
     { to: "/o/compliance",  label: "Compliance",   kbd: "g k" },
@@ -42,7 +44,7 @@ const NAV_GROUPS = [
 ];
 const ROUTE_ROLES: [string, string[]][] = [
   ["/o/governance", ["operator"]], ["/o/export", ["operator"]], ["/o/chase", ["operator"]],
-  ["/o/brief", ["principal", "operator"]], ["/o/weekly-pack", ["principal", "operator"]], ["/o/shadow-mode", ["principal", "operator"]], ["/o/import", ["principal", "operator"]], ["/o/bank", ["principal", "operator"]], ["/o/compliance", ["ae", "principal", "operator"]],
+  ["/o/brief", ["principal", "operator"]], ["/o/weekly-pack", ["principal", "operator"]], ["/o/shadow-mode", ["principal", "operator"]], ["/o/import", ["principal", "operator"]], ["/o/bank", ["principal", "operator"]], ["/o/compliance", ["ae", "principal", "operator"]], ["/o/renewal-review", ["principal", "operator"]],
 ];
 const allowed = (p: string, role: string | undefined) => {
   if (p === "/o" || p === "/o/") return role === "principal" || role === "operator";
@@ -62,6 +64,11 @@ export function OperatorControlLayout() {
   const role = session?.session.active_role;
   const isPrincipal = role === "principal" || role === "operator";
   const NAV = NAV_GROUPS.filter((g) => !g.roles || g.roles.includes(role || ""));
+  const [reviewBadge, setReviewBadge] = useState<number | null>(null);
+  useEffect(() => {
+    if (role !== "operator" && role !== "principal") return;
+    authCall<{ badge: number }>("o/renewal-review/count", undefined, "GET").then((d) => setReviewBadge(d.badge)).catch(() => setReviewBadge(null));
+  }, [role, location.pathname]);
 
   const [tried, setTried] = useState(false);
   useEffect(() => { if (!session) void load().finally(() => setTried(true)); }, [session, load]);
@@ -91,7 +98,7 @@ export function OperatorControlLayout() {
       if (gPrefix) {
         const map: Record<string, string> = {
           o: "/o", q: "/o/queue", b: "/o/brief", c: "/o/clients", w: "/o/weekly-pack", r: "/o/renewals", i: "/o/inbox",
-          s: "/o/shadow-mode", e: "/o/export", h: "/o/chase", g: "/o/governance",
+          s: "/o/shadow-mode", e: "/o/export", h: "/o/chase", g: "/o/governance", x: "/o/renewal-review",
         };
         const dest = map[e.key.toLowerCase()];
         if (dest && !allowed(dest, role)) { setGPrefix(false); return; }
@@ -159,7 +166,10 @@ export function OperatorControlLayout() {
               className={({ isActive }) => `ledger-rail__link ${isActive ? "is-active" : ""}`}
               data-testid={`rail-link-${n.label.toLowerCase().replace(/\s+/g, "-")}`}
             >
-              <span>{n.label}</span>
+              <span>{n.label}{n.to === "/o/renewal-review" && reviewBadge ? (
+                <span className="ledger-rail__badge" data-testid="rail-renewal-review-badge"
+                  style={{ marginLeft: 6, background: "#E5484D", color: "#fff", borderRadius: 999, padding: "0 7px", fontSize: 11 }}>{reviewBadge}</span>
+              ) : null}</span>
               <span className="ledger-rail__kbd">{n.kbd}</span>
             </NavLink>
             ))}

@@ -114,14 +114,16 @@ function LapseDecisions({ r, role, act, load, onChanged }: { r: any; role?: stri
   const [err, setErr] = useState<string | null>(null);
   const confirmLapse = async () => {
     setErr(null);
-    try { await api(`o/renewals/${r.renewal_id}/confirm-lapse`, {}); load(); onChanged(); } catch (e: any) { setErr(e.message); }
+    const reason = window.prompt("Reason for confirming the lapse (recorded in the ledger):") || "";
+    if (reason.trim().length < 3) { setErr("Enter a reason (at least 3 characters)."); return; }
+    try { await api(`o/renewals/${r.renewal_id}/confirm-lapse`, { reason }); load(); onChanged(); } catch (e: any) { setErr(e.message); }
   };
   return (
     <>
       {r.lapse_hold ? (
         <div className="imp-card" data-testid="renewal-past-due-hold">
           <p className="imp-warn">This renewal passed expiry while the brokerage was suspended. It wasn't lapsed automatically.</p>
-          {role === "principal" || role === "operator"
+          {role === "operator"
             ? <button className="k-btn" onClick={confirmLapse} data-testid="renewal-confirm-lapse">Confirm lapse</button> : null}
         </div>
       ) : null}

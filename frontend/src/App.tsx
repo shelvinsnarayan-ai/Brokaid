@@ -27,6 +27,7 @@ import { DecisionCard } from "./pages/operator/DecisionCard";
 import { DailyBrief } from "./pages/operator/DailyBrief";
 import { WeeklyPack } from "./pages/operator/WeeklyPack";
 import { Renewals } from "./pages/operator/Renewals";
+import RenewalReview from "./pages/operator/RenewalReview";
 import { Inbox } from "./pages/operator/Inbox";
 import { AlertsPage } from "./components/alerts/AlertsPage";
 import { InboxThread } from "./pages/operator/InboxThread";
@@ -130,6 +131,7 @@ export function App() {
           <Route path="brief" element={<DailyBrief />} />
           <Route path="weekly-pack" element={<WeeklyPack />} />
           <Route path="renewals" element={<Renewals />} />
+          <Route path="renewal-review" element={<RenewalReview />} />
           <Route path="inbox" element={<Inbox />} />
           <Route path="alerts" element={<AlertsPage surface="operator" />} />
           <Route path="inbox/:thread_id" element={<InboxThread />} />

@@ -186,12 +186,17 @@ async def past_due(request: Request, s=Depends(require_operator_session)) -> dic
     return {"renewals": await rn.past_due_review(_store(request), s.tenant_id)}
 
 
+class ConfirmLapseBody(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
 @router.post("/renewals/{renewal_id}/confirm-lapse")
-async def confirm_lapse(renewal_id: str, request: Request, s=Depends(require_operator_session)) -> dict:
-    if s.active_role not in ("operator", "principal"):
-        raise HTTPException(status_code=403, detail="operator_or_principal_only")
+async def confirm_lapse(renewal_id: str, body: ConfirmLapseBody, request: Request, s=Depends(require_operator_session)) -> dict:
+    """R2.6/R2.7: the Operator confirms a lapse held after a suspension, with a reason (ledgered)."""
+    if s.active_role != "operator":
+        raise HTTPException(status_code=403, detail="operator_only")
     store, r = _store(request), await _load(request, s, renewal_id)
-    await _run(rn.confirm_lapse(store, s.tenant_id, r, by=s.user_id, role=s.active_role))
+    await _run(rn.confirm_lapse(store, s.tenant_id, r, by=s.user_id, role=s.active_role, reason=body.reason.strip()))
     return await _detail(store, s.tenant_id, await rn.get(store, s.tenant_id, renewal_id))
 
 

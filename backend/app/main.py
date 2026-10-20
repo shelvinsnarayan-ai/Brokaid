@@ -190,6 +190,7 @@ def create_app(
     from app.routes.o_bank import router as o_bank_router
     from app.routes.o_renewals import c_router as c_renewals_router
     from app.routes.o_renewals import router as o_renewals_router
+    from app.routes.o_renewal_review import router as o_renewal_review_router
     from app.routes.o_compliance import c_router as c_compliance_router
     from app.routes.o_compliance import router as o_compliance_router
     from app.routes.c_members import router as c_members_router
@@ -228,7 +229,7 @@ def create_app(
     for r in (
         build_info_router,
         c_envelope_router,
-        auth_login_router, o_invites_router, o_users_router, o_import_router, o_bank_router, c_money_router, o_renewals_router, c_renewals_router, o_compliance_router, c_compliance_router, c_members_router, platform_router,
+        auth_login_router, o_invites_router, o_users_router, o_import_router, o_bank_router, c_money_router, o_renewals_router, o_renewal_review_router, c_renewals_router, o_compliance_router, c_compliance_router, c_members_router, platform_router,
         c_ask_router, c_cert_router, c_claims_router, c_me_router,
         c_next_action_router, c_pending_quote_router, c_scene_router,
         client_360_router, client_preferences_router,
