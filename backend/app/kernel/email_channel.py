@@ -223,11 +223,13 @@ class BillingPaused(Exception):
 
 
 async def resend_send(*, to: str, subject: str, html: str, text: str, from_name: str,
-                      reply_to: str | None = None) -> str:
+                      reply_to: str | None = None, attachments: list[dict] | None = None) -> str:
     _assert_safe_email(subject, html)
     payload = {"to": [to], "subject": subject, "html": html, "text": text, "from_name": from_name}
     if reply_to:
         payload["contact_email"] = reply_to
+    if attachments:  # Resend format: [{"filename", "content" (base64)}]
+        payload["attachments"] = [{"filename": a["filename"], "content": a["content"]} for a in attachments]
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(f"{EMAIL_BASE_URL}/api/v1/email/send",
                                  headers={"X-Email-Key": os.environ["EMERGENT_EMAIL_KEY"]}, json=payload)

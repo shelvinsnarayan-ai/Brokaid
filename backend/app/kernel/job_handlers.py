@@ -67,6 +67,12 @@ async def _push_send(store, job: dict) -> None:
     await push_channel.run_once(store)
 
 
+@jobs.handler("docemail.send")
+async def _docemail_send(store, job: dict) -> None:
+    from app.kernel import doc_email
+    await doc_email.run_once(store)
+
+
 @jobs.handler("intake.chain")
 async def _intake(store, job: dict) -> None:
     from app.routes.c_scene import intake_job

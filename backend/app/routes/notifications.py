@@ -84,6 +84,7 @@ async def read_one(notification_id: str, request: Request, session: Session = De
 class PrefsBody(BaseModel):
     email: bool = False
     push: bool = False  # stored for phase C; push is not sent yet
+    documents_email: bool | None = None  # R2.5: "Documents by email" (separate from alert emails)
 
 
 @router.get("/prefs")
@@ -100,7 +101,8 @@ async def put_prefs(body: PrefsBody, request: Request, session: Session = Depend
     async with use_tenant(session.tenant_id):
         await safe.notification_prefs.update_one(
             {"user_id": session.user_id},
-            {"$set": {"email": body.email, "push": body.push, "updated_at": datetime.now(timezone.utc)}}, upsert=True)
+            {"$set": {"email": body.email, "push": body.push, "updated_at": datetime.now(timezone.utc),
+                      **({"documents_email": body.documents_email} if body.documents_email is not None else {})}}, upsert=True)
     return await get_prefs(request, session)
 
 

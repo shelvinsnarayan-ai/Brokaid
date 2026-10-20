@@ -190,7 +190,7 @@ def _bucket(now: datetime, seconds: int) -> str:
     return str(int(now.timestamp()) // seconds)
 
 
-PERIODIC = (("notify.periodic", 300, True), ("renewals.tick", 900, True), ("compliance.tick", 900, True), ("backup.nightly", 86400, False), ("backup.drill", 7 * 86400, False), ("email.send", 60, False), ("push.send", 60, False), ("jobs.sweep", 60, False))
+PERIODIC = (("notify.periodic", 300, True), ("renewals.tick", 900, True), ("compliance.tick", 900, True), ("backup.nightly", 86400, False), ("backup.drill", 7 * 86400, False), ("email.send", 60, False), ("docemail.send", 60, False), ("push.send", 60, False), ("jobs.sweep", 60, False))
 
 
 async def scheduler_tick(store, me: str, now: datetime | None = None) -> int:
@@ -247,7 +247,7 @@ async def summary(store, tenant_id: str) -> dict:
 
 
 LABELS = {"intake.chain": "Client change request", "notify.event": "Alert", "notify.periodic": "Reminder checks",
-          "email.send": "Email sending", "push.send": "Push sending", "jobs.sweep": "Recovery sweep",
+          "email.send": "Email sending", "docemail.send": "Document email sending", "push.send": "Push sending", "jobs.sweep": "Recovery sweep",
           "selftest.poison": "Self-test", "selftest.count": "Self-test"}
 
 

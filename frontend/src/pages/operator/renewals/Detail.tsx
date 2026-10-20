@@ -65,6 +65,8 @@ export function RenewalDetail({ id, role, mode, onClose, onChanged }: { id: stri
       ) : null}
       {["quotes_in", "recommendation_ready"].includes(r.current) ? <TmdCheck r={r as any} role={role} act={act} /> : null}
       {["quotes_in", "recommendation_ready"].includes(r.current) ? <Recommend d={d} role={role} act={act} /> : null}
+      <ComparisonEmails rows={(d as any).comparison_emails || []} canResend={can && ["client_decision", "paid"].includes(r.current)}
+        onResend={() => act("resend-comparison")} />
       {d.payable ? <p className="imp-muted" data-testid="renewal-payable">Payment: CRN {d.payable.crn} · {aud(d.payable.amount)} · <b>{d.payable.state}</b></p> : null}
       {d.packet ? (
         <div data-testid="renewal-packet">
@@ -74,5 +76,33 @@ export function RenewalDetail({ id, role, mode, onClose, onChanged }: { id: stri
         </div>
       ) : null}
     </section>
+  );
+}
+
+const SKIP: Record<string, string> = {
+  "skipped:email_disabled": "email is off for this deployment", "skipped:pref_off": "the client turned document emails off",
+  "skipped:example_address": "test address (.example)", "skipped:not_allowlisted": "address not on the allow-list",
+  "skipped:no_address": "no email address on file", held: "held for quiet hours (sends 7:00 am Sydney)",
+  pending: "queued", retry: "retrying", sending: "sending", failed: "failed after retries",
+};
+
+function ComparisonEmails({ rows, canResend, onResend }: { rows: any[]; canResend: boolean; onResend: () => void }) {
+  if (!rows.length && !canResend) return null;
+  const sent = rows.filter((x) => x.status === "sent");
+  const when = (t: string) => new Date(t).toLocaleString("en-AU", { timeZone: "Australia/Sydney", dateStyle: "medium", timeStyle: "short" });
+  return (
+    <div data-testid="renewal-comparison-emails">
+      {sent.length ? (
+        <p className="imp-muted" data-testid="renewal-comparison-emailed">
+          Comparison emailed to {[...new Set(sent.map((x) => x.name))].join(", ")} at {when(sent[0].sent_at)}
+        </p>
+      ) : null}
+      {rows.filter((x) => x.status !== "sent").map((x, i) => (
+        <p key={i} className="imp-muted" data-testid={`renewal-comparison-email-skip-${i}`}>
+          Comparison email to {x.name}: {SKIP[x.status] || x.status.replace("skipped:", "not sent — ")}
+        </p>
+      ))}
+      {canResend ? <button className="k-btn" onClick={onResend} data-testid="renewal-resend-comparison">Resend comparison email</button> : null}
+    </div>
   );
 }

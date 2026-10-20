@@ -1,6 +1,8 @@
 """R1.6 — /api/o/renewals (pipeline, staff) and /api/c/renewals (client)."""
 from __future__ import annotations
 
+import uuid
+
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -8,7 +10,7 @@ from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from app.db.tenant_safe import wrap
-from app.kernel import compliance_docs, holidays, payments
+from app.kernel import compliance_docs, doc_email, holidays, payments
 from app.kernel import renewals as rn
 from app.kernel.authority import require_authority
 from app.kernel.tenant_ctx import use_tenant
@@ -172,7 +174,26 @@ async def _detail(store, tid, r) -> dict:
     pay = await rn.payable(store, tid, r)
     return {"renewal": {**r, "stage_label": rn.LABEL[r["stage"]], "current": rn.cur(r)}, "comparison": rn.comparison(r, policy),
             "payable": pay, "packet": rn.packet(r, policy, pay) if r.get("new_policy_id") else None,
-            "general_advice_warning": (await compliance_docs.settings(store, tid))["gaw_text"]}
+            "general_advice_warning": (await compliance_docs.settings(store, tid))["gaw_text"],
+            "comparison_emails": await doc_email.status_for(store, tid, r["renewal_id"])}
+
+
+@router.post("/renewals/{renewal_id}/resend-comparison")
+async def resend_comparison(renewal_id: str, request: Request, s=Depends(require_operator_session)) -> dict:
+    """R2.5: AE/Principal re-queues the comparison email (ledgered; at most once per 10 minutes per renewal)."""
+    if s.active_role not in ("ae", "principal"):
+        raise HTTPException(status_code=403, detail="ae_role_required")
+    store, r = _store(request), await _load(request, s, renewal_id)
+    if rn.cur(r) not in ("client_decision", "paid"):
+        raise HTTPException(status_code=409, detail="The options haven't been sent to the client yet.")
+    since = datetime.now(timezone.utc) - timedelta(seconds=doc_email.RESEND_THROTTLE_S)
+    async with use_tenant(s.tenant_id):
+        if await wrap(store).events.find_one({"type": "ComparisonEmailResent", "payload.renewal_id": renewal_id, "created_at": {"$gte": since}}):
+            raise HTTPException(status_code=429, detail="Already resent in the last 10 minutes. Try again later.")
+    queued = await doc_email.enqueue_comparison(store, s.tenant_id, r, by=s.user_id, resend=True)
+    await rn._event(store, s.tenant_id, "ComparisonEmailResent", {"renewal_id": renewal_id, "envelope_id": r["envelope_id"],
+                    "queued": len(queued)}, f"cmp_resend:{renewal_id}:{uuid.uuid4()}", s.user_id, s.active_role)
+    return await _detail(store, s.tenant_id, await _load(request, s, renewal_id))
 
 
 @router.get("/renewals/{renewal_id}")

@@ -6,7 +6,7 @@ import { PushControl } from "./PushControl";
 
 const API = (import.meta as any).env.VITE_API_BASE || "";
 
-interface Prefs { in_app: boolean; email: boolean; push: boolean; quiet_hours: { start: string; end: string } }
+interface Prefs { in_app: boolean; email: boolean; push: boolean; documents_email?: boolean; quiet_hours: { start: string; end: string } }
 
 function Toggle({ id, label, on, note, onChange }: { id: string; label: string; on: boolean; note: string; onChange?: (v: boolean) => void }) {
   return (
@@ -22,19 +22,20 @@ function Toggle({ id, label, on, note, onChange }: { id: string; label: string; 
   );
 }
 
-function PrefsCard() {
+function PrefsCard({ surface }: { surface: "client" | "operator" }) {
   const [p, setP] = useState<Prefs | null>(null);
   useEffect(() => {
     void fetch(`${API}/api/notifications/prefs`, { credentials: "include" }).then((r) => (r.ok ? r.json() : null)).then(setP);
   }, []);
   if (!p) return null;
-  const setEmail = async (email: boolean) => {
+  const save = async (patch: Partial<Prefs>) => {
     const r = await fetch(`${API}/api/notifications/prefs`, {
       method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, push: p.push }),
+      body: JSON.stringify({ email: p.email, push: p.push, ...patch }),
     });
     if (r.ok) setP(await r.json());
   };
+  const setEmail = (email: boolean) => save({ email });
   return (
     <section id="settings" className="brokaid-alerts__prefs" data-testid="alerts-prefs">
       <h2>Notification settings</h2>
@@ -42,6 +43,11 @@ function PrefsCard() {
         <Toggle id="in-app" label="In the app" on note="Always on" />
         <Toggle id="email" label="Email" on={p.email} onChange={setEmail}
           note={p.email ? "On. We email you about new alerts." : "Off. Turn on to get alerts by email."} />
+        {surface === "client" ? (
+          <Toggle id="documents-email" label="Documents by email" on={p.documents_email !== false}
+            onChange={(documents_email) => save({ documents_email })}
+            note={p.documents_email !== false ? "On. We email you documents like your renewal options PDF." : "Off. Documents stay in the app only."} />
+        ) : null}
         <PushControl available={!!(p as any).push_available} />
       </ul>
       <p className="brokaid-pref__note" data-testid="alerts-quiet-hours">
@@ -68,7 +74,7 @@ export function AlertsPage({ surface }: { surface: "client" | "operator" }) {
           data-testid="alerts-mark-all">Mark all read</button>
       </header>
       <AlertsList items={items} testid="alerts-list" />
-      <PrefsCard />
+      <PrefsCard surface={surface} />
     </section>
   );
 }

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import logging
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -22,6 +23,8 @@ from app.kernel.policy_field_guard import UnmatchedPolicyField, _norm, validate_
 from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
 from app.kernel.trail_mongo import DuplicateIdempotencyKey
+
+log = logging.getLogger(__name__)
 
 LABEL = {"upcoming": "Upcoming", "info_requested": "Info requested", "info_received": "Info received",
          "market": "Market (quotes requested)", "quotes_in": "Quotes in", "recommendation_ready": "Recommendation ready",
@@ -493,7 +496,13 @@ async def send_to_client(store, tid, r, *, by, role, now=None) -> dict:
     async with use_tenant(tid):
         await wrap(store).renewals.update_one({"renewal_id": r["renewal_id"]}, {"$set": {"recommendation.released_at": _now(now)}})
     rec["released_at"] = _now(now)
-    return await _move(store, tid, r, "client_decision", by=by, role=role, now=now)
+    moved = await _move(store, tid, r, "client_decision", by=by, role=role, now=now)
+    try:  # R2.5: the comparison PDF by email to every member; never blocks the in-app delivery
+        from app.kernel import doc_email
+        await doc_email.enqueue_comparison(store, tid, await get(store, tid, r["renewal_id"]), by=by)
+    except Exception as e:  # noqa: BLE001
+        log.warning("comparison email not queued: %s", type(e).__name__)
+    return moved
 
 
 # ---- client ----

@@ -124,3 +124,11 @@ Ongoing: the nightly backup runs automatically, and a weekly restore drill runs 
 2. On `/login`, in **Demo sign-in (preview only)**, tap **Pip Principal · BurMac sandbox (test)**. This lands on Compliance.
 3. Fill in Business details with made-up values (e.g. ABN `51 824 753 556`, ACN `004 085 616`), save, and watch the blanks count fall. Edit wording, compare versions, then approve and make each document live.
 Never enter real BurMac details in the sandbox.
+
+## 10. Renewal comparison by email (R2.5)
+
+- When an AE presses **Send to client** on a renewal, brokAId queues one email per client member who can view the client (owner and bookkeeper). It carries the same comparison PDF as the in-app download (same bytes and hash). It has no premiums, CRN or bank details in the body.
+- **Nothing is emailed in production until the owner sets `EMAIL_ENABLED=true`.** Production currently has it off, so every row is recorded as `skipped:email_disabled`. The in-app delivery still stands.
+- The usual gates apply: the tenant allow-list, reserved `.example` addresses skipped, quiet hours (held until 07:00 Sydney), retries, and `email_override` for demo personas.
+- Clients can turn **Documents by email** off in You → Notifications (it's on by default, and separate from alert emails).
+- The staff renewal detail shows "Comparison emailed to … at …" or the skip reason. AEs can press **Resend comparison email**, at most once every 10 minutes. Each resend is logged in the ledger.

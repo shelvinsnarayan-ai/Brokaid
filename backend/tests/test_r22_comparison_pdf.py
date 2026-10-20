@@ -62,7 +62,8 @@ async def test_comparison_pdf(seeded, app_client, mongo_db):
     safe = wrap(mongo_db)
     async with use_tenant(tid):
         r = await safe.renewals.find_one({"renewal_id": rid}, {"_id": 0})
-        n = await safe.events.count_documents({"type": "ComparisonDocumentGenerated", "payload.renewal_id": rid})
+        n = await safe.events.count_documents({"type": "ComparisonDocumentGenerated", "payload.renewal_id": rid,
+                                             "payload.user_id": {"$ne": ck["cass_id"]}})  # R2.5: the send step renders it once for the email
         bea = await safe.users.find_one({"email": "bookkeeper@fictionalclient.example"})
     assert n == 1  # one event per (renewal, hash, user)
     c = await cp.content(mongo_db, tid, r)

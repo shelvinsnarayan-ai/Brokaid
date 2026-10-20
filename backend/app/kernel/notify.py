@@ -135,7 +135,8 @@ async def _prefs(safe, user_id: str) -> dict:
     row = await safe.notification_prefs.find_one({"user_id": user_id}) or {}
     user = await safe.users.find_one({"user_id": user_id}) or {}
     base = {**DEFAULT_PREFS, "email": user.get("kind") == "operator"}
-    return {**base, **{k: row[k] for k in ("email", "push") if k in row}, "in_app": True}
+    return {**base, "documents_email": user.get("kind") != "operator",  # R2.5: client document emails default ON
+            **{k: row[k] for k in ("email", "push", "documents_email") if k in row}, "in_app": True}
 
 
 async def deliver(store, tenant_id: str, user_id: str, *, kind: str, title: str, many: str, body: str,
