@@ -80,6 +80,20 @@ async def demo_kai_reset(request: Request) -> dict:
             "envelopes_abandoned": len(r["kai"]["envelopes_abandoned"])}
 
 
+@router.post("/demo/sandbox-reset")
+async def demo_sandbox_reset(request: Request) -> dict:
+    """Preview-only: reset burmac-sandbox to blank, run as Pip Principal (ledgered SandboxReset)."""
+    from app.kernel import sandbox
+    store = auth_store(request)
+    sb = await sandbox.find(store)
+    try:
+        await sandbox.require(store, (sb or {}).get("tenant_id"))
+    except sandbox.NotSandbox:
+        raise HTTPException(status_code=404, detail="not_found") from None
+    pip = await store.users.find_one({"email": sandbox.STAFF[0]["email"], "tenant_id": sb["tenant_id"]})  # tenant-safe: scoped
+    return await sandbox.reset(store, sb["tenant_id"], by=pip["user_id"], role="principal")
+
+
 @router.post("/demo/kai-renewal")
 async def demo_kai_renewal(request: Request) -> dict:
     """Preview-only: Kai's Tools-and-equipment renewal driven to the click-to-accept step (never accepted)."""

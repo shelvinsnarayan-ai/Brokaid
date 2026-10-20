@@ -123,8 +123,24 @@ class SectionBody(BaseModel):
 @router.get("/business-details")
 async def get_business_details(request: Request, s=Depends(_lead)) -> dict:
     from app.kernel import business_details as bd
-    return {"details": await bd.current(_store(request), s.tenant_id),
+    from app.kernel import sandbox
+    try:
+        await sandbox.require(_store(request), s.tenant_id)
+        is_sandbox = True
+    except sandbox.NotSandbox:
+        is_sandbox = False
+    return {"details": await bd.current(_store(request), s.tenant_id), "sandbox": is_sandbox,
             "fields": [{"key": k, "label": lab, "help": h, "max": n} for k, lab, h, n in bd.FIELDS]}
+
+
+@router.post("/sandbox/reset")
+async def sandbox_reset(request: Request, s=Depends(_lead)) -> dict:
+    """R2.4: burmac-sandbox (TEST tenant, dev mode) only — 404 for every other tenant."""
+    from app.kernel import sandbox
+    try:
+        return await sandbox.reset(_store(request), s.tenant_id, by=s.user_id, role=s.active_role)
+    except sandbox.NotSandbox:
+        raise HTTPException(status_code=404, detail="not_found") from None
 
 
 @router.put("/business-details")

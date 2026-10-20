@@ -194,7 +194,7 @@ async def current(store, tid: str) -> dict:
     return row or {"version": 0, "fields": {k: "" for k in KEYS}}
 
 
-async def save(store, tid: str, body: dict, *, by: str, role: str) -> dict:
+async def save(store, tid: str, body: dict, *, by: str, role: str, reason: str = "edit") -> dict:
     clean = validate(body)
     prev = await current(store, tid)
     changed = [k for k in KEYS if clean.get(k, "") != prev["fields"].get(k, "")]
@@ -211,7 +211,7 @@ async def save(store, tid: str, body: dict, *, by: str, role: str) -> dict:
             "acn": clean["acn"] or None, "afsl": clean["afsl_number"] if clean["licence_type"] == "afsl" and clean["afsl_number"] else None,
             "ar_number": licence_line(clean) if clean["licence_type"] == "ar" else None}})
         await append_via_dispatch(store, tid, "BusinessDetailsUpdated", actor={"kind": "human", "id": by, "name": role},
-                                  payload={"version": v, "changed": changed, "sha256": sha}, idempotency_key=f"business_details:{v}")
+                                  payload={"version": v, "changed": changed, "sha256": sha, "reason": reason}, idempotency_key=f"business_details:{v}")
     row.pop("_id", None)
     return row
 

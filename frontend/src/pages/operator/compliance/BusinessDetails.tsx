@@ -4,6 +4,21 @@ import { API, get } from "./api";
 type Field = { key: string; label: string; help: string; max: number };
 const LONG = new Set(["address", "classes", "broker_fees", "other_benefits", "staff_pay", "associations", "pi_statement", "complaints_officer", "privacy_officer", "overseas"]);
 const AR = new Set(["ar_number", "licensee_name", "licensee_afsl"]);
+const SANDBOX_CONFIRM = "This clears the made-up business details and puts all 5 drafts back to blank. Continue?";
+
+// Preview-only (compiled out of production builds): the burmac-sandbox TEST tenant's reset.
+function SandboxReset({ onDone, setMsg }: { onDone: () => void; setMsg: (m: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  async function go() {
+    if (!window.confirm(SANDBOX_CONFIRM)) return;
+    setBusy(true);
+    const r = await fetch(`${API}/api/o/compliance/sandbox/reset`, { method: "POST", credentials: "include" }).catch(() => null);
+    setBusy(false);
+    if (r?.ok) { setMsg("Sandbox reset: business details cleared and all 5 drafts are blank again."); onDone(); }
+    else setMsg(`Reset failed (${r?.status ?? "network"}).`);
+  }
+  return <button className="k-btn" disabled={busy} onClick={go} data-testid="sandbox-reset">{busy ? "Resetting…" : "Reset sandbox"}</button>;
+}
 
 export function BusinessDetails({ role, onSaved }: { role?: string; onSaved: () => void }) {
   const [fields, setFields] = useState<Field[]>([]);
@@ -12,9 +27,10 @@ export function BusinessDetails({ role, onSaved }: { role?: string; onSaved: () 
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [sandbox, setSandbox] = useState(false);
   const lead = role === "principal" || role === "operator";
   useEffect(() => {
-    if (lead) get<any>("o/compliance/business-details").then((d) => { setFields(d.fields); setVals(d.details.fields); setVersion(d.details.version); }).catch(() => {});
+    if (lead) get<any>("o/compliance/business-details").then((d) => { setFields(d.fields); setVals(d.details.fields); setVersion(d.details.version); setSandbox(!!d.sandbox); }).catch(() => {});
   }, [lead]);
   if (!lead) return null;
   const lt = vals.licence_type || "";
@@ -39,6 +55,7 @@ export function BusinessDetails({ role, onSaved }: { role?: string; onSaved: () 
         <h2 className="imp-h2">Business details</h2>
         <span className="imp-muted" data-testid="business-details-version">{version ? `Version ${version}` : "Not filled in yet"}</span>
         <button className="k-btn" onClick={() => setOpen(!open)} data-testid="business-details-toggle">{open ? "Hide" : "Fill in"}</button>
+        {import.meta.env.BROKAID_DEMO_SIGNIN && sandbox ? <SandboxReset onDone={() => { setVals({}); setVersion((v) => v + 1); onSaved(); }} setMsg={setMsg} /> : null}
       </div>
       <p className="imp-muted">These fill the blanks in your draft documents and the licence line on client documents. brokAId checks formats (like the ABN checksum) but can't confirm the details are right — your licensee/compliance adviser should.</p>
       {open ? (

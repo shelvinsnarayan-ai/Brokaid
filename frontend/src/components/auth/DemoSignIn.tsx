@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 const API = import.meta.env.VITE_API_BASE || "";
 
 type Persona = { slug: string; name: string; seat: string; email: string; route: string };
+export const SANDBOX_CONFIRM = "This clears the made-up business details and puts all 5 drafts back to blank. Continue?";
 
 // Preview-only: compiled out unless ENVIRONMENT is development/preview/test, and hidden unless the backend lists personas.
 export function DemoSignIn() {
@@ -70,6 +71,19 @@ export function DemoSignIn() {
             })}>
             <strong>{busy === "reset" ? "Resetting…" : "Reset Kai"}</strong>
             <span>Hilux back on the motor policy</span>
+          </button>
+        </div>
+      ) : null}
+      {list.some((p) => p.slug === "sandbox-principal") ? (
+        <div className="demo-signin__grid">
+          <button type="button" className="auth-btn auth-btn--ghost demo-signin__btn" disabled={busy !== null}
+            data-testid="demo-signin-sandbox-reset"
+            onClick={() => {
+              if (!window.confirm(SANDBOX_CONFIRM)) return;
+              void action("sandbox", "sandbox-reset", () => { setNote("BurMac sandbox reset: all 5 drafts are blank again."); setBusy(null); });
+            }}>
+            <strong>{busy === "sandbox" ? "Resetting…" : "Reset sandbox"}</strong>
+            <span>BurMac sandbox back to blank drafts</span>
           </button>
         </div>
       ) : null}

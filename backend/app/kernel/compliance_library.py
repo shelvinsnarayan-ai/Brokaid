@@ -73,7 +73,7 @@ def compose(kind: str, details: dict, overrides: dict, version: int) -> tuple[li
                 body = body.replace(ph, fill_p[k])
         secs[i] = (h, body)
         raw.append(blank)
-    used = [k for k, ph in T.P.items() if any(ph in b for b in raw)]
+    used = [k for k, ph in T.P.items() if k not in bd.AUTO and any(ph in b for b in raw)]  # date/version are automatic
     left = sorted(set(_BLANK.findall(_plain(secs))))
     known_left = [k for k in used if T.P[k] in left]
     unknown = [x for x in left if x not in T.P.values()]
@@ -250,7 +250,7 @@ async def diff(store, tid, doc_id, a: int, b: int) -> list[dict]:
 
 async def listing(store, tid) -> list[dict]:
     async with use_tenant(tid):
-        rows = [r async for r in wrap(store).compliance_library.find({"status": {"$ne": "superseded"}}, {"_id": 0}).sort("created_at", 1)]
+        rows = [r async for r in wrap(store).compliance_library.find({"status": {"$nin": ["superseded", "withdrawn"]}}, {"_id": 0}).sort("created_at", 1)]
     for r in rows:
         b = r.get("blanks") or {"total": 0, "filled": 0, "remaining": []}
         r["blanks"] = {"total": 0, "filled": 0, "remaining": []} if r.get("final_path") else b

@@ -62,7 +62,7 @@ async def test_fill_progress_approve_live(app_client, mongo_db):
     db, tid = mongo_db, await _tenant(mongo_db)
     by = await _by(db, tid)
     fsg = by["FSG"]
-    assert fsg["blanks"]["filled"] == 2 and fsg["blanks"]["total"] == 16  # only date + version filled automatically
+    assert fsg["blanks"]["filled"] == 0 and fsg["blanks"]["total"] == 14  # date + version are automatic, not counted
     with pytest.raises(lib.Bad, match="blanks still to fill"):
         await lib.approve(db, tid, fsg["doc_id"], reviewer_name="Rita", confirmed=True, by="p", role="principal")
     async with use_tenant(tid):
@@ -83,7 +83,7 @@ async def test_fill_progress_approve_live(app_client, mongo_db):
     half = await http.put("/api/o/compliance/business-details", headers=pr, json={"legal_name": GOOD["legal_name"], "abn": GOOD["abn"]})
     assert half.status_code == 200 and len(half.json()["regenerated"]) == 5
     fsg = (await _by(db, tid))["FSG"]
-    assert fsg["version"] == 2 and 2 < fsg["blanks"]["filled"] < fsg["blanks"]["total"]
+    assert fsg["version"] == 2 and 0 < fsg["blanks"]["filled"] < fsg["blanks"]["total"]
     ok = await http.put("/api/o/compliance/business-details", headers=pr, json=GOOD)
     assert ok.status_code == 200
     async with use_tenant(tid):

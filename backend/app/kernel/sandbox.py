@@ -48,3 +48,59 @@ async def ensure(store) -> dict:
         await _ensure_operator_mongo(safe, tid, b["brokerage_id"], spec)
     made = await lib.generate_drafts(store, tid, by="system", role="r23-sandbox")
     return {"tenant_id": tid, "created_drafts": [m["kind"] for m in made]}
+
+
+class NotSandbox(Exception):
+    pass
+
+
+async def require(store, tid: str | None) -> dict:
+    """Only the burmac-sandbox TEST tenant, in dev mode. Everything else (BurMac, Harbourline, real/wizard tenants) is refused."""
+    from app.kernel import devmode
+    t = await store.tenants.find_one({"tenant_id": tid}) if tid else None  # tenant-safe: system-only — tenant registry read
+    if not (devmode.dev_mode() and t and t.get("slug") == SLUG and t.get("sandbox_of") == "burmac" and t.get("test")
+            and await devmode.is_demo_tenant(store, tid)):
+        raise NotSandbox()
+    return t
+
+
+async def reset(store, tid: str, *, by: str, role: str) -> dict:
+    """R2.4: back to blank. Details → a new empty version; approved/live docs withdrawn; fresh blank DRAFT versions. Ledger-only adds."""
+    from app.kernel import business_details as bd
+    await require(store, tid)
+    safe = wrap(store)
+    prev = await bd.current(store, tid)
+    cleared = any(prev["fields"].get(k) for k in bd.KEYS)
+    if cleared:
+        await bd.save(store, tid, {k: "" for k in bd.KEYS}, by=by, role=role, reason="sandbox_reset")
+    async with use_tenant(tid):
+        await safe.system("tenants").update_one({"tenant_id": tid}, {"$set": dict.fromkeys(
+            ("legal_name", "trading_name", "abn", "acn", "afsl", "ar_number"))})
+        rows = [r async for r in safe.compliance_library.find({"status": {"$in": ["draft", "approved", "live"]}}, {"_id": 0})]
+    withdrawn, redrafted = [], []
+    for r in rows:
+        if r["status"] in ("approved", "live"):
+            async with use_tenant(tid):
+                await safe.compliance_library.update_one({"doc_id": r["doc_id"]}, {"$set": {"status": "withdrawn", "withdrawn_at": datetime.now(timezone.utc)}})
+                if r["kind"] == "FSG":
+                    await safe.disclosure_docs.update_many({"kind": "FSG", "active": True}, {"$set": {"active": False}})
+                field = lib.KINDS[r["kind"]][1]
+                if field:
+                    await safe.tenant_settings.update_one({}, {"$unset": {field: ""}})
+            await lib._event(store, tid, "ComplianceDocWithdrawn", {"doc_id": r["doc_id"], "kind": r["kind"], "version": r["version"],
+                             "previous_status": r["status"], "reason": "sandbox_reset"}, f"sandbox_withdraw:{r['doc_id']}:{r['version']}", by, role)
+            withdrawn.append(r["kind"])
+        elif r.get("overrides") or cleared or (r.get("blanks") or {}).get("filled"):
+            async with use_tenant(tid):
+                await safe.compliance_library.update_one({"doc_id": r["doc_id"]}, {"$set": {"overrides": {}}})
+            await lib._new_version(store, tid, {**r, "overrides": {}}, reason="sandbox_reset", by=by, role=role)
+            redrafted.append(r["kind"])
+    created = [m["kind"] for m in await lib.generate_drafts(store, tid, by=by, role=role)]
+    counts = {"details_cleared": cleared, "withdrawn": len(withdrawn), "redrafted": len(redrafted), "created": len(created)}
+    from app.kernel.trail_dispatch import append_via_dispatch
+    import uuid as _uuid
+    async with use_tenant(tid):
+        await append_via_dispatch(store, tid, "SandboxReset", actor={"kind": "human", "id": by, "name": role},
+                                  payload={**counts, "kinds": {"withdrawn": withdrawn, "redrafted": redrafted, "created": created}},
+                                  idempotency_key=f"sandbox_reset:{_uuid.uuid4()}")
+    return counts
