@@ -35,7 +35,7 @@ interface Persona {
 const PERSONAS: Persona[] = [
   {
     slug: "ada",
-    name: "Ada Principal",
+    name: "Principal",
     seat: "Principal seat",
     body: "Sees the whole queue, the overview and shadow mode.",
     email: "principal@harbourline.example",
@@ -43,7 +43,7 @@ const PERSONAS: Persona[] = [
   },
   {
     slug: "cass",
-    name: "Cass Executive",
+    name: "Account executive",
     seat: "Placement seat",
     body: "AE workflow: quote → approve → issue.",
     email: "ae@harbourline.example",
@@ -51,7 +51,7 @@ const PERSONAS: Persona[] = [
   },
   {
     slug: "kai",
-    name: "Kai Owner",
+    name: "Client",
     seat: "Client seat",
     body: "Requests a change, pays, signs, sees the certificate.",
     email: "owner@fictionalclient.example",
@@ -59,7 +59,7 @@ const PERSONAS: Persona[] = [
   },
   {
     slug: "olly",
-    name: "Olly Operator",
+    name: "Operator",
     seat: "Operator seat",
     body: "Agent operations: registry, kill switches, spend, demo reset.",
     email: "operator@harbourline.example",

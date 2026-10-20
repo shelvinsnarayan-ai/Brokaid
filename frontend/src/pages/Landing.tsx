@@ -82,19 +82,19 @@ interface PersonaCard {
 const PERSONAS: PersonaCard[] = [
   {
     slug: "ada",
-    name: "Ada Principal",
+    name: "Principal",
     seat: "Operator seat",
     body: "Sees the whole queue, drives compliance and endorsement scenes.",
   },
   {
     slug: "cass",
-    name: "Cass Executive",
+    name: "Account executive",
     seat: "Placement seat",
     body: "AE workflow: quote → approve → issue.",
   },
   {
     slug: "kai",
-    name: "Kai Owner",
+    name: "Client",
     seat: "Client seat",
     body: "Requests a change, pays, signs, sees the certificate.",
   },

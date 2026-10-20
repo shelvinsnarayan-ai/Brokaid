@@ -1,4 +1,5 @@
 import { authCall } from "../lib/authApi";
+import { DemoHostBanner } from "../components/auth/DemoHostBanner";
 /**
  * OperatorControlLayout — top bar + left rail + keyboard shortcuts
  * overlay ('?'). Wraps all /o/* routes for phase 7.
@@ -182,6 +183,7 @@ export function OperatorControlLayout() {
         </nav>
 
         <main className="ledger-main" data-testid="operator-main">
+          <DemoHostBanner />
           <Outlet />
         </main>
       </div>

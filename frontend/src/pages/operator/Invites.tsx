@@ -110,7 +110,7 @@ function DemoPersonas({ onDone }: { onDone: () => void }) {
   return (
     <div className="brokaid-devbox" data-testid="demo-personas">
       <strong>Harbourline demo personas</strong>
-      <span>Issues fresh single-use links for Kai, Bea, Cass and Ada. Earlier open links stop working.</span>
+      <span>Issues fresh single-use links for the Client, Client bookkeeper, Account executive and Principal. Earlier open links stop working.</span>
       <button type="button" onClick={issue} data-testid="demo-personas-issue">Issue demo persona invites</button>
       {err ? <span role="alert" data-testid="demo-personas-error">{err}</span> : null}
       {rows?.map((r, i) => (

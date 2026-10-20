@@ -39,7 +39,7 @@ async def reset_renewal(db, tid: str, by: str) -> list[str]:
     for r in rows:
         await rn._event(db, tid, "RenewalDemoReset", {"renewal_id": r["renewal_id"], "envelope_id": r["envelope_id"],
                         "policy_id": POLICY, "stage": r["stage"], "payable_id": r.get("payable_id"),
-                        "new_policy_id": r.get("new_policy_id"), "reason": "Demo: prepare Kai renewal at accept step"},
+                        "new_policy_id": r.get("new_policy_id"), "reason": "Demo: prepare client renewal at accept step"},
                         f"renewal_demo_reset:{r['renewal_id']}", by, "operator")
         async with use_tenant(tid):
             if r.get("payable_id"):
@@ -94,7 +94,7 @@ async def prepare(app, db, tid: str, by: str) -> dict:
         if d["renewal"]["recommendation"]["tier"] != "G":
             raise DemoFailed(f"Recommendation classified {d['renewal']['recommendation']['tier']}, expected G")
         await call("POST", f"{o}/send", "cass", "Send to client", json={})
-        crn = (await call("POST", f"{c}/decide", "kai", "Kai decides", json={"choice": manual}))["payment"]["crn"]
+        crn = (await call("POST", f"{c}/decide", "kai", "Client decides", json={"choice": manual}))["payment"]["crn"]
         await call("POST", f"{c}/paid", "kai", "Payment advice")
         line = [{"date": datetime.now(timezone.utc).date(), "amount": Decimal(MANUAL["premium"]),
                  "description": f"BPAY {crn} KAI RENEWAL DEMO", "balance": Decimal(MANUAL["premium"])}]

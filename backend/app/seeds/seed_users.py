@@ -30,19 +30,19 @@ DEV_PASSWORD = "dev-password-not-for-production"
 
 
 OPERATORS = [
-    {"email": "principal@harbourline.example",    "display_name": "Ada Principal",   "role": "principal"},
+    {"email": "principal@harbourline.example",    "display_name": "Principal",       "role": "principal"},
     {"email": "deputy@harbourline.example",       "display_name": "Ben Deputy",      "role": "deputy"},
-    {"email": "ae@harbourline.example",           "display_name": "Cass Executive",  "role": "ae"},
+    {"email": "ae@harbourline.example",           "display_name": "Account executive", "role": "ae"},
     {"email": "accounts-a@harbourline.example",   "display_name": "Dee Accounts",    "role": "accounts"},
     {"email": "accounts-b@harbourline.example",   "display_name": "Ev Accounts",     "role": "accounts"},
     {"email": "compliance@harbourline.example",   "display_name": "Fin Compliance",  "role": "compliance"},
-    {"email": "operator@harbourline.example", "display_name": "Olly Operator",  "role": "operator"},
+    {"email": "operator@harbourline.example", "display_name": "Operator",       "role": "operator"},
     # Data-only role example — cannot log in.
     {"email": "auditor@harbourline.example",      "display_name": "Gil Auditor",     "role": "auditor"},
 ]
 
 CLIENTS = [
-    {"email": "owner@fictionalclient.example",   "display_name": "Kai Owner",   "role": "client_owner"},
+    {"email": "owner@fictionalclient.example",   "display_name": "Client",      "role": "client_owner"},
     {"email": "finance@fictionalclient.example", "display_name": "Sam Finance", "role": "client_finance"},
 ]
 

@@ -61,15 +61,15 @@ export function DemoSignIn() {
           <button type="button" className="auth-btn auth-btn--ghost demo-signin__btn" disabled={busy !== null}
             data-testid="demo-signin-kai-renewal"
             onClick={() => void action("renewal", "kai-renewal", (d) => go(kai, d.accept_path))}>
-            <strong>{busy === "renewal" ? "Preparing… (about 10 s)" : "Prepare Kai renewal"}</strong>
-            <span>Stops at accept, then signs in as Kai</span>
+            <strong>{busy === "renewal" ? "Preparing… (about 10 s)" : "Prepare client renewal"}</strong>
+            <span>Stops at accept, then signs in as the client</span>
           </button>
           <button type="button" className="auth-btn auth-btn--ghost demo-signin__btn" disabled={busy !== null}
             data-testid="demo-signin-kai-reset"
             onClick={() => void action("reset", "kai-reset", (d) => {
-              setNote(`Kai reset (ledger event ${String(d.ledger_event_id).slice(0, 8)}).`); setBusy(null);
+              setNote(`Client demo reset (ledger event ${String(d.ledger_event_id).slice(0, 8)}).`); setBusy(null);
             })}>
-            <strong>{busy === "reset" ? "Resetting…" : "Reset Kai"}</strong>
+            <strong>{busy === "reset" ? "Resetting…" : "Reset client demo"}</strong>
             <span>Hilux back on the motor policy</span>
           </button>
         </div>

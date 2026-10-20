@@ -83,7 +83,7 @@ async def _abandon(db, tid, envs, reason) -> list[str]:
 
 async def _reset_kai(db, tid, now) -> dict:
     safe = wrap(db)
-    reason = "Demo reset (Kai) — rehearsal clean-up"
+    reason = "Demo reset (client demo) — rehearsal clean-up"
     async with use_tenant(tid):
         res = await safe.policies.update_one(
             {"policy_id": motor.POLICY_ID},

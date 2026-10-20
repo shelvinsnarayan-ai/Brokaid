@@ -37,11 +37,11 @@ class ImpersonateRequest(BaseModel):
 
 
 DEMO_PERSONAS = (  # Harbourline demo tenant only; impersonate re-checks the tenant on every tap
-    ("kai", "Kai Owner", "Client owner", "owner@fictionalclient.example", "/c"),
-    ("bea", "Bea Bookkeeper", "Client bookkeeper", "bookkeeper@fictionalclient.example", "/c"),
-    ("cass", "Cass Executive", "Account executive", "ae@harbourline.example", "/o"),
-    ("ada", "Ada Principal", "Principal", "principal@harbourline.example", "/o"),
-    ("olly", "Olly Operator", "Operator", "operator@harbourline.example", "/o"),
+    ("kai", "Client", "Client owner · Harbour Marine Services", "owner@fictionalclient.example", "/c"),
+    ("bea", "Client bookkeeper", "Client bookkeeper · can pay", "bookkeeper@fictionalclient.example", "/c"),
+    ("cass", "Account executive", "Placement · quotes, approvals", "ae@harbourline.example", "/o"),
+    ("ada", "Principal", "Principal · oversight, approvals", "principal@harbourline.example", "/o"),
+    ("olly", "Operator", "Operator · platform operations", "operator@harbourline.example", "/o"),
 )
 
 
@@ -55,7 +55,7 @@ async def personas(request: Request) -> dict:
     from app.kernel import sandbox
     sb = await sandbox.find(store)
     if sb and await devmode.is_demo_tenant(store, sb["tenant_id"]):  # R2.3: BurMac sandbox (TEST tenant, made-up details)
-        rows.append({"slug": "sandbox-principal", "name": "Pip Principal", "seat": "Principal · BurMac sandbox (test)",
+        rows.append({"slug": "sandbox-principal", "name": "Sandbox principal", "seat": "Principal · BurMac sandbox (test)",
                      "email": sandbox.STAFF[0]["email"], "route": "/o/compliance"})
     return {"label": "Demo sign-in (preview only)", "personas": rows}
 

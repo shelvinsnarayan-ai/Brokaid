@@ -145,7 +145,7 @@ def test_login_totp_recovery_lockout_and_ledger():
         for t in ("LoginSucceeded", "LoginFailed", "AccountLocked", "RecoveryCodeUsed", "InviteAccepted"):
             assert await _events(db, tid, t), t
         assert (await c.post("/api/auth/login", json={"email": "nobody@nowhere.example", "password": PW})).json()["detail"] \
-            == "Email or password is wrong."
+            == "We couldn't sign you in. Check your email and password — or, if you're new, ask your broker for an invite."
         assert await verify_tenant(db, "harbourline")
     run(go)
 
@@ -254,7 +254,7 @@ def test_bootstrap_operator_is_idempotent():
         await _accept(c, tok)
         assert await af.has_active_operator(db, tid)
         await db.auth_tokens.delete_many({})
-        assert await af.bootstrap_operator(db, send=fake) == "skipped:operator_exists"
+        assert await af.bootstrap_operator(db, send=fake) == "skipped:account_exists"  # R3.0: keyed on the bootstrap email
         assert await db.auth_tokens.count_documents({}) == 0
     run(go, {"BOOTSTRAP_OPERATOR_EMAIL": "first.operator@harbourline.example", "BOOTSTRAP_TENANT_SLUG": "harbourline"})
 

@@ -19,13 +19,13 @@ interface Persona {
 }
 
 const PERSONAS: Persona[] = [
-  { label: "Principal (Ada)",        email: "principal@harbourline.example",   next: "/o", testId: "dev-role-principal" },
+  { label: "Principal",        email: "principal@harbourline.example",   next: "/o", testId: "dev-role-principal" },
   { label: "Deputy (Ben)",           email: "deputy@harbourline.example",      next: "/o", testId: "dev-role-deputy" },
-  { label: "Account Exec (Cass)",    email: "ae@harbourline.example",          next: "/o", testId: "dev-role-ae" },
+  { label: "Account executive",    email: "ae@harbourline.example",          next: "/o", testId: "dev-role-ae" },
   { label: "Accounts A (Dee)",       email: "accounts-a@harbourline.example",  next: "/o", testId: "dev-role-accounts-a" },
   { label: "Accounts B (Ev)",        email: "accounts-b@harbourline.example",  next: "/o", testId: "dev-role-accounts-b" },
   { label: "Compliance (Fin)",       email: "compliance@harbourline.example",  next: "/o", testId: "dev-role-compliance" },
-  { label: "Client owner (Kai)",     email: "owner@fictionalclient.example",   next: "/c", testId: "dev-role-client-owner" },
+  { label: "Client",     email: "owner@fictionalclient.example",   next: "/c", testId: "dev-role-client-owner" },
   { label: "Client finance (Sam)",   email: "finance@fictionalclient.example", next: "/c", testId: "dev-role-client-finance" },
 ];
 

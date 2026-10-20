@@ -60,13 +60,21 @@ async def _resolve_pack(store, tenant_id: str, client_id: str, override: str | N
     return jurisdiction.get(code), False
 
 
+CURRENT = ("managed", "in_force", "tracked")
+PREVIOUS = ("renewed", "cancelled", "lapsed")
+
+
 async def _list_policies(
-    store, tenant_id: str, client_id: str | None = None,
+    store, tenant_id: str, client_id: str | None = None, statuses: tuple | None = None,
 ) -> list[dict]:
     safe = _wrap_safe(store)
     out: list[dict] = []
     async with use_tenant(tenant_id):
-        filt = {"client_id": client_id} if client_id else await real_policy_filter(safe)
+        filt = await real_policy_filter(safe)
+        if client_id:  # R3.0: clients get the same real-data filter, scoped to their client
+            filt = {"$and": [filt, {"client_id": client_id}]}
+        if statuses:
+            filt = {"$and": [filt, {"status": {"$in": list(statuses)}}]}
         cursor = safe.policies.find(filt).sort("inception", -1)
         packs_by_client: dict[str, tuple] = {}
         async for r in cursor:
@@ -120,8 +128,9 @@ async def list_operator_policies(
 
 @router.get("/api/c/policies")
 async def list_client_policies(
-    request: Request, session: Session = Depends(require_session),
+    request: Request, session: Session = Depends(require_session), include_history: int = 0,
 ) -> dict:
+    """R3.0: current terms only; renewed/cancelled/lapsed terms come back under "previous" with ?include_history=1."""
     if session.client_id is None:
         raise HTTPException(status_code=403, detail="no_client_context")
     store = _store(request)
@@ -133,12 +142,15 @@ async def list_client_policies(
         store, session.tenant_id, session.client_id,
     )
     rows_raw = await _list_policies(
-        store, session.tenant_id, client_id=session.client_id,
+        store, session.tenant_id, client_id=session.client_id, statuses=CURRENT,
     )
     policies = [_row_to_policy(r, pack) for r in rows_raw]
+    previous = ([_row_to_policy(r, pack) for r in await _list_policies(store, session.tenant_id, client_id=session.client_id,
+                                                                       statuses=PREVIOUS)] if include_history else None)
     actual_code = (client_row or {}).get("jurisdiction_code") or "AU"
     return {
         "policies": policies,
+        **({"previous": previous} if include_history else {}),
         "jurisdiction": pack.to_dict(),
         "actual_jurisdiction": actual_code,
         "preview_mode": is_preview and pack.code != actual_code,

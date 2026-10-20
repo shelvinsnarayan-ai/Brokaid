@@ -15,7 +15,7 @@ from app.seeds.seed_users import FICTIONAL_CLIENT_ID
 
 OWNER_EMAIL = "owner@fictionalclient.example"
 BOOKKEEPER = {"email": "bookkeeper@fictionalclient.example",
-              "display_name": "Bea Bookkeeper", "role": "client_contact"}
+              "display_name": "Client bookkeeper", "role": "client_contact"}
 
 
 async def _ensure_user(safe, tenant_id: str) -> str:

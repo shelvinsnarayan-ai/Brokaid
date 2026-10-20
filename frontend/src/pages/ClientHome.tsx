@@ -60,7 +60,7 @@ export function ClientHome() {
       <header className="brokaid-tab__head">
         <p className="brokaid-tab__eyebrow">Home</p>
         <h1 className="brokaid-tab__title">
-          Hi {me?.user?.display_name?.split(" ")[0] ?? "there"}.
+          Hi {me?.linked_client?.display_name ?? "there"}.
         </h1>
         {me?.linked_client && (
           <p className="brokaid-tab__lede">

@@ -409,7 +409,8 @@ def auth_email_enabled() -> bool:
 def render_auth(kind: str, link: str, settings: dict, name: str, role: str = "") -> tuple[str, str, str]:
     brand, colour = settings["sender_name"] or "brokAId", settings["brand_colour"]
     subject, line, button = (s.format(brand=brand, role=role) for s in COPY[kind])
-    first = escape((name or "").split(" ")[0] or "there")
+    from app.kernel.email_channel import greet_name
+    first = escape(greet_name(name))
     text = f"Hi {first},\n\n{line}\n\n{button}: {link}\n\nSent by {brand}. We never ask for passwords or card details by email."
     html = (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F6FA;padding:24px 0">'
@@ -480,13 +481,19 @@ async def _bootstrap_one(store, email: str, slug: str, send) -> str:
     if tenant is None:
         return "skipped:unknown_tenant"
     tid = tenant["tenant_id"]
-    if await has_active_operator(store, tid):
-        return "skipped:operator_exists"
+    async with use_tenant(tid):  # R3.0: other operators (e.g. the demo Operator) don't block the bootstrap email
+        if await wrap(store).users.find_one({"email": email}):
+            return "skipped:account_exists"
     open_inv = await wrap(store).system("auth_tokens").find_one(
-        {"kind": "invite", "tenant_id": tid, "bootstrap": True, "used_at": None, "revoked_at": None,
+        {"kind": "invite", "tenant_id": tid, "email": email, "used_at": None, "revoked_at": None,
          "expires_at": {"$gt": now()}})
     if open_inv:
         return "skipped:invite_open"
+    allow = (tenant.get("email_settings") or {}).get("allowlist")
+    if allow is not None and email not in [a.strip().lower() for a in allow]:  # R3.0: a tenant allow-list must let the invite out
+        await wrap(store).system("tenants").update_one({"tenant_id": tid}, {"$addToSet": {"email_settings.allowlist": email}})
+        await ledger(store, tid, "EmailAllowlistUpdated", {"kind": "system", "id": "bootstrap", "name": "bootstrap"},
+                     {"added": email, "reason": "bootstrap_operator"})
     token, doc = await create_invite(store, tenant_id=tid, email=email, name="", role="operator",
                                      client_id=None, created_by="bootstrap", bootstrap=True)
     status = await send_auth_email(store, tid, kind="invite", to=email, name=doc["name"],
@@ -500,10 +507,10 @@ async def _bootstrap_one(store, email: str, slug: str, send) -> str:
 # ---- demo personas (Harbourline only) ---------------------------------------
 DEMO_TENANT = "harbourline"
 DEMO_PERSONAS = [  # (email, role, is_client)
-    ("owner@fictionalclient.example", "owner", True),        # Kai
-    ("bookkeeper@fictionalclient.example", "bookkeeper", True),  # Bea
-    ("ae@harbourline.example", "ae", False),                 # Cass
-    ("principal@harbourline.example", "principal", False),   # Ada
+    ("owner@fictionalclient.example", "owner", True),        # Client
+    ("bookkeeper@fictionalclient.example", "bookkeeper", True),  # Client bookkeeper
+    ("ae@harbourline.example", "ae", False),                 # Account executive
+    ("principal@harbourline.example", "principal", False),   # Principal
 ]
 
 

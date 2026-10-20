@@ -104,6 +104,15 @@ def allowed(addr: str, allow: list[str]) -> bool:
     return any(a == p or (p.startswith("*@") and a.endswith(p[1:])) for p in allow)
 
 
+ROLE_NAMES = frozenset({"client", "client bookkeeper", "account executive", "principal", "operator", "sandbox principal"})
+
+
+def greet_name(display_name: str | None) -> str:
+    """R3.0: "Hi there" for role-named demo personas (and blanks); the first name for a real person."""
+    n = (display_name or "").strip()
+    return "there" if not n or n.lower() in ROLE_NAMES else n.split(" ")[0]
+
+
 def resolve_address(user: dict, allow: list[str]) -> tuple[str | None, str | None]:
     addr = (user.get("email_override") or user.get("email") or "").strip()
     host = addr.rsplit("@", 1)[-1].lower() if "@" in addr else ""
@@ -125,7 +134,7 @@ def render(n: dict, user: dict, settings: dict) -> tuple[str, str, str]:
     logo = logo if logo.startswith("https://") else (base + logo if logo.startswith("/") else "")
     head = (f'<img src="{escape(logo)}" alt="{escape(brand)}" height="28" style="display:block;border:0">'
             if logo.lower().endswith(_RASTER) else escape(brand))  # SVG logos don't render in most mail apps
-    first = escape((user.get("display_name") or "").split(" ")[0] or "there")
+    first = escape(greet_name(user.get("display_name")))
     text = (f"Hi {first},\n\n{line}\n\nOpen {brand}: {url}\n\n"
             f"Turn these emails off in You → Notifications.\nSent by {brand}. We never ask for passwords or card details by email.")
     html = (

@@ -175,10 +175,10 @@ function DemoReset({ onDone }: { onDone: (m: string) => void }) {
   return (
     <section style={card} data-testid="gov-demo-reset">
       <h2 style={{ fontSize: 16 }}>Reset for demo</h2>
-      <p style={muted}>Rehearsal tool. Kai: motor policy back to seed vehicles, his open test requests closed. All tests: close stale queue items. Full: canonical seed.</p>
+      <p style={muted}>Rehearsal tool. Client demo: motor policy back to seed vehicles, its open test requests closed. All tests: close stale queue items. Full: canonical seed.</p>
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
         <select value={scope} onChange={(e) => setScope(e.target.value as any)} data-testid="gov-reset-scope">
-          <option value="kai">Kai only</option><option value="all_tests">All tests</option><option value="full">Full</option>
+          <option value="kai">Client demo only</option><option value="all_tests">All tests</option><option value="full">Full</option>
         </select>
         <button className="k-btn" onClick={go} disabled={busy} data-testid="gov-reset-submit">{busy ? "Resetting…" : "Reset for demo"}</button>
       </div>

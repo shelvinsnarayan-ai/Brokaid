@@ -63,7 +63,7 @@ def render(row: dict, user: dict, settings: dict, gaw: str) -> tuple[str, str, s
     cls = row["policy_class"]
     subject = f"{'Updated: your' if row['updated'] else 'Your'} renewal options for {cls}"
     url = f"{base}/c/renewal/{row['renewal_id']}"
-    first = (user.get("display_name") or "").split(" ")[0] or "there"
+    first = ec.greet_name(user.get("display_name"))
     lead = ("Your broker has updated your renewal options." if row["updated"] else "Your renewal options are ready.")
     lines = [lead, "Your broker recommends one of them. The attached PDF compares them side by side.",
              "Review the options and accept your choice in the app."]

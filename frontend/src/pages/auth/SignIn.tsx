@@ -4,6 +4,7 @@ import { authCall } from "../../lib/authApi";
 import { AuthCard, AuthError } from "../../components/auth/AuthCard";
 import { MfaEnrol } from "../../components/auth/MfaEnrol";
 import { DemoSignIn } from "../../components/auth/DemoSignIn";
+import { DemoHostBanner } from "../../components/auth/DemoHostBanner";
 import { googleRedirect, takeGoogleSessionId, TenantChooser, TenantOpt } from "../../components/auth/Tenants";
 
 type Step = "password" | "totp" | "enrol" | "forgot" | "forgot-sent" | "choose";
@@ -96,6 +97,7 @@ export default function SignIn() {
   }
   return (
     <AuthCard title="Sign in" testid="signin-root" lead="For brokerage staff and clients.">
+      <DemoHostBanner />
       <form onSubmit={submitPassword} className="auth-form">
         <label className="auth-label">Email
           <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} data-testid="signin-email" />
@@ -113,7 +115,7 @@ export default function SignIn() {
         Continue with Google
       </button>
       <p className="auth-fine">Google works only for an email your brokerage invited. You'll still enter your authenticator code.</p>
-      <button type="button" className="auth-link" onClick={() => { setErr(null); setStep("forgot"); }} data-testid="signin-forgot">Forgot your password?</button>
+      <button type="button" className="auth-link" onClick={() => { setErr(null); setStep("forgot"); }} data-testid="signin-forgot">Forgot password?</button>
       <p className="auth-fine">New here? You need an invite from your brokerage.</p>
       {import.meta.env.BROKAID_DEMO_SIGNIN ? <DemoSignIn /> : null}
       {import.meta.env.BROKAID_AUTH_DEV_MODE ? (

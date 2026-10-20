@@ -15,7 +15,7 @@ from app.kernel.tenant_ctx import use_tenant
 from app.seeds.seed_users_mongo import _ensure_operator_mongo
 
 SLUG, NAME = "burmac-sandbox", "BurMac Sandbox (test)"
-STAFF = [{"email": "principal@burmac-sandbox.example", "display_name": "Pip Principal", "role": "principal"},
+STAFF = [{"email": "principal@burmac-sandbox.example", "display_name": "Sandbox principal", "role": "principal"},
          {"email": "operator@burmac-sandbox.example", "display_name": "Oz Operator", "role": "operator"},
          {"email": "ae@burmac-sandbox.example", "display_name": "Ari Executive", "role": "ae"}]
 

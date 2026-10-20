@@ -79,7 +79,7 @@ def test_multi_tenant_bootstrap_login_chooser_and_switch():
         assert r.json() == {"next": "totp"}
         r = await c.post("/api/auth/login/verify", cookies={COOKIE_NAME: r.cookies[COOKIE_NAME]}, json={"code": pyotp.TOTP(secret).now()})
         assert r.status_code == 200 and len(r.json()["tenants"]) == 2
-        assert await af.bootstrap_operator(db) == "harbourline=skipped:operator_exists,burmac=skipped:operator_exists"
+        assert await af.bootstrap_operator(db) == "harbourline=skipped:account_exists,burmac=skipped:account_exists"
         _, s_a, out = await _login(c, email, secret)
         assert [t["current"] for t in out["tenants"]] == [False, True] or [t["current"] for t in out["tenants"]] == [True, False]
         current = next(t for t in out["tenants"] if t["current"])["tenant_id"]
@@ -154,7 +154,7 @@ def test_demo_personas_harbourline_only():
         op = await _staff_cookie(db, "operator@harbourline.example")
         r = await c.post("/api/o/invites/demo-personas", cookies=op)
         names = [i["name"] for i in r.json()["invites"]]
-        assert names == ["Kai Owner", "Bea Bookkeeper", "Cass Executive", "Ada Principal"] and all("/invite/" in i["invite_url"] for i in r.json()["invites"])
+        assert names == ["Client", "Client bookkeeper", "Account executive", "Principal"] and all("/invite/" in i["invite_url"] for i in r.json()["invites"])
         assert (await c.get("/api/o/invites", cookies=op)).json()["demo_personas_allowed"] is True
         ada = await _staff_cookie(db, "principal@harbourline.example")
         assert (await c.post("/api/o/invites/demo-personas", cookies=ada)).status_code == 403

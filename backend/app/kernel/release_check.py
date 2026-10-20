@@ -589,6 +589,18 @@ async def compliance_steps(r, store, tenant_id, ids) -> None:
         await r.step(key, label, fn)
 
 
+def demo_host_problem() -> tuple[str | None, str]:
+    """R3.0: dev/preview mode (or demo sign-in) anywhere but a preview host is a release blocker."""
+    from urllib.parse import urlparse
+    from app.kernel import devmode
+    host = (urlparse(os.environ.get("APP_BASE_URL") or "").hostname or "").lower()
+    preview = host in ("localhost", "127.0.0.1") or host.endswith(".preview.emergentagent.com")
+    if (devmode.dev_mode() or environment() != "production") and not preview:
+        return (f"DEMO MODE ON A NON-PREVIEW HOST ({host or 'unknown'}): ENVIRONMENT={environment()}, "
+                f"AUTH_DEV_MODE={'on' if devmode.dev_mode() else 'off'}. Set ENVIRONMENT=production and AUTH_DEV_MODE=false."), host
+    return None, host
+
+
 async def ops_steps(r, http, store, tenant_id, app) -> None:
     """R1.9: readiness, backup age, last restore drill, security headers."""
     from app.kernel import ops
@@ -630,7 +642,17 @@ async def ops_steps(r, http, store, tenant_id, app) -> None:
             return "info", f"{len(paths)} dev/legacy sign-in route(s) mounted (dev mode on {environment()}; refused for real tenants)."
         return "No dev or legacy sign-in routes in the API."
 
+    async def demo_host():
+        problem, host = demo_host_problem()
+        if problem:
+            raise StepFailed(problem)
+        from app.kernel import devmode
+        if devmode.dev_mode():
+            return "info", f"Demo mode on a preview host ({host})."
+        return f"Production mode on {host or 'this host'}; demo sign-in is off."
+
     await r.step("security.dev_routes", "No dev sign-in routes in production", dev_routes)
+    await r.step("security.demo_host", "Demo mode only on a preview host", demo_host)
     await r.step("ops.ready", "/api/ready", ready)
     await r.step("ops.backup_age", "Backup under 26h old", backup_age)
     await r.step("ops.restore_drill", "Last restore drill", drill)

@@ -13,6 +13,11 @@ export function ClientCover() {
   const me = useMeStore((s) => s.me);
   const pack = usePack();
   const [policies, setPolicies] = useState<Policy[]>([]);
+  const [previous, setPrevious] = useState<Policy[] | null>(null);
+  const loadPrevious = async () => {
+    const res = await fetch(`${API}/api/c/policies?include_history=1`, { credentials: "include" });
+    if (res.ok) setPrevious((await res.json()).previous || []);
+  };
 
   useEffect(() => {
     (async () => {
@@ -77,6 +82,20 @@ export function ClientCover() {
             </div>
           </div>
         ))}
+      </section>
+
+      <section className="brokaid-cards" data-testid="cover-previous-terms">
+        {previous === null ? (
+          <button type="button" className="brokaid-btn brokaid-btn--secondary" onClick={loadPrevious} data-testid="cover-show-previous">
+            Show previous terms
+          </button>
+        ) : (
+          <>
+            <p className="brokaid-tab__eyebrow">Previous terms</p>
+            {previous.length === 0 ? <p className="brokaid-tab__lede" data-testid="cover-previous-empty">No previous terms.</p> : null}
+            {previous.map((p) => <div key={p.policy_id} className="brokaid-cover-row" data-testid={`cover-previous-${p.policy_id}`}><PolicyCard policy={p} /></div>)}
+          </>
+        )}
       </section>
 
       {pack && (

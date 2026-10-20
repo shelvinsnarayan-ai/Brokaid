@@ -11,7 +11,7 @@ from app.kernel import auth_flows as af
 from app.kernel.tenant_ctx import use_tenant
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-BAD = "Email or password is wrong."
+BAD = ("We couldn't sign you in. Check your email and password — or, if you're new, ask your broker for an invite.")  # R3.0: no enumeration
 
 
 class LoginBody(BaseModel):
