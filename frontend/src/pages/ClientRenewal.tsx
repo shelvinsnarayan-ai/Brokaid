@@ -7,6 +7,7 @@ import { AcceptPanel } from "../components/AcceptPanel";
 import "../styles/renewals.css";
 
 const aud = (v: string | number) => `$${Number(v).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const API = import.meta.env.VITE_API_BASE || "";
 
 export function ClientRenewal() {
   const { renewal_id } = useParams();
@@ -41,6 +42,8 @@ export function ClientRenewal() {
       ) : null}
       {d.options ? (
         <div className="rn-c-page" data-testid="client-renewal-options">
+          <a className="brokaid-btn brokaid-btn--secondary rn-c-download" href={`${API}/api/c/renewal/${d.renewal_id}/comparison.pdf`}
+            download="renewal-options.pdf" data-testid="client-renewal-comparison-pdf">Download comparison (PDF)</a>
           <p>Your current cover: {d.expiring.insurer}, {aud(d.expiring.premium)} a year, excess {aud(d.expiring.excess)}.</p>
           {d.options.map((o: any) => (
             <label key={o.quote_id} className={`rn-c-option ${d.recommendation?.quote_id === o.quote_id ? "rn-c-option--rec" : ""}`}

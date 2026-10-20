@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from app.db.tenant_safe import wrap
@@ -297,6 +297,19 @@ async def _client_detail(store, tid, r):
     pay = await rn.payable(store, tid, r)
     return _client_view(r, pay, await payments.get_settings(store, tid), rn.comparison(r, await rn._policy(store, tid, r["policy_id"])),
                         await holidays.quoting_mode(store, tid))
+
+
+@c_router.get("/renewal/{renewal_id}/comparison.pdf")
+async def my_comparison_pdf(renewal_id: str, request: Request, s=Depends(_client)) -> Response:
+    """R2.2: any member who can view the client (bookkeeper included) may download; foreign renewal → 404."""
+    from app.kernel import comparison_pdf as cp
+    r = await _client_load(request, s, renewal_id)
+    try:
+        pdf, sha = await cp.document(_store(request), s.tenant_id, r, s.user_id)
+    except cp.NotReady as e:
+        raise HTTPException(status_code=409, detail=str(e)) from None
+    return Response(pdf, media_type="application/pdf", headers={
+        "Content-Disposition": 'attachment; filename="renewal-options.pdf"', "X-Document-SHA256": sha, "Cache-Control": "no-store"})
 
 
 @c_router.get("/renewals/{renewal_id}")
