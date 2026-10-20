@@ -9,6 +9,7 @@ export function DemoSignIn() {
   const [list, setList] = useState<Persona[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`${API}/api/auth/dev/personas`, { credentials: "include" })
@@ -19,16 +20,27 @@ export function DemoSignIn() {
 
   if (!list?.length) return null;
 
-  const go = async (p: Persona) => {
+  const go = async (p: Persona, to?: string) => {
     setBusy(p.slug);
     setErr(null);
     const r = await fetch(`${API}/api/auth/dev/impersonate`, {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: p.email }),
     }).catch(() => null);
-    if (r?.ok) window.location.assign(p.route);
+    if (r?.ok) window.location.assign(to ?? p.route);
     else { setErr(`Couldn't sign in as ${p.name} (${r?.status ?? "network"}).`); setBusy(null); }
   };
+
+  const action = async (slug: string, path: string, done: (d: any) => void) => {
+    setBusy(slug);
+    setErr(null);
+    setNote(null);
+    const r = await fetch(`${API}/api/auth/dev/demo/${path}`, { method: "POST", credentials: "include" }).catch(() => null);
+    const d = r ? await r.json().catch(() => ({})) : {};
+    if (r?.ok) done(d);
+    else { setErr(`Demo action failed (${r?.status ?? "network"}): ${d?.detail ?? ""}`); setBusy(null); }
+  };
+  const kai = list.find((p) => p.slug === "kai");
 
   return (
     <section className="demo-signin" data-testid="demo-signin-panel" aria-label="Demo sign-in (preview only)">
@@ -43,6 +55,25 @@ export function DemoSignIn() {
           </button>
         ))}
       </div>
+      {kai ? (
+        <div className="demo-signin__grid">
+          <button type="button" className="auth-btn auth-btn--ghost demo-signin__btn" disabled={busy !== null}
+            data-testid="demo-signin-kai-renewal"
+            onClick={() => void action("renewal", "kai-renewal", (d) => go(kai, d.accept_path))}>
+            <strong>{busy === "renewal" ? "Preparing… (about 10 s)" : "Prepare Kai renewal"}</strong>
+            <span>Stops at accept, then signs in as Kai</span>
+          </button>
+          <button type="button" className="auth-btn auth-btn--ghost demo-signin__btn" disabled={busy !== null}
+            data-testid="demo-signin-kai-reset"
+            onClick={() => void action("reset", "kai-reset", (d) => {
+              setNote(`Kai reset (ledger event ${String(d.ledger_event_id).slice(0, 8)}).`); setBusy(null);
+            })}>
+            <strong>{busy === "reset" ? "Resetting…" : "Reset Kai"}</strong>
+            <span>Hilux back on the motor policy</span>
+          </button>
+        </div>
+      ) : null}
+      {note ? <p className="auth-fine" role="status" data-testid="demo-signin-note">{note}</p> : null}
       {err ? <p className="auth-fine" role="alert" data-testid="demo-signin-error">{err}</p> : null}
     </section>
   );

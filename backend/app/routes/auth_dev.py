@@ -55,6 +55,37 @@ async def personas(request: Request) -> dict:
         {"slug": s, "name": n, "seat": seat, "email": e, "route": r} for s, n, seat, e, r in DEMO_PERSONAS]}
 
 
+async def _demo_operator(request: Request) -> tuple:
+    store = auth_store(request)
+    t = await store.tenants.find_one({"slug": "harbourline"})  # tenant-safe: system-only — tenant registry read
+    await devmode.require_dev_tenant(store, (t or {}).get("tenant_id"))
+    olly = await store.users.find_one({"email": "operator@harbourline.example", "tenant_id": t["tenant_id"]})  # tenant-safe: scoped
+    if not olly:
+        raise HTTPException(status_code=404, detail="not_found")
+    return store, t["tenant_id"], olly["user_id"]
+
+
+@router.post("/demo/kai-reset")
+async def demo_kai_reset(request: Request) -> dict:
+    """Preview-only: the existing kai-scope demo reset, run as Olly (Operator); ledgered DemoResetExecuted."""
+    from app.kernel import demo_reset
+    store, tid, olly = await _demo_operator(request)
+    r = await demo_reset.run(store, tid, "kai", olly)
+    return {"ledger_event_id": r["ledger_event_id"], "policy_104_restored": r["kai"]["policy_104_restored"],
+            "envelopes_abandoned": len(r["kai"]["envelopes_abandoned"])}
+
+
+@router.post("/demo/kai-renewal")
+async def demo_kai_renewal(request: Request) -> dict:
+    """Preview-only: Kai's Tools-and-equipment renewal driven to the click-to-accept step (never accepted)."""
+    from app.kernel import demo_renewal
+    store, tid, olly = await _demo_operator(request)
+    try:
+        return await demo_renewal.prepare(request.app, store, tid, olly)
+    except demo_renewal.DemoFailed as e:
+        raise HTTPException(status_code=409, detail=str(e)) from None
+
+
 @router.post("/impersonate")
 async def impersonate(
     body: ImpersonateRequest, request: Request, response: Response

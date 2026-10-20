@@ -40,5 +40,5 @@ def test_production_bundle_has_no_demo_panel(tmp_path):
     text = "".join(p.read_text(errors="ignore") for p in out.rglob("*.js"))
     assert text, "build produced no JS"
     for needle in ("Demo sign-in (preview only)", "demo-signin-panel", "/api/auth/dev/", "dev-login-root",
-                   "login-personas", "brokaid:dev-only"):
+                   "login-personas", "brokaid:dev-only", "Prepare Kai renewal", "demo-signin-kai-reset", "kai-renewal"):
         assert needle not in text, f"{needle!r} leaked into the production bundle"

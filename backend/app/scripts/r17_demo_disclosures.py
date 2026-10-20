@@ -33,19 +33,24 @@ def _pdf(title: str) -> bytes:
     return buf.getvalue()
 
 
+async def ensure_docs(db, tid: str, insurers: list[str]) -> None:
+    """Fictional FSG + per-insurer PDS/TMD for a demo tenant; idempotent (only uploads what's missing)."""
+    if not await cd.active(db, tid, "FSG"):
+        await cd.upload(db, tid, kind="FSG", data=_pdf("Harbourline Insurance Brokers — Financial Services Guide v1.0"), filename="harbourline-fsg.pdf",
+                        content_type="application/pdf", version="1.0-demo", effective_date="2026-07-01", insurer=None, product=None, by="seed")
+    for ins in insurers:
+        for kind in ("PDS", "TMD"):
+            if not await cd.active(db, tid, kind, ins):
+                await cd.upload(db, tid, kind=kind, data=_pdf(f"{ins} — {kind} (all products)"), filename=f"{kind.lower()}-{ins[:20]}.pdf",
+                                content_type="application/pdf", version="1.0-demo", effective_date="2026-07-01", insurer=ins, product=None, by="seed")
+
+
 async def main() -> None:
     db = AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
     object_store.init_storage()
     t = await db.tenants.find_one({"slug": "harbourline"})  # tenant-safe: system-only
     tid = t["tenant_id"]
-    if not await cd.active(db, tid, "FSG"):
-        await cd.upload(db, tid, kind="FSG", data=_pdf("Harbourline Insurance Brokers — Financial Services Guide v1.0"), filename="harbourline-fsg.pdf",
-                        content_type="application/pdf", version="1.0-demo", effective_date="2026-07-01", insurer=None, product=None, by="seed")
-    for ins in await rn.insurers(db, tid):
-        for kind in ("PDS", "TMD"):
-            if not await cd.active(db, tid, kind, ins):
-                await cd.upload(db, tid, kind=kind, data=_pdf(f"{ins} — {kind} (all products)"), filename=f"{kind.lower()}-{ins[:20]}.pdf",
-                                content_type="application/pdf", version="1.0-demo", effective_date="2026-07-01", insurer=ins, product=None, by="seed")
+    await ensure_docs(db, tid, await rn.insurers(db, tid))
     print("Harbourline demo disclosures:", await db.disclosure_docs.count_documents({"tenant_id": tid, "active": True}))  # tenant-safe: system-only
 
 
