@@ -29,14 +29,14 @@ def _vehicle_thing(client_id: str, v: dict, sched: dict) -> dict:
     return {
         "thing_id": f"thing-veh-{v['rego'].lower()}", "client_id": client_id, "group": "vehicle",
         "name": v["model"] if v["make"] == "Toyota" else f"{v['make']} {v['model']}",
-        "identifiers": {"rego": v["rego"], "vin": v["vin"]}, "status": "covered",
+        "identifiers": {"rego": v["rego"], "vin": v.get("vin")}, "status": "covered",
         "template": "motor",
         "template_fields": {"cover_level": "Comprehensive", "who_can_drive": sched["who_can_drive"],
                             "restriction": sched["restriction"]},
         "schedule_items": [{"policy_id": MOTOR, "section": "vehicles", "ref": v["rego"],
                             "fields": {"make": v["make"], "model": v["model"], "year": v["year"],
-                                       "agreed_value": v["agreed_value"], "excess": v["excess"],
-                                       "use": v["use"]}}],
+                                       "agreed_value": v.get("agreed_value") or v.get("market_value"), "excess": v.get("excess"),
+                                       "use": v.get("use")}}],
     }
 
 
