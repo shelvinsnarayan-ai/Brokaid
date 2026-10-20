@@ -132,7 +132,7 @@ export function ClientPay() {
             <button type="button" className="brokaid-btn brokaid-btn--secondary"
               onClick={() => navigate(`/c/cover/${policy_id}/sign/${envelope_id}`)}
               data-testid="paid-continue-sign">
-              Continue to signing
+              Continue to accept
             </button>
           </div>
         )}

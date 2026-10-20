@@ -81,7 +81,7 @@ NEXT_STEP = {"not_started": "Starts automatically at the lead time (or start ear
              "info_requested": "Waiting for the client's details", "info_received": "Review the details, then go to market",
              "market": "Waiting for insurer quotes", "quotes_in": "Compare and write the recommendation",
              "recommendation_ready": "Send to the client (Principal approval if personal advice)",
-             "client_decision": "Waiting for the client's choice and payment", "paid": "Waiting for the client's signature",
+             "client_decision": "Waiting for the client's choice and payment", "paid": "Waiting for the client's acceptance",
              "signed": "Binding", "bound": "Done — key the change packet into iAdviser", "lapsed": "Lapsed — confirm with the client",
              "declined": "Client declined — close off"}
 

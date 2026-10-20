@@ -33,7 +33,7 @@ COPY = {  # fixed server-side templates; no client names, premiums or policy num
     "broker_reply": ("Your broker replied", "Your broker has replied to your question."),
     "broker_review": ("A request needs a broker", "A client request is waiting for broker review."),
     "approval_needed": ("Ready for your approval", "Your broker has checked your change. Please review and approve it."),
-    "signature_needed": ("Signature needed", "Your change is approved. Please sign to finish it."),
+    "signature_needed": ("Your acceptance is needed", "Your change is approved. Please accept it to finish."),
     "certificate_issued": ("Your certificate is ready", "A new certificate of currency is ready to view."),
     "broker_reviewed": ("Your broker has reviewed your request", "Your broker will contact you about the next step."),
     "promise_due": ("A client reply is due soon", "A reply you promised a client is due within two hours."),

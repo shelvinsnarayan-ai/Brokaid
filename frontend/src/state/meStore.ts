@@ -43,7 +43,7 @@ export function useAuthority() {
     canApprove: m ? m.authority.can_approve : true,
     canSign: m ? m.authority.can_sign : true,
     canPay: m ? m.authority.can_pay : true,
-    hint: `Only the policy owner can approve or sign this change. Ask ${owner} to approve.`,
+    hint: `Only the policy owner can approve or accept this change. Ask ${owner} to approve.`,
   };
 }
 

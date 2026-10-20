@@ -27,7 +27,7 @@ export function AcceptPanel({ kind, refId, onDone }: { kind: "endorsement" | "re
     const body = await r.json().catch(() => ({}));
     setBusy(false);
     if (r.status === 409 && body?.detail?.code === "name_mismatch") { setMismatch(true); return; }
-    if (!r.ok) { setErr(typeof body.detail === "string" ? body.detail : r.status === 403 ? "Only someone allowed to sign for this business can accept." : "That didn't work — please try again."); if (r.status === 409) load(); return; }
+    if (!r.ok) { setErr(typeof body.detail === "string" ? body.detail : r.status === 403 ? "Only someone allowed to accept for this business can do this." : "That didn't work — please try again."); if (r.status === 409) load(); return; }
     setMismatch(false);
     load();
     onDone?.(body);

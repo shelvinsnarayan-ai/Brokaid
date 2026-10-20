@@ -33,7 +33,7 @@ CLIENT_TEXT = {"upcoming": "Your broker is getting ready for your renewal.",
                "market": "Your broker is asking insurers for prices.", "quotes_in": "Prices are in. Your broker is comparing them.",
                "recommendation_ready": "Your broker is finishing their recommendation.",
                "client_decision": "Your renewal options are ready. Please choose one.",
-               "paid": "Payment received — thank you. Please sign to finish.", "signed": "Signed. Your broker is renewing your policy.",
+               "paid": "Payment received — thank you. Please accept to finish.", "signed": "Accepted. Your broker is renewing your policy.",
                "bound": "Your policy has renewed.", "lapse_risk": "Your cover ends soon and isn't renewed yet.",
                "lapsed": "Your cover has ended. Talk to your broker.", "declined": "You chose not to renew this policy."}
 TERMINAL = {"bound", "lapsed", "declined"}

@@ -65,7 +65,7 @@ AU = JurisdictionPack(
         "duty_of_disclosure": (
             "You have a duty to take reasonable care not to make a "
             "misrepresentation to your insurer. If you're unsure about "
-            "anything, ask your broker before you sign."
+            "anything, ask your broker before you accept."
         ),
     },
 )

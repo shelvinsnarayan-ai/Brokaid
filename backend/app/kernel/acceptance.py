@@ -243,7 +243,7 @@ async def offline(store, tid: str, kind: str, ref_id: str, *, data: bytes, filen
         raise Bad(422, "Upload the signed scan as a PDF, JPEG, PNG or HEIC.")
     doc = await document(store, tid, kind, ref_id)
     if not doc["subject"]["ready"]:
-        raise Bad(409, "This isn't ready to sign yet.")
+        raise Bad(409, "This isn't ready to accept yet.")
     prior = await recorded(store, tid, doc["envelope_id"])
     if prior:
         return prior
