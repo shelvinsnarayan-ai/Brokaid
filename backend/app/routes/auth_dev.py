@@ -51,8 +51,13 @@ async def personas(request: Request) -> dict:
     store = auth_store(request)
     t = await store.tenants.find_one({"slug": "harbourline"})  # tenant-safe: system-only — tenant registry read
     await devmode.require_dev_tenant(store, (t or {}).get("tenant_id"))
-    return {"label": "Demo sign-in (preview only)", "personas": [
-        {"slug": s, "name": n, "seat": seat, "email": e, "route": r} for s, n, seat, e, r in DEMO_PERSONAS]}
+    rows = [{"slug": s, "name": n, "seat": seat, "email": e, "route": r} for s, n, seat, e, r in DEMO_PERSONAS]
+    from app.kernel import sandbox
+    sb = await sandbox.find(store)
+    if sb and await devmode.is_demo_tenant(store, sb["tenant_id"]):  # R2.3: BurMac sandbox (TEST tenant, made-up details)
+        rows.append({"slug": "sandbox-principal", "name": "Pip Principal", "seat": "Principal · BurMac sandbox (test)",
+                     "email": sandbox.STAFF[0]["email"], "route": "/o/compliance"})
+    return {"label": "Demo sign-in (preview only)", "personas": rows}
 
 
 async def _demo_operator(request: Request) -> tuple:

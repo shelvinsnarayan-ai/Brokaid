@@ -108,3 +108,19 @@ Ongoing: the nightly backup runs automatically, and a weekly restore drill runs 
 - Low/moderate frontend audit findings remain (0 high/critical). See `scripts/dep_audit.sh` output.
 - In the dev server, the CSP allows inline scripts (needed for Vite HMR); the production preview headers do not.
 - Eval case `rem-04` is a known safe-direction flake (it doesn't perform the vehicle removal) and is tracked in the eval history.
+
+## 9. Compliance documents: fill the blanks → review → approve (R2.3)
+
+**In production (real BurMac data):** BurMac's own Principal or Operator signs in and opens **Compliance → Documents → Business details**. They enter the legal name, ABN/ACN, licence (own AFSL, or AR number + licensee name + licensee AFSL), contacts, how BurMac is paid, associations, PI/s912B statement, and the complaints and privacy officers, then press **Save and regenerate drafts**.
+- Every save is a new version, ledgered as `BusinessDetailsUpdated` (with the changed field names). It also updates the tenant record, so the AFSL/AR line appears on client documents such as the renewal comparison PDF.
+- brokAId checks formats only (ABN/ACN checksums, digit counts). It never invents licence details, and it can't confirm that they are correct.
+- Each draft shows "X of Y blanks filled", with the remaining blanks listed and highlighted yellow in the DOCX and PDF. Saving regenerates every non-live draft as a new version with a SHA-256. Wording can be edited per section (**Edit wording**); each edit is a new version, and a Principal can diff versions (**Versions**).
+- Send the DOCX/PDF drafts to BurMac's licensee/compliance adviser. When a draft has **zero** blanks, a Principal enters the reviewer's name, ticks "I confirm this has been reviewed by our licensee/compliance adviser" and approves it; this is ledgered with the content hash. Uploading an externally finished FSG PDF is still an alternative.
+- **Make live** renders a clean copy without the DRAFT watermark, and the go-live checklist item ticks. PDS and TMD are always obtained from each insurer.
+- brokAId does not make these documents legally compliant. The adviser's review is what matters.
+
+**On preview (made-up details only):** BurMac itself has no preview logins. Use the TEST tenant **burmac-sandbox** instead; it is test/demo-flagged and carries the same five draft templates.
+1. Create or refresh it: `cd /app/backend && python -m app.scripts.r23_burmac_sandbox` (this refuses outside dev mode).
+2. On `/login`, in **Demo sign-in (preview only)**, tap **Pip Principal · BurMac sandbox (test)**. This lands on Compliance.
+3. Fill in Business details with made-up values (e.g. ABN `51 824 753 556`, ACN `004 085 616`), save, and watch the blanks count fall. Edit wording, compare versions, then approve and make each document live.
+Never enter real BurMac details in the sandbox.

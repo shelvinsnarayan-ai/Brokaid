@@ -116,8 +116,29 @@ async def _lib(coro):
         raise HTTPException(status_code=e.status, detail=e.detail) from None
 
 
-class TextBody(BaseModel):
-    text: str = Field(min_length=10, max_length=40000)
+class SectionBody(BaseModel):
+    body: str = Field(min_length=10, max_length=20000)
+
+
+@router.get("/business-details")
+async def get_business_details(request: Request, s=Depends(_lead)) -> dict:
+    from app.kernel import business_details as bd
+    return {"details": await bd.current(_store(request), s.tenant_id),
+            "fields": [{"key": k, "label": lab, "help": h, "max": n} for k, lab, h, n in bd.FIELDS]}
+
+
+@router.put("/business-details")
+async def put_business_details(body: dict, request: Request, s=Depends(_lead)) -> dict:
+    """R2.3: validated, versioned (BusinessDetailsUpdated), fills the tenant record and regenerates every non-live draft."""
+    from app.kernel import business_details as bd
+    if not isinstance(body, dict) or any(not isinstance(v, str) for v in body.values()):
+        raise HTTPException(status_code=422, detail="Send each field as text.")
+    try:
+        row = await bd.save(_store(request), s.tenant_id, body, by=s.user_id, role=s.active_role)
+    except bd.Invalid as e:
+        raise HTTPException(status_code=422, detail={"errors": e.errors}) from None
+    regenerated = await lib.regenerate_all(_store(request), s.tenant_id, by=s.user_id, role=s.active_role) if row.get("changed") else []
+    return {"details": row, "regenerated": regenerated}
 
 
 class ApproveBody(BaseModel):
@@ -158,10 +179,20 @@ async def library_download(doc_id: str, request: Request, fmt: str = "pdf", s=De
     return Response(data, media_type=ct, headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
-@router.put("/library/{doc_id}/text")
-async def library_text(doc_id: str, body: TextBody, request: Request, s=Depends(_lead)) -> dict:
-    d = await _lib(lib.revise_text(_store(request), s.tenant_id, doc_id, body.text, by=s.user_id, role=s.active_role))
+@router.put("/library/{doc_id}/sections/{index}")
+async def library_section(doc_id: str, index: int, body: SectionBody, request: Request, s=Depends(_lead)) -> dict:
+    d = await _lib(lib.edit_section(_store(request), s.tenant_id, doc_id, index, body.body, by=s.user_id, role=s.active_role))
     return {k: v for k, v in d.items() if not k.endswith("_path")}
+
+
+@router.get("/library/{doc_id}/versions")
+async def library_versions(doc_id: str, request: Request, s=Depends(_lead)) -> dict:
+    return {"versions": await _lib(lib.versions(_store(request), s.tenant_id, doc_id))}
+
+
+@router.get("/library/{doc_id}/diff")
+async def library_diff(doc_id: str, a: int, b: int, request: Request, s=Depends(_lead)) -> dict:
+    return {"a": a, "b": b, "lines": await _lib(lib.diff(_store(request), s.tenant_id, doc_id, a, b))}
 
 
 @router.post("/library/{doc_id}/final")

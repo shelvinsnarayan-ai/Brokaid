@@ -28,10 +28,12 @@ P = {  # placeholders, kept identical across documents so the owner can find-and
     "overseas": "[PLACEHOLDER: countries where data may be disclosed or stored, or 'none']",
     "date": "[PLACEHOLDER: date of this document]",
     "version": "[PLACEHOLDER: version]",
+    "classes": "[PLACEHOLDER: list classes of insurance, e.g. motor, property, liability, business packages, and any premium funding]",
+    "privacy_where": "[PLACEHOLDER: where the Privacy Policy is available]",
 }
 
 
-def fsg() -> list[tuple[str, str]]:
+def fsg(P: dict = P) -> list[tuple[str, str]]:
     return [
         ("Financial Services Guide", f"Version {P['version']} · Date {P['date']}\n\n"
          "This Financial Services Guide (FSG) is an important document. It is designed to help you decide whether to use the "
@@ -44,7 +46,7 @@ def fsg() -> list[tuple[str, str]]:
          "insurer, we will tell you before we provide that service."),
         ("Financial services and products we provide", "We are authorised to advise on and deal in general insurance products, "
          "including arranging cover, renewals, changes (endorsements) and helping you with claims. "
-         "[PLACEHOLDER: list classes of insurance, e.g. motor, property, liability, business packages, and any premium funding]."),
+         f"{P['classes']}."),
         ("Other documents you may receive", "If we give you personal advice we will give you a Statement of Advice (SOA) "
          "where the law requires one. Before you buy a product you will receive the insurer's Product Disclosure Statement (PDS) "
          "and, where relevant, its Target Market Determination (TMD). PDSs and TMDs are issued by the insurer, not by us."),
@@ -62,7 +64,7 @@ def fsg() -> list[tuple[str, str]]:
          "We will tell you about any conflict of interest that could reasonably be expected to influence the services we provide."),
         ("Your privacy", "We collect personal information to arrange and manage your insurance and claims, and we share it with "
          "insurers and others as described in our Privacy Policy. Our Privacy Policy explains how to access or correct your "
-         "information and how to complain. [PLACEHOLDER: where the Privacy Policy is available]."),
+         f"information and how to complain. {P['privacy_where']}."),
         ("If you have a complaint", f"Please tell us first so we can try to fix it. Contact: {P['complaints']}.\n"
          "We will acknowledge your complaint within 1 business day (or as soon as practicable) and give you a written response "
          "within 30 calendar days. If you are not satisfied with our response, or we haven't responded in time, you can contact "
@@ -75,7 +77,7 @@ def fsg() -> list[tuple[str, str]]:
     ]
 
 
-def privacy_policy() -> list[tuple[str, str]]:
+def privacy_policy(P: dict = P) -> list[tuple[str, str]]:
     return [
         ("Privacy Policy", f"{P['legal']} (ABN {P['abn']}) · Version {P['version']} · Date {P['date']}\n\n"
          "We are bound by the Privacy Act 1988 (Cth) and the Australian Privacy Principles (APPs). This policy explains how we "
@@ -112,7 +114,7 @@ def privacy_policy() -> list[tuple[str, str]]:
     ]
 
 
-def collection_notice() -> str:
+def collection_notice(P: dict = P) -> str:
     return (f"{P['legal']} collects your personal information to arrange and manage your insurance, help with claims and meet "
             "our legal obligations. We disclose it to insurers and other parties involved in arranging your cover or claim, our "
             f"service providers and, where required, regulators. Some recipients may be overseas: {P['overseas']}. If you don't "
@@ -120,13 +122,13 @@ def collection_notice() -> str:
             f"how to access or correct your information and how to complain. Contact: {P['privacy_officer']}.")
 
 
-def gaw() -> str:
+def gaw(P: dict = P) -> str:  # noqa: ARG001 — no blanks
     return ("This advice is general advice only. It has been prepared without taking into account your objectives, financial "
             "situation or needs. Before acting on it you should consider whether it is appropriate for you, and read the relevant "
             "Product Disclosure Statement (PDS) and Target Market Determination (TMD) from the insurer before making a decision.")
 
 
-def afca() -> str:
+def afca(P: dict = P) -> str:
     return (f"If you have a complaint, please contact us first: {P['complaints']}. We will acknowledge it promptly and give you "
             "a written response within 30 calendar days. If you are not satisfied with our response, or we haven't responded "
             "within 30 days, you can contact the Australian Financial Complaints Authority (AFCA), a free and independent "

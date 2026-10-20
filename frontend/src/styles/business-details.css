@@ -1,0 +1,15 @@
+.bd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 12px; }
+.bd-field { display: grid; gap: 4px; }
+.bd-label { font-weight: 600; font-size: 13px; }
+.bd-field input, .bd-field textarea, .bd-field select { min-height: 36px; padding: 6px 8px; border: 1px solid #CBD5E0; border-radius: 6px; font: inherit; }
+.bd-help { font-size: 12px; }
+.lib-left { color: #8A4B12; font-weight: 600; }
+.lib-done { color: #1F6F43; font-weight: 600; }
+.lib-blanks { margin: 4px 0 6px 16px; padding: 0; font-size: 12px; color: #8A4B12; }
+.lib-blanks li { background: #FFF3A3; margin: 2px 0; padding: 0 4px; border-radius: 3px; list-style: disc; }
+.lib-editor { margin-top: 6px; }
+.lib-panel { display: grid; gap: 8px; margin-top: 8px; padding: 10px; border: 1px solid #E2E8F0; border-radius: 8px; }
+.lib-panel textarea { font: inherit; padding: 8px; }
+.lib-diff { white-space: pre-wrap; font-size: 12px; max-height: 320px; overflow: auto; background: #F7FAFC; padding: 8px; }
+.lib-add { background: #E6F4EA; color: #1F6F43; display: block; }
+.lib-del { background: #FDECEC; color: #B01E1E; display: block; text-decoration: line-through; }

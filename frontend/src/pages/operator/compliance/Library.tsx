@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { API, day, post, useLoad } from "./api";
+import { BusinessDetails } from "./BusinessDetails";
+import { DocEditor } from "./DocEditor";
+import "../../../styles/business-details.css";
 
 const STATUS: Record<string, string> = { draft: "Draft", approved: "Approved by Principal", live: "Live", obtain_from_insurer: "Obtain from insurer" };
 
@@ -9,9 +12,10 @@ export function Library({ role }: { role?: string }) {
   const run = (p: Promise<any>) => p.then(load).catch((e) => setErr(e.message));
   return (
     <div className="imp-page" data-testid="library-tab">
+      <BusinessDetails role={role} onSaved={load} />
       <div className="imp-card">
         <h2 className="imp-h2">Compliance document library</h2>
-        <p className="imp-muted">Drafts are templates for review by your licensee/compliance adviser. Nothing counts for go-live until a Principal approves it and it is made live. PDS and TMD come from each insurer.</p>
+        <p className="imp-muted">Drafts are templates for review by your licensee/compliance adviser. Fill your business details above to complete the blanks. A Principal can approve a draft once every blank is filled (or a finished PDF is uploaded). Nothing counts for go-live until it is made live. PDS and TMD come from each insurer.</p>
         {lead ? <div className="imp-row">
           <button className="k-btn" onClick={() => run(post("o/compliance/library/drafts", {}))} data-testid="library-generate">Generate draft templates</button>
           <a className="k-btn" href={`${API}/api/o/compliance/library/drafts.zip`} data-testid="library-download-all">Download all drafts (DOCX + PDF)</a>
@@ -19,7 +23,7 @@ export function Library({ role }: { role?: string }) {
       </div>
       {err ? <p className="imp-err" role="alert" data-testid="library-error">{err}</p> : null}
       <table className="imp-table" data-testid="library-table">
-        <thead><tr><th>Document</th><th>Status</th><th>Version</th><th>Placeholders</th><th>Files</th><th /></tr></thead>
+        <thead><tr><th>Document</th><th>Status</th><th>Version</th><th>Blanks filled</th><th>Files</th><th /></tr></thead>
         <tbody>{(data?.documents || []).map((d: any) => <Row key={d.doc_id || d.kind} d={d} role={role} confirm={data?.confirmation} onDone={load} setErr={setErr} />)}</tbody>
       </table>
     </div>
@@ -27,6 +31,7 @@ export function Library({ role }: { role?: string }) {
 }
 
 function Row({ d, role, confirm, onDone, setErr }: any) {
+  const lead = role === "principal" || role === "operator";
   const [name, setName] = useState("");
   const [tick, setTick] = useState(false);
   const id = d.doc_id || d.kind;
@@ -43,7 +48,11 @@ function Row({ d, role, confirm, onDone, setErr }: any) {
       <td>{d.title}</td>
       <td data-testid={`library-status-${d.kind}`}>{STATUS[d.status] || d.status}{d.approval ? ` · ${d.approval.reviewer_name} ${day(d.approval.at)}` : ""}</td>
       <td>{d.version}</td>
-      <td data-testid={`library-placeholders-${d.kind}`}>{d.placeholders || "—"}</td>
+      <td data-testid={`library-placeholders-${d.kind}`}>
+        {d.blanks?.total ? <span className={d.blanks.remaining.length ? "lib-left" : "lib-done"}>{d.blanks.filled} of {d.blanks.total} blanks filled</span> : "—"}
+        {d.blanks?.remaining?.length ? <ul className="lib-blanks" data-testid={`library-remaining-${d.kind}`}>{d.blanks.remaining.map((b: string) => <li key={b}>{b}</li>)}</ul> : null}
+        {lead ? <DocEditor d={d} role={role} onDone={onDone} setErr={setErr} /> : null}
+      </td>
       <td>
         <a href={`${API}/api/o/compliance/library/${id}/download?fmt=docx`} data-testid={`library-docx-${d.kind}`}>DOCX</a>{" · "}
         <a href={`${API}/api/o/compliance/library/${id}/download?fmt=pdf`} data-testid={`library-pdf-${d.kind}`}>PDF</a>
@@ -56,7 +65,8 @@ function Row({ d, role, confirm, onDone, setErr }: any) {
           <span className="imp-row">
             <input placeholder="Reviewer name" value={name} onChange={(e) => setName(e.target.value)} data-testid={`library-reviewer-${d.kind}`} />
             <label><input type="checkbox" checked={tick} onChange={(e) => setTick(e.target.checked)} data-testid={`library-confirm-${d.kind}`} /> {confirm}</label>
-            <button className="k-btn k-btn--primary" disabled={!tick || name.trim().length < 2}
+            <button className="k-btn k-btn--primary" disabled={!tick || name.trim().length < 2 || (!d.final_sha256 && d.placeholders > 0)}
+              title={!d.final_sha256 && d.placeholders > 0 ? "Fill every blank first" : undefined}
               onClick={() => act(post(`o/compliance/library/${d.doc_id}/approve`, { reviewer_name: name, confirmed: tick }))} data-testid={`library-approve-${d.kind}`}>Approve</button>
           </span>) : null}
         {d.status === "approved" && (role === "principal" || role === "operator") ? (

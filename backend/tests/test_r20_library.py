@@ -86,9 +86,9 @@ async def test_principal_approval_then_live_is_the_only_path(mongo_db):
     assert e.value.status == 403
     with pytest.raises(lib.Bad):  # the tick is required
         await lib.approve(db, tid, gaw["doc_id"], reviewer_name="Rita Reviewer", confirmed=False, by="p", role="principal")
-    with pytest.raises(lib.Bad, match="PLACEHOLDER"):  # placeholders block approval
+    with pytest.raises(lib.Bad, match="blanks? still to fill"):  # placeholders block approval
         await lib.approve(db, tid, afca["doc_id"], reviewer_name="Rita Reviewer", confirmed=True, by="p", role="principal")
-    with pytest.raises(lib.Bad, match="final PDF"):  # the generated FSG template can't be approved
+    with pytest.raises(lib.Bad, match="blanks? still to fill"):  # R2.3: a generated FSG with blanks left can't be approved
         await lib.approve(db, tid, fsg["doc_id"], reviewer_name="Rita Reviewer", confirmed=True, by="p", role="principal")
     with pytest.raises(lib.Bad):  # a draft can't go live
         await lib.make_live(db, tid, gaw["doc_id"], by="p", role="principal")
@@ -112,8 +112,8 @@ async def test_principal_approval_then_live_is_the_only_path(mongo_db):
     await lib.make_live(db, tid, fsg["doc_id"], by="op", role="operator")
     assert {i["key"]: i["done"] for i in await platform.checklist(db, tid)}["fsg"] is True
     # filled-in text can be approved
-    filled = afca["text"].replace("[PLACEHOLDER: complaints officer name, phone, email, postal address]", "Jo Smith, 02 9000 0000")
-    await lib.revise_text(db, tid, afca["doc_id"], filled, by="p", role="principal")
+    filled = afca["text"].split("\n", 1)[1].replace("[PLACEHOLDER: complaints officer name, phone, email, postal address]", "Jo Smith, 02 9000 0000")
+    await lib.edit_section(db, tid, afca["doc_id"], 0, filled, by="p", role="principal")
     assert (await lib.approve(db, tid, afca["doc_id"], reviewer_name="Rita", confirmed=True, by="p", role="principal"))["status"] == "approved"
 
 

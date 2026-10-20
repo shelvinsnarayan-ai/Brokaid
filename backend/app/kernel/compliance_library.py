@@ -4,12 +4,15 @@ PDS and TMD are insurer-issued: the library lists them as "Obtain from insurer" 
 """
 from __future__ import annotations
 
+import difflib
 import hashlib
 import io
+import re
 import uuid
 from datetime import datetime, timezone
 
 from app.db.tenant_safe import wrap
+from app.kernel import business_details as bd
 from app.kernel import compliance_templates as T
 from app.kernel import filetype, object_store
 from app.kernel.tenant_ctx import use_tenant
@@ -40,40 +43,72 @@ def _now():
     return datetime.now(timezone.utc)
 
 
-def _sections(kind: str) -> list[tuple[str, str]]:
+def _sections(kind: str, p: dict | None = None) -> list[tuple[str, str]]:
+    p = p or T.P
     if kind == "FSG":
-        return T.fsg()
+        return T.fsg(p)
     if kind == "PRIVACY_POLICY":
-        return T.privacy_policy()
-    return [(KINDS[kind][0], {"COLLECTION_NOTICE": T.collection_notice, "GAW": T.gaw, "AFCA": T.afca}[kind]())]
+        return T.privacy_policy(p)
+    return [(KINDS[kind][0], {"COLLECTION_NOTICE": T.collection_notice, "GAW": T.gaw, "AFCA": T.afca}[kind](p))]
 
 
 def _plain(sections) -> str:
     return "\n\n".join(f"{h}\n{b}" for h, b in sections)
 
 
-def render_docx(title: str, sections, watermark: str) -> bytes:
+_BLANK = re.compile(r"\[PLACEHOLDER:[^\]]*\]")
+
+
+def compose(kind: str, details: dict, overrides: dict, version: int) -> tuple[list[tuple[str, str]], dict]:
+    """Template + business details + section edits → (sections, blanks progress). Edits are filled too."""
+    vals = {**bd.fill(details), "date": bd.today(), "version": str(version)}
+    fill_p = {k: vals.get(k, v) for k, v in T.P.items()}
+    blank_secs, secs = _sections(kind), _sections(kind, fill_p)
+    raw = []
+    for i, ((h, body), (_h, blank)) in enumerate(zip(secs, blank_secs)):
+        if str(i) in overrides:
+            blank = overrides[str(i)]
+            body = blank
+            for k, ph in T.P.items():
+                body = body.replace(ph, fill_p[k])
+        secs[i] = (h, body)
+        raw.append(blank)
+    used = [k for k, ph in T.P.items() if any(ph in b for b in raw)]
+    left = sorted(set(_BLANK.findall(_plain(secs))))
+    known_left = [k for k in used if T.P[k] in left]
+    unknown = [x for x in left if x not in T.P.values()]
+    total = len(used) + len(unknown)
+    return secs, {"total": total, "filled": total - len(known_left) - len(unknown),
+                  "remaining": [bd.label_for(k) for k in known_left] + unknown}
+
+
+def render_docx(title: str, sections, watermark: str | None) -> bytes:
     import docx
+    from docx.enum.text import WD_COLOR_INDEX
     from docx.shared import Pt, RGBColor
     d = docx.Document()
-    for part in (d.sections[0].header.paragraphs[0],):
-        run = part.add_run(watermark)
+    if watermark:
+        run = d.sections[0].header.paragraphs[0].add_run(watermark)
         run.bold, run.font.size, run.font.color.rgb = True, Pt(10), RGBColor(0xB0, 0x1E, 0x1E)
-    p = d.add_paragraph()
-    r = p.add_run(watermark)
-    r.bold, r.font.size, r.font.color.rgb = True, Pt(14), RGBColor(0xB0, 0x1E, 0x1E)
+        r = d.add_paragraph().add_run(watermark)
+        r.bold, r.font.size, r.font.color.rgb = True, Pt(14), RGBColor(0xB0, 0x1E, 0x1E)
     d.add_heading(title, level=0)
     for h, body in sections:
         d.add_heading(h, level=1)
         for para in body.split("\n"):
             if para.strip():
-                d.add_paragraph(para)
+                p, pos = d.add_paragraph(), 0
+                for m in _BLANK.finditer(para):  # remaining blanks are highlighted
+                    p.add_run(para[pos:m.start()])
+                    p.add_run(m.group(0)).font.highlight_color = WD_COLOR_INDEX.YELLOW
+                    pos = m.end()
+                p.add_run(para[pos:])
     buf = io.BytesIO()
     d.save(buf)
     return buf.getvalue()
 
 
-def render_pdf(title: str, sections, watermark: str) -> bytes:
+def render_pdf(title: str, sections, watermark: str | None) -> bytes:
     from xml.sax.saxutils import escape
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
@@ -94,16 +129,20 @@ def render_pdf(title: str, sections, watermark: str) -> bytes:
         canvas.drawCentredString(0, 0, "DRAFT")
         canvas.restoreState()
 
+    hl = lambda s: _BLANK.sub(lambda m: f'<font backColor="#FFF3A3">{m.group(0)}</font>', escape(s))  # noqa: E731
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, title=title, invariant=1)
-    flow = [Paragraph(escape(watermark), mark), Spacer(1, 8), Paragraph(escape(title), st["Title"])]
+    flow = ([Paragraph(escape(watermark), mark), Spacer(1, 8)] if watermark else []) + [Paragraph(escape(title), st["Title"])]
     for h, body in sections:
         flow.append(Paragraph(escape(h), st["Heading2"]))
         for para in body.split("\n"):
             if para.strip():
-                flow.append(Paragraph(escape(para), st["Normal"]))
+                flow.append(Paragraph(hl(para), st["Normal"]))
         flow.append(Spacer(1, 6))
-    doc.build(flow, onFirstPage=header, onLaterPages=header)
+    if watermark:
+        doc.build(flow, onFirstPage=header, onLaterPages=header)
+    else:
+        doc.build(flow)
     return buf.getvalue()
 
 
@@ -127,38 +166,95 @@ async def _store_file(tid, doc_id, ext, data, ct) -> str:
     return path
 
 
+async def _new_version(store, tid, d: dict, *, reason: str, by: str, role: str) -> dict:
+    """Render the current template + details + edits as a new DRAFT version (DOCX + PDF stored, hashed, ledgered)."""
+    details = (await bd.current(store, tid))["fields"]
+    v = d.get("version", 0) + 1
+    secs, blanks = compose(d["kind"], details, d.get("overrides") or {}, v)
+    docx_b, pdf_b = render_docx(d["title"], secs, d["watermark"]), render_pdf(d["title"], secs, d["watermark"])
+    text = _plain(secs)
+    ver = {"doc_id": d["doc_id"], "version": v, "sections": [list(x) for x in secs], "text": text, "reason": reason,
+           "sha256": hashlib.sha256(text.encode()).hexdigest(), "blanks": blanks, "by": by, "at": _now(),
+           "docx_path": await _store_file(tid, f"{d['doc_id']}-v{v}", "docx", docx_b, DOCX),
+           "pdf_path": await _store_file(tid, f"{d['doc_id']}-v{v}", "pdf", pdf_b, "application/pdf"),
+           "docx_sha256": hashlib.sha256(docx_b).hexdigest(), "pdf_sha256": hashlib.sha256(pdf_b).hexdigest()}
+    safe = wrap(store)
+    upd = {k: ver[k] for k in ("version", "sections", "text", "blanks", "docx_path", "pdf_path", "docx_sha256", "pdf_sha256")}
+    async with use_tenant(tid):
+        await safe.compliance_library_versions.insert_one(dict(ver))
+        if d.get("version"):
+            await safe.compliance_library.update_one({"doc_id": d["doc_id"]}, {"$set": {**upd, "status": "draft", "approval": None}})
+    await _event(store, tid, "ComplianceDraftCreated" if v == 1 else "ComplianceDraftRevised",
+                 {"doc_id": d["doc_id"], "kind": d["kind"], "version": v, "reason": reason, "sha256": ver["sha256"],
+                  "pdf_sha256": ver["pdf_sha256"], "docx_sha256": ver["docx_sha256"], "blanks_remaining": len(blanks["remaining"]),
+                  "status": "draft"}, f"compliance_rev:{d['doc_id']}:{v}", by, role)
+    return {**d, **upd, "status": "draft", "approval": None}
+
+
 async def generate_drafts(store, tid: str, *, by: str, role: str) -> list[dict]:
     """Create one DRAFT per kind (idempotent: an existing draft/approved/live doc of that kind is left alone)."""
-    brand = await _brand(store, tid)
-    mark = T.WATERMARK.format(brand=brand)
-    out = []
-    safe = wrap(store)
+    mark = T.WATERMARK.format(brand=await _brand(store, tid))
+    out, safe = [], wrap(store)
     for kind, (title, _field, _file) in KINDS.items():
         async with use_tenant(tid):
             if await safe.compliance_library.find_one({"kind": kind, "status": {"$in": ["draft", "approved", "live"]}}):
                 continue
-        sections = _sections(kind)
-        doc_id = str(uuid.uuid4())
-        docx_b, pdf_b = render_docx(title, sections, mark), render_pdf(title, sections, mark)
-        row = {"doc_id": doc_id, "kind": kind, "title": title, "status": "draft", "version": 1, "text": _plain(sections),
-               "watermark": mark, "docx_path": await _store_file(tid, doc_id, "docx", docx_b, DOCX),
-               "pdf_path": await _store_file(tid, doc_id, "pdf", pdf_b, "application/pdf"),
-               "docx_sha256": hashlib.sha256(docx_b).hexdigest(), "pdf_sha256": hashlib.sha256(pdf_b).hexdigest(),
-               "final_path": None, "final_sha256": None, "generated": True, "created_by": by, "created_at": _now(), "approval": None}
+        row = await _new_version(store, tid, {"doc_id": str(uuid.uuid4()), "kind": kind, "title": title, "watermark": mark,
+                                              "overrides": {}, "version": 0}, reason="generated", by=by, role=role)
+        row.update({"final_path": None, "final_sha256": None, "generated": True, "created_by": by, "created_at": _now()})
         async with use_tenant(tid):
             await safe.compliance_library.insert_one(dict(row))
-        await _event(store, tid, "ComplianceDraftCreated", {"doc_id": doc_id, "kind": kind, "version": 1,
-                     "pdf_sha256": row["pdf_sha256"], "docx_sha256": row["docx_sha256"], "status": "draft"},
-                     f"compliance_draft:{doc_id}", by, role)
+        row.pop("_id", None)
         out.append(row)
     return out
+
+
+async def regenerate_all(store, tid: str, *, by: str, role: str) -> list[str]:
+    """After business details change: every generated draft/approved (not live) document gets a new draft version."""
+    async with use_tenant(tid):
+        rows = [r async for r in wrap(store).compliance_library.find({"status": {"$in": ["draft", "approved"]}}, {"_id": 0})]
+    return [(await _new_version(store, tid, r, reason="business_details", by=by, role=role))["doc_id"] for r in rows]
+
+
+async def edit_section(store, tid, doc_id: str, index: int, body: str, *, by, role) -> dict:
+    d = await get(store, tid, doc_id)
+    if d["status"] == "live":
+        raise Bad(409, "This version is live. Generate a new draft to change it.")
+    if not d.get("sections"):  # an R2.0 draft: render it the R2.3 way first
+        d = await _new_version(store, tid, d, reason="upgrade", by=by, role=role)
+    if not 0 <= index < len(d["sections"]):
+        raise Bad(404, "not_found")
+    ov = {**(d.get("overrides") or {}), str(index): body.strip()}
+    async with use_tenant(tid):
+        await wrap(store).compliance_library.update_one({"doc_id": doc_id}, {"$set": {"overrides": ov}})
+    return await _new_version(store, tid, {**d, "overrides": ov}, reason=f"edit:section {index + 1}", by=by, role=role)
+
+
+async def versions(store, tid, doc_id) -> list[dict]:
+    await get(store, tid, doc_id)
+    async with use_tenant(tid):
+        return [v async for v in wrap(store).compliance_library_versions.find(
+            {"doc_id": doc_id}, {"_id": 0, "version": 1, "reason": 1, "sha256": 1, "pdf_sha256": 1, "blanks": 1, "by": 1, "at": 1}
+        ).sort("version", 1)]
+
+
+async def diff(store, tid, doc_id, a: int, b: int) -> list[dict]:
+    await get(store, tid, doc_id)
+    async with use_tenant(tid):
+        va = await wrap(store).compliance_library_versions.find_one({"doc_id": doc_id, "version": a}, {"_id": 0, "text": 1})
+        vb = await wrap(store).compliance_library_versions.find_one({"doc_id": doc_id, "version": b}, {"_id": 0, "text": 1})
+    if not va or not vb:
+        raise Bad(404, "not_found")
+    return [{"op": ln[0], "line": ln[2:]} for ln in difflib.ndiff(va["text"].splitlines(), vb["text"].splitlines()) if ln[0] in "+- "]
 
 
 async def listing(store, tid) -> list[dict]:
     async with use_tenant(tid):
         rows = [r async for r in wrap(store).compliance_library.find({"status": {"$ne": "superseded"}}, {"_id": 0}).sort("created_at", 1)]
     for r in rows:
-        r["placeholders"] = r["text"].count(PLACEHOLDER) if not KINDS[r["kind"]][2] or not r.get("final_path") else 0
+        b = r.get("blanks") or {"total": 0, "filled": 0, "remaining": []}
+        r["blanks"] = {"total": 0, "filled": 0, "remaining": []} if r.get("final_path") else b
+        r["placeholders"] = len(r["blanks"]["remaining"])
     return rows + [{"kind": k, "title": t, "status": "obtain_from_insurer", "insurer_issued": True} for k, t in INSURER_ISSUED.items()]
 
 
@@ -168,21 +264,6 @@ async def get(store, tid, doc_id) -> dict:
     if not d:
         raise Bad(404, "not_found")
     return d
-
-
-async def revise_text(store, tid, doc_id, text: str, *, by, role) -> dict:
-    d = await get(store, tid, doc_id)
-    if KINDS[d["kind"]][2]:
-        raise Bad(409, "Upload the final, completed FSG as a PDF instead.")
-    if d["status"] == "live":
-        raise Bad(409, "This version is live. Generate a new draft to change it.")
-    text = text.strip()
-    async with use_tenant(tid):
-        await wrap(store).compliance_library.update_one({"doc_id": doc_id}, {"$set": {"text": text, "status": "draft", "approval": None},
-                                                                             "$inc": {"version": 1}})
-    await _event(store, tid, "ComplianceDraftRevised", {"doc_id": doc_id, "kind": d["kind"], "version": d["version"] + 1,
-                 "sha256": hashlib.sha256(text.encode()).hexdigest()}, f"compliance_rev:{doc_id}:{d['version'] + 1}", by, role)
-    return await get(store, tid, doc_id)
 
 
 async def upload_final(store, tid, doc_id, data: bytes, *, by, role) -> dict:
@@ -202,7 +283,7 @@ async def upload_final(store, tid, doc_id, data: bytes, *, by, role) -> dict:
 
 
 def _approved_sha(d) -> str:
-    return d["final_sha256"] if KINDS[d["kind"]][2] else hashlib.sha256(d["text"].encode()).hexdigest()
+    return d["final_sha256"] if d.get("final_path") else hashlib.sha256(d["text"].encode()).hexdigest()
 
 
 async def approve(store, tid, doc_id, *, reviewer_name: str, confirmed: bool, by, role) -> dict:
@@ -215,10 +296,9 @@ async def approve(store, tid, doc_id, *, reviewer_name: str, confirmed: bool, by
     d = await get(store, tid, doc_id)
     if d["status"] != "draft":
         raise Bad(409, f"This document is {d['status']}, not a draft.")
-    if KINDS[d["kind"]][2] and not d.get("final_path"):
-        raise Bad(409, "The generated FSG is a template marked DRAFT. Complete it, then upload the final PDF before approving.")
-    if not KINDS[d["kind"]][2] and PLACEHOLDER in d["text"]:
-        raise Bad(409, f"Fill in every {PLACEHOLDER}…] field before approving.")
+    if not d.get("final_path") and PLACEHOLDER in d["text"]:  # R2.3: a generated draft with zero blanks may be approved
+        n = len((d.get("blanks") or {}).get("remaining") or []) or d["text"].count(PLACEHOLDER)
+        raise Bad(409, f"{n} blank{'s' if n != 1 else ''} still to fill. Fill every blank (or upload a finished PDF) before approving.")
     approval = {"reviewer_name": reviewer_name.strip()[:120], "confirmation": CONFIRM, "by": by, "at": _now(), "sha256": _approved_sha(d)}
     async with use_tenant(tid):
         await wrap(store).compliance_library.update_one({"doc_id": doc_id}, {"$set": {"status": "approved", "approval": approval}})
@@ -236,9 +316,14 @@ async def make_live(store, tid, doc_id, *, by, role) -> dict:
         raise Bad(409, "Only a Principal-approved document can go live.")
     kind, (_title, field, is_file) = d["kind"], KINDS[d["kind"]]
     safe = wrap(store)
+    secs = [tuple(x) for x in d.get("sections") or [(d["title"], d["text"])]]
+    clean_pdf = render_pdf(d["title"], secs, None)  # live = no DRAFT watermark
+    clean = {"live_pdf_path": await _store_file(tid, f"{doc_id}-v{d['version']}-live", "pdf", clean_pdf, "application/pdf"),
+             "live_docx_path": await _store_file(tid, f"{doc_id}-v{d['version']}-live", "docx", render_docx(d["title"], secs, None), DOCX),
+             "live_pdf_sha256": hashlib.sha256(clean_pdf).hexdigest()}
     if is_file:
         from app.kernel import compliance_docs as cd
-        data, _ = await object_store.get_object(d["final_path"])
+        data = (await object_store.get_object(d["final_path"]))[0] if d.get("final_path") else clean_pdf
         await cd.upload(store, tid, kind="FSG", data=data, filename=f"FSG-v{d['version']}.pdf", content_type="application/pdf",
                         version=str(d["version"]), effective_date=_now().date().isoformat(), insurer=None, product=None, by=by)
     else:
@@ -246,7 +331,7 @@ async def make_live(store, tid, doc_id, *, by, role) -> dict:
             await safe.tenant_settings.update_one({}, {"$set": {field: d["text"]}}, upsert=True)
     async with use_tenant(tid):
         await safe.compliance_library.update_many({"kind": kind, "status": "live"}, {"$set": {"status": "superseded"}})
-        await safe.compliance_library.update_one({"doc_id": doc_id}, {"$set": {"status": "live", "live_at": _now(), "live_by": by}})
+        await safe.compliance_library.update_one({"doc_id": doc_id}, {"$set": {"status": "live", "live_at": _now(), "live_by": by, **clean}})
     await _event(store, tid, "ComplianceDocumentLive", {"doc_id": doc_id, "kind": kind, "version": d["version"],
                  "sha256": d["approval"]["sha256"]}, f"compliance_live:{doc_id}:{d['version']}", by, role)
     return await get(store, tid, doc_id)
@@ -262,13 +347,11 @@ async def download(store, tid, doc_id, fmt: str) -> tuple[bytes, str, str]:
     if fmt == "final" and d.get("final_path"):
         data, _ = await object_store.get_object(d["final_path"])
         return data, "application/pdf", f"{d['kind']}-v{d['version']}-final.pdf"
-    if d["version"] > 1 and not KINDS[d["kind"]][2]:  # revised text: re-render so downloads match what will be approved
-        sections = [(d["title"], d["text"])]
-        data = render_docx(d["title"], sections, d["watermark"]) if fmt == "docx" else render_pdf(d["title"], sections, d["watermark"])
-    else:
-        data, _ = await object_store.get_object(d["docx_path"] if fmt == "docx" else d["pdf_path"])
+    live = d["status"] in ("live", "superseded") and d.get("live_pdf_path")
+    path = d.get(f"live_{fmt}_path" if live else f"{fmt}_path") or d[f"{'docx' if fmt == 'docx' else 'pdf'}_path"]
+    data, _ = await object_store.get_object(path)
     ct = DOCX if fmt == "docx" else "application/pdf"
-    return data, ct, f"{d['kind']}-DRAFT-v{d['version']}.{'docx' if fmt == 'docx' else 'pdf'}"
+    return data, ct, f"{d['kind']}-{'v' if live else 'DRAFT-v'}{d['version']}.{'docx' if fmt == 'docx' else 'pdf'}"
 
 
 async def drafts_zip(store, tid) -> bytes:
