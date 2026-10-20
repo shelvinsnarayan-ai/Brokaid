@@ -33,7 +33,8 @@ export function RenewalDetail({ id, role, mode, onClose, onChanged }: { id: stri
         {r.history.map((h, i) => <li key={i}>{new Date(h.at).toLocaleDateString("en-AU")} — {h.to.replace(/_/g, " ")}{h.note ? ` (${h.note})` : ""}</li>)}
       </ol>
       {err ? <p className="imp-err" role="alert" data-testid="renewal-detail-error">{err}</p> : null}
-      {can && r.current === "paid" ? <OfflineSign kind="renewal" refId={r.renewal_id} onDone={onChanged} /> : null}
+      {can && r.current === "paid" ? <OfflineSign kind="renewal" refId={r.renewal_id} onDone={() => { load(); onChanged(); }} /> : null}
+      <LapseDecisions r={r as any} role={role} act={act} load={load} onChanged={onChanged} />
       {can && r.current === "upcoming" ? (
         <button className="k-btn k-btn--primary" onClick={() => act("request-info")} data-testid="renewal-request-info">Send the client the renewal checklist</button>
       ) : null}
@@ -104,5 +105,40 @@ function ComparisonEmails({ rows, canResend, onResend }: { rows: any[]; canResen
       ))}
       {canResend ? <button className="k-btn" onClick={onResend} data-testid="renewal-resend-comparison">Resend comparison email</button> : null}
     </div>
+  );
+}
+
+function LapseDecisions({ r, role, act, load, onChanged }: { r: any; role?: string; act: (a: string) => void; load: () => void; onChanged: () => void }) {
+  const rr = r.refund_review;
+  const cc = r.cover_continuity;
+  const [err, setErr] = useState<string | null>(null);
+  const confirmLapse = async () => {
+    setErr(null);
+    try { await api(`o/renewals/${r.renewal_id}/confirm-lapse`, {}); load(); onChanged(); } catch (e: any) { setErr(e.message); }
+  };
+  return (
+    <>
+      {r.lapse_hold ? (
+        <div className="imp-card" data-testid="renewal-past-due-hold">
+          <p className="imp-warn">This renewal passed expiry while the brokerage was suspended. It wasn't lapsed automatically.</p>
+          {role === "principal" || role === "operator"
+            ? <button className="k-btn" onClick={confirmLapse} data-testid="renewal-confirm-lapse">Confirm lapse</button> : null}
+        </div>
+      ) : null}
+      {rr ? (
+        <div className="imp-card" data-testid="renewal-refund-or-bind">
+          <h3 className="imp-h3">Refund or bind decision</h3>
+          {rr.state === "open" ? <>
+            <p className="imp-warn" data-testid="renewal-refund-or-bind-text">The policy lapsed with the premium held in trust. Refund it, or bind with a late wet signature (Principal approval).</p>
+            <button className="k-btn" onClick={() => act("mark-refund")} data-testid="renewal-mark-refund">Mark for refund</button>
+            {role === "principal"
+              ? <OfflineSign kind="renewal" refId={r.renewal_id} onDone={() => { load(); onChanged(); }} />
+              : <p className="imp-muted">Binding after a lapse needs a Principal to record the late wet signature.</p>}
+          </> : <p className="imp-muted" data-testid="renewal-refund-or-bind-state">Decision: {rr.state === "refund" ? "refund the premium (record it in Bank)" : "bound with a late wet signature"}.</p>}
+        </div>
+      ) : null}
+      {cc ? <p className="imp-warn" data-testid="renewal-cover-continuity">{cc.note}</p> : null}
+      {err ? <p className="imp-err" role="alert">{err}</p> : null}
+    </>
   );
 }

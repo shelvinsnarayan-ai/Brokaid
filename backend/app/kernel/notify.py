@@ -83,17 +83,30 @@ RULES: dict[str, dict] = {
 }
 
 
+async def _active(safe, ids) -> list[str]:
+    """R2.6: drop disabled users — they never receive alerts."""
+    ids = list(dict.fromkeys(i for i in ids if i))
+    if not ids:
+        return []
+    off = {u["user_id"] async for u in safe.users.find({"user_id": {"$in": ids}, "disabled": True}, {"user_id": 1})}
+    return [i for i in ids if i not in off]
+
+
 async def _staff(safe, roles) -> list[str]:
-    return [r["user_id"] async for r in safe.user_brokerage_roles.find({"role": {"$in": list(roles)}, "active": True})]
+    return await _active(safe, [r["user_id"] async for r in safe.user_brokerage_roles.find({"role": {"$in": list(roles)}, "active": True})])
+
+
+async def active_ae(safe, uid: str | None) -> str | None:
+    """uid if it is still an enabled user with an active AE role (R2.6)."""
+    if uid and await safe.user_brokerage_roles.find_one({"user_id": uid, "role": "ae", "active": True}) and await _active(safe, [uid]):
+        return uid
+    return None
 
 
 async def assigned_ae(safe, client_id: str | None) -> str | None:
-    """The client's assigned AE if still an active AE (R1.2b)."""
+    """The client's assigned AE if still an active, enabled AE (R1.2b, R2.6)."""
     c = await safe.clients.find_one({"client_id": client_id}) if client_id else None
-    uid = (c or {}).get("assigned_ae_user_id")
-    if uid and await safe.user_brokerage_roles.find_one({"user_id": uid, "role": "ae", "active": True}):
-        return uid
-    return None
+    return await active_ae(safe, (c or {}).get("assigned_ae_user_id"))
 
 
 async def _client_staff(safe, client_id: str | None) -> list[str]:
@@ -111,7 +124,7 @@ async def _members(safe, client_id: str | None, need: str | None) -> list[str]:
         m = await safe.memberships.find_one({"user_id": link["user_id"], "client_id": client_id, "revoked_at": None})
         if need is None or (m and effective(m).get(need)):
             out.append(link["user_id"])
-    return out
+    return await _active(safe, out)
 
 
 async def _client_id(safe, p: dict) -> str | None:
@@ -146,6 +159,8 @@ async def deliver(store, tenant_id: str, user_id: str, *, kind: str, title: str,
     safe = wrap(store)
     now = datetime.now(timezone.utc)
     async with use_tenant(tenant_id):
+        if not await _active(safe, [user_id]):
+            return "skipped:user_disabled"
         if await safe.notifications.find_one({"user_id": user_id, "idem_keys": idem}):
             return "duplicate"
         prev = await safe.notifications.find_one({"user_id": user_id, "dedupe_key": dedupe_key, "read_at": None,

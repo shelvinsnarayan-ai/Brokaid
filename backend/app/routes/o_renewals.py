@@ -178,6 +178,23 @@ async def _detail(store, tid, r) -> dict:
             "comparison_emails": await doc_email.status_for(store, tid, r["renewal_id"])}
 
 
+@router.get("/renewals-past-due")
+async def past_due(request: Request, s=Depends(require_operator_session)) -> dict:
+    """R2.6: renewals that passed expiry while the tenant was suspended (not auto-lapsed)."""
+    if s.active_role not in ("operator", "principal"):
+        raise HTTPException(status_code=403, detail="operator_or_principal_only")
+    return {"renewals": await rn.past_due_review(_store(request), s.tenant_id)}
+
+
+@router.post("/renewals/{renewal_id}/confirm-lapse")
+async def confirm_lapse(renewal_id: str, request: Request, s=Depends(require_operator_session)) -> dict:
+    if s.active_role not in ("operator", "principal"):
+        raise HTTPException(status_code=403, detail="operator_or_principal_only")
+    store, r = _store(request), await _load(request, s, renewal_id)
+    await _run(rn.confirm_lapse(store, s.tenant_id, r, by=s.user_id, role=s.active_role))
+    return await _detail(store, s.tenant_id, await rn.get(store, s.tenant_id, renewal_id))
+
+
 @router.post("/renewals/{renewal_id}/resend-comparison")
 async def resend_comparison(renewal_id: str, request: Request, s=Depends(require_operator_session)) -> dict:
     """R2.5: AE/Principal re-queues the comparison email (ledgered; at most once per 10 minutes per renewal)."""
@@ -251,6 +268,8 @@ async def act(renewal_id: str, action: str, request: Request, s=Depends(actor)) 
         await _run(rn.approve_tmd(store, tid, r, by=s.user_id))
     elif action == "send":
         await _run(rn.send_to_client(store, tid, r, **kw))
+    elif action == "mark-refund":
+        await _run(rn.mark_refund(store, tid, r, **kw))
     else:
         raise HTTPException(status_code=404, detail="unknown_action")
     return await _detail(store, tid, await rn.get(store, tid, renewal_id))

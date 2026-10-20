@@ -99,7 +99,36 @@ async def lodge(body: StaffFNOL, request: Request, s: Session = Depends(_staff))
 @router.get("/{claim_id}")
 async def detail(claim_id: str, request: Request, s: Session = Depends(_staff)) -> dict:
     c = await _get(request, s, claim_id)
-    return {**_view(c), "quoting_mode": await holidays.quoting_mode(_store(request), s.tenant_id)}
+    store = _store(request)
+    return {**_view(c), "quoting_mode": await holidays.quoting_mode(store, s.tenant_id),
+            "policy_status": await ck.policy_status(store, s.tenant_id, c.get("policy_id")),
+            "complaints": await ck.linked_complaints(store, s.tenant_id, c["claim_id"])}
+
+
+class ComplaintFromClaim(BaseModel):
+    summary: str | None = Field(default=None, max_length=300)
+    details: str | None = Field(default=None, max_length=5000)
+
+
+@router.post("/{claim_id}/complaint")
+async def complaint_from_claim(claim_id: str, request: Request, body: ComplaintFromClaim = Body(default_factory=ComplaintFromClaim),
+                               s: Session = Depends(_staff)) -> dict:
+    """R2.6: the client disagrees with a declined/partial decision — log an IDR complaint pre-linked to the claim."""
+    from app.kernel import complaints as cm
+    store, c = _store(request), await _get(request, s, claim_id)
+    d = c.get("decision") or {}
+    if d.get("outcome") not in ("declined", "partial"):
+        raise HTTPException(status_code=409, detail="Only a declined or partly accepted claim can become a complaint from here.")
+    if any(x["stage"] not in ("closed", "escalated_afca") for x in await ck.linked_complaints(store, s.tenant_id, claim_id)):
+        raise HTTPException(status_code=409, detail="An open complaint is already linked to this claim.")
+    try:
+        await cm.create(store, s.tenant_id, "complaint", client_id=c["client_id"], category="claims",
+                        summary=body.summary or f"Disagrees with the insurer's decision on claim {c['claim_reference']}",
+                        details=body.details or (d.get("disputed") or {}).get("reason") or "", source="claim",
+                        source_ref=c["claim_reference"], claim_id=claim_id, by=s.user_id, role=s.active_role)
+    except cm.Bad as e:
+        raise HTTPException(status_code=409, detail=str(e)) from None
+    return await detail(claim_id, request, s)
 
 
 @router.post("/{claim_id}/ack")

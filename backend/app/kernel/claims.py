@@ -108,8 +108,8 @@ async def _alert(store, tid, c, who, kind, title, body, idem):
     safe = wrap(store)
     async with use_tenant(tid):
         if who == "ae":
-            ae = c.get("assigned_ae") or await notify.assigned_ae(safe, c["client_id"])
-            to = [ae] if ae else await notify._staff(safe, ("ae",))
+            ae = await notify.active_ae(safe, c.get("assigned_ae")) or await notify.assigned_ae(safe, c["client_id"])  # R2.6: re-resolve
+            to = [ae] if ae else await notify._staff(safe, ("ae", "principal"))  # R2.6: Principal + active AEs
         elif who == "principal":
             to = await notify._staff(safe, ("principal",))
         else:
@@ -129,7 +129,7 @@ def policy_check(policy: dict | None, incident_date, rego: str | None, claim_cla
     inc = _day(incident_date)
     start, end = _day(policy.get("inception")), _day(policy.get("expiry"))
     if inc and start and end:
-        out["in_force"] = start <= inc <= end and policy.get("status") in ("managed", "in_force")
+        out["in_force"] = start <= inc <= end and policy.get("status") in ("managed", "in_force", "lapsed", "renewed")  # R2.6
         if not out["in_force"]:
             flags.append({"code": "outside_period", "text": f"Incident date {inc:%d/%m/%Y} is outside the policy period "
                                                             f"({start:%d/%m/%Y}–{end:%d/%m/%Y}) or the policy isn't in force."})
@@ -150,6 +150,45 @@ def policy_check(policy: dict | None, incident_date, rego: str | None, claim_cla
         else:
             flags.append({"code": "asset_missing", "text": "No vehicle chosen yet."})
     return {**out, "flags": flags}
+
+
+async def term_for(store, tid, policy: dict | None, incident_date) -> dict | None:
+    """R2.6: the term of this policy line in force on the incident date (the expiring, lapsed or renewed term)."""
+    inc = _day(incident_date)
+
+    def covers(p):
+        s, e = _day(p.get("inception")), _day(p.get("expiry"))
+        return bool(s and e and s <= inc <= e)
+    if not policy or not inc or covers(policy):
+        return policy
+    safe = wrap(store)
+    async with use_tenant(tid):
+        prev = await safe.policies.find_one({"renewed_to": policy["policy_id"]}, {"_id": 0})
+        nxt = await safe.policies.find_one({"policy_id": policy["renewed_to"]}, {"_id": 0}) if policy.get("renewed_to") else None
+    return next((p for p in (prev, nxt) if p and covers(p)), policy)
+
+
+async def policy_status(store, tid, policy_id: str | None) -> dict | None:
+    """R2.6: the claim's policy now — in force, lapsed or renewed."""
+    if not policy_id:
+        return None
+    async with use_tenant(tid):
+        p = await wrap(store).policies.find_one({"policy_id": policy_id}, {"_id": 0, "status": 1, "expiry": 1, "renewed_to": 1})
+    if not p:
+        return None
+    exp = _day(p.get("expiry"))
+    label = {"managed": "In force", "in_force": "In force", "lapsed": "Lapsed", "renewed": "Renewed"}.get(p.get("status"), p.get("status"))
+    text = {"Lapsed": f"Policy lapsed on {exp:%d/%m/%Y} — cover for incidents before then is unaffected." if exp else "Policy lapsed.",
+            "Renewed": f"Policy renewed (term ended {exp:%d/%m/%Y})." if exp else "Policy renewed."}.get(label, f"Policy {label.lower()}.")
+    return {"status": p.get("status"), "label": label, "text": text, "renewed_to": p.get("renewed_to")}
+
+
+async def linked_complaints(store, tid, claim_id: str) -> list[dict]:
+    from app.kernel import complaints as cm
+    async with use_tenant(tid):
+        rows = [m async for m in wrap(store).complaints.find({"links.claim_id": claim_id}, {"_id": 0}).sort("received_at", 1)]
+    return [{"matter_id": m["matter_id"], "stage": m["stage"], "stage_label": cm.LABEL[m["stage"]], "summary": m["summary"],
+             "received_at": _iso(m["received_at"])} for m in rows]
 
 
 def triage_flags(c: dict, policy: dict | None) -> list[dict]:
@@ -214,6 +253,8 @@ async def lodge(store, tid, *, client_id: str, policy: dict | None, body: dict, 
     inc = {"date": body.get("incident_date"), "time": body.get("incident_time"), "where": (body.get("where") or "").strip()[:300],
            "what": what[:4000], "police_report_no": (body.get("police_report_no") or "").strip()[:60] or None,
            "injuries": body.get("injuries"), "safe": body.get("safe"), "rego": (body.get("rego") or "").strip().upper() or None}
+    if cls == "motor" and not inc["rego"]:  # R2.6
+        raise Bad("Enter the vehicle's rego for a motor claim.")
     c = {"claim_id": claim_id, "claim_reference": ref, "client_id": client_id, "client_name": client.get("display_name"),
          "policy_id": (policy or {}).get("policy_id"), "insurer": (policy or {}).get("insurer_display"),
          "product": (policy or {}).get("product"), "claim_class": cls, "subtype": sub, "claim_type": f"{cls}_{sub}",
@@ -224,9 +265,10 @@ async def lodge(store, tid, *, client_id: str, policy: dict | None, body: dict, 
          "history": [{"from": None, "to": "lodged", "at": now, "by": by}], "docs": [], "notes": [], "info_requests": [],
          "insurer_claim": None, "assessing": None, "decision": None, "settlement": None, "ai_summary": None,
          "test": bool(test or client.get("test")), "alerts": [], "resolved_at": None, "opened_by_event": None}
-    pc = policy_check(policy, inc["date"], inc["rego"], cls)
+    term = await term_for(store, tid, policy, inc["date"])
+    pc = policy_check(term, inc["date"], inc["rego"], cls)
     c["excess"] = pc["excess"]
-    c["flags"] = triage_flags(c, policy)
+    c["flags"] = triage_flags(c, term)
     async with use_tenant(tid):
         await safe.claims.insert_one(dict(c))
     await _event(store, tid, "ClaimLodged", {"claim_id": claim_id, "claim_reference": ref, "client_id": client_id,
@@ -282,7 +324,7 @@ async def refresh_flags(store, tid, c) -> dict:
     if c.get("policy_id"):
         async with use_tenant(tid):
             policy = await wrap(store).policies.find_one({"policy_id": c["policy_id"]}, {"_id": 0})
-    c["flags"] = triage_flags(c, policy)
+    c["flags"] = triage_flags(c, await term_for(store, tid, policy, c["incident"].get("date")))
     async with use_tenant(tid):
         await wrap(store).claims.update_one({"claim_id": c["claim_id"]}, {"$set": {"flags": c["flags"]}})
     return c

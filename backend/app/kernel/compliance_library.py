@@ -250,7 +250,7 @@ async def diff(store, tid, doc_id, a: int, b: int) -> list[dict]:
 
 async def listing(store, tid) -> list[dict]:
     async with use_tenant(tid):
-        rows = [r async for r in wrap(store).compliance_library.find({"status": {"$nin": ["superseded", "withdrawn"]}}, {"_id": 0}).sort("created_at", 1)]
+        rows = [r async for r in wrap(store).compliance_library.find({"status": {"$nin": ["superseded", "withdrawn", "archived"]}}, {"_id": 0}).sort("created_at", 1)]
     for r in rows:
         b = r.get("blanks") or {"total": 0, "filled": 0, "remaining": []}
         r["blanks"] = {"total": 0, "filled": 0, "remaining": []} if r.get("final_path") else b

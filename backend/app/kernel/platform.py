@@ -180,11 +180,27 @@ async def set_status(store, tid: str, status: str, reason: str, by: str, force: 
         if missing:
             raise HTTPException(status_code=409, detail={"code": "GoLiveIncomplete", "missing": missing})
     await store.tenants.update_one({"tenant_id": tid}, {"$set": {"status": status, "status_reason": reason[:300]}})  # tenant-safe: system-only
+    if t.get("status") == "suspended" and status != "suspended":  # R2.6: past-due renewals go to the Operator, not auto-lapsed
+        from app.kernel import renewals
+        await renewals.after_reactivation(store, tid)
     await _event(store, tid, "TenantStatusChanged", {"from": t.get("status") or "live", "to": status, "reason": reason[:300],
                                                      "forced": force}, by)
     if status == "suspended":
         await wrap(store).system("sessions").update_many({"tenant_id": tid, "revoked_at": None}, {"$set": {"revoked_at": af.now()}})
     return {"tenant_id": tid, "status": status}
+
+
+async def suspended_ids(store) -> list[str]:
+    return [t["tenant_id"] async for t in store.tenants.find({"status": "suspended"}, {"tenant_id": 1})]  # tenant-safe: system-only
+
+
+async def hold_suspended(store, coll: str, field: str) -> list[str]:
+    """R2.6: queued rows of suspended tenants wait (held, hold_reason=tenant_suspended); they resume on reactivation."""
+    ids = await suspended_ids(store)
+    if ids:
+        await store[coll].update_many({"tenant_id": {"$in": ids}, field: {"$in": ["pending", "retry", "held"]}},  # tenant-safe: system-only
+                                      {"$set": {field: "held", "hold_reason": "tenant_suspended"}})
+    return ids
 
 
 async def is_suspended(store, tid: str) -> bool:

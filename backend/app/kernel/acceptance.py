@@ -242,7 +242,14 @@ async def offline(store, tid: str, kind: str, ref_id: str, *, data: bytes, filen
     if mime not in SCAN_TYPES:
         raise Bad(422, "Upload the signed scan as a PDF, JPEG, PNG or HEIC.")
     doc = await document(store, tid, kind, ref_id)
-    if not doc["subject"]["ready"]:
+    late = False
+    if kind == "renewal":  # R2.6: a late wet signature after a lapse with money held — Principal only
+        from app.kernel import renewals as rn
+        r = await rn.get(store, tid, ref_id)
+        late = rn.cur(r) == "lapsed" and (r.get("refund_review") or {}).get("state") == "open"
+        if late and role != "principal":
+            raise Bad(403, "Only a Principal can approve a late wet signature after the policy lapsed.")
+    if not doc["subject"]["ready"] and not late:
         raise Bad(409, "This isn't ready to accept yet.")
     prior = await recorded(store, tid, doc["envelope_id"])
     if prior:
@@ -254,12 +261,12 @@ async def offline(store, tid: str, kind: str, ref_id: str, *, data: bytes, filen
     payload = {"kind": kind, "ref_id": ref_id, "envelope_id": doc["envelope_id"], "policy_id": doc["subject"]["policy_id"],
                "client_id": doc["client_id"], "scan_sha256": sha, "scan_type": mime, "filename": (filename or "scan")[:120],
                "reason": reason.strip()[:500], "doc_sha256": doc["sha256"], "recorded_by": by, "label": OFFLINE_LABEL,
-               "recorded_at_utc": now.isoformat(timespec="seconds"), "mocked": False}
+               "recorded_at_utc": now.isoformat(timespec="seconds"), "mocked": False, "late_after_lapse": late}
     ev = await _event(store, tid, "OfflineSignatureRecorded", {"kind": "human", "id": by, "name": role}, payload,
                       f"accept:{doc['envelope_id']}")
     rec = {"acceptance_id": str(uuid.uuid4()), "method": "offline", "label": OFFLINE_LABEL, "event_id": ev["event_id"],
            **{k: payload[k] for k in ("kind", "ref_id", "envelope_id", "policy_id", "client_id", "doc_sha256", "scan_sha256",
-                                      "reason")}, "scan_path": path, "user_id": by, "created_at": now,
+                                      "reason")}, "scan_path": path, "user_id": by, "created_at": now, "late": late,
            "accepted_at_utc": payload["recorded_at_utc"]}
     async with use_tenant(tid):
         await wrap(store).acceptances.insert_one(dict(rec))

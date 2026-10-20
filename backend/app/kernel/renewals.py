@@ -42,7 +42,8 @@ CLIENT_TEXT = {"upcoming": "Your broker is getting ready for your renewal.",
 TERMINAL = {"bound", "lapsed", "declined"}
 NEXT = {"upcoming": {"info_requested", "info_received"}, "info_requested": {"info_received"}, "info_received": {"market"},
         "market": {"quotes_in"}, "quotes_in": {"recommendation_ready"}, "recommendation_ready": {"client_decision"},
-        "client_decision": {"paid", "declined"}, "paid": {"signed", "client_decision"}, "signed": {"bound"}}
+        "client_decision": {"paid", "declined"}, "paid": {"signed", "client_decision"}, "signed": {"bound"},
+        "lapsed": {"signed"}}  # R2.6: only via late_accepted (Principal + late wet signature after a lapse with money held)
 STUCK_BD = {"upcoming": 2, "info_requested": 10, "info_received": 2, "market": 5, "quotes_in": 2,
             "recommendation_ready": 2, "client_decision": 5, "paid": 2, "signed": 1}
 REMINDERS = (45, 30, 21)
@@ -101,7 +102,7 @@ async def _alert(store, tid, r, who, kind, title, body, idem, link=None):
     async with use_tenant(tid):
         if who == "ae":
             ae = await notify.assigned_ae(safe, r["client_id"])
-            to = [ae] if ae else await notify._staff(safe, ("ae",))
+            to = [ae] if ae else await notify._staff(safe, ("ae", "principal"))  # R2.6: Principal + active AEs
         elif who == "principal":
             to = await notify._staff(safe, ("principal",))
         else:
@@ -687,12 +688,111 @@ def packet(r: dict, old: dict, pay: dict | None) -> dict:
     for ch in r.get("accepted_changes") or []:
         val = ch.get("to_value") or ch.get("from_value")
         lines.append(("Schedule change", f"{ch['operation']} {ch['field_path']}: {val.get('rego') if isinstance(val, dict) else val}"))
+    if r.get("cover_continuity"):
+        cc = r["cover_continuity"]
+        lines.append(("Cover continuity (insurer to confirm)", f"{cc['note']} Lapsed {cc['lapsed_on'][:10]}, signed {cc['signed_at'][:10]}."))
     sig = r.get("signature") or {}
     if sig.get("method"):
         lines.append(("Client acceptance", f"{sig['label']} — {sig.get('typed_name') or 'scan held'} {sig.get('at') or ''} · "
                                            f"doc SHA-256 {sig['doc_sha256']} · ledger event {sig['event_id']}"))
     text = "brokAId renewal change packet — key these into iAdviser by hand (no write-back)\n" + "\n".join(f"{k}: {v}" for k, v in lines)
     return {"lines": [{"label": k, "value": v} for k, v in lines], "text": text, "write_back": False}
+
+
+async def lapse(store, tid, r, *, now=None, by="system", role="renewals") -> dict:
+    """Not bound by expiry. If the premium was received, open a "Refund or bind decision" for the AE (R2.6)."""
+    now, exp, safe = _now(now), _utc(r["expiry"]), wrap(store)
+    was_paid = cur(r) == "paid"
+    extra = {"lapse_hold": False, **({"refund_review": {"state": "open", "at": now}} if was_paid else {})}
+    r = await _move(store, tid, r, "lapsed", now=now, by=by, role=role, note="not bound by expiry", **extra)
+    async with use_tenant(tid):
+        await safe.policies.update_one({"policy_id": r["policy_id"], "status": "managed"}, {"$set": {"status": "lapsed"}})
+    await _event(store, tid, "PolicyLapsed", {"policy_id": r["policy_id"], "renewal_id": r["renewal_id"],
+                 "expiry": exp.isoformat(), "test": bool(r.get("test"))}, f"policy_lapsed:{r['policy_id']}")
+    await _alert(store, tid, r, "principal", "renewal_lapsed", f"Policy lapsed: {r.get('client_name')}",
+                 f"{r.get('product')} expired on {exp.astimezone(holidays.SYD):%d/%m/%Y} without renewal.",
+                 f"renewal_lapsed_p:{r['renewal_id']}")
+    if was_paid:
+        pay = await payable(store, tid, r) or {}
+        async with use_tenant(tid):
+            await safe.trust_entries.update_many({"payable_id": pay.get("payable_id"), "kind": "receipt"}, {"$set": {"refund_review": True}})
+        await _event(store, tid, "RenewalRefundOrBindDecision", {"renewal_id": r["renewal_id"], "envelope_id": r["envelope_id"],
+                     "payable_id": pay.get("payable_id"), "received": pay.get("received"), "test": bool(r.get("test"))},
+                     f"renewal_refund_or_bind:{r['renewal_id']}")
+        for who in ("ae", "principal"):
+            await _alert(store, tid, r, who, "renewal_refund_or_bind", f"Refund or bind decision: {r.get('client_name')}",
+                         f"{r.get('product')} lapsed with the premium held in trust. Refund it, or bind with a late wet signature "
+                         "(Principal approval).", f"renewal_refund_or_bind:{who}:{r['renewal_id']}")
+    return r
+
+
+async def late_accepted(store, tid, r, rec: dict, *, by, role, now=None) -> dict:
+    """R2.6: a late wet signature after a lapse with money held — Principal only; cover back-dated, flagged for the insurer."""
+    rr = r.get("refund_review") or {}
+    if cur(r) != "lapsed" or rr.get("state") != "open":
+        raise Bad("A late signature needs a lapsed renewal with the premium held and an open refund-or-bind decision.")
+    if role != "principal":
+        raise Bad("Only a Principal can approve binding after a lapse.")
+    now = _now(now)
+    cont = {"backdated": True, "lapsed_on": _utc(r["expiry"]).isoformat(), "signed_at": now.isoformat(), "reason": rec.get("reason"),
+            "note": "Late wet signature after lapse — cover back-dated to the expiry date. Confirm cover continuity with the insurer."}
+    r = await _move(store, tid, r, "signed", by=by, role=role, now=now, note="late wet signature (Principal approved)",
+                    signature={"method": rec["method"], "label": rec["label"], "event_id": rec["event_id"], "doc_sha256": rec["doc_sha256"],
+                               "typed_name": None, "at": rec.get("accepted_at_utc"), "mocked": False, "late": True},
+                    cover_continuity=cont, refund_review={**rr, "state": "bound", "resolved_at": now})
+    pay = await payable(store, tid, r) or {}
+    async with use_tenant(tid):
+        await wrap(store).trust_entries.update_many({"payable_id": pay.get("payable_id"), "kind": "receipt"}, {"$set": {"refund_review": False}})
+    await _event(store, tid, "RenewalLateBindApproved", {"renewal_id": r["renewal_id"], "envelope_id": r["envelope_id"],
+                 "approved_by": by, "cover_continuity": cont, "test": bool(r.get("test"))}, f"renewal_late_bind:{r['renewal_id']}", by, role)
+    return await bind(store, tid, r, now=now)
+
+
+async def mark_refund(store, tid, r, *, by, role) -> dict:
+    rr = r.get("refund_review") or {}
+    if rr.get("state") != "open":
+        raise Bad("There's no open refund-or-bind decision on this renewal.")
+    async with use_tenant(tid):
+        await wrap(store).renewals.update_one({"renewal_id": r["renewal_id"]}, {"$set": {"refund_review": {**rr, "state": "refund", "by": by,
+                                                                                                         "resolved_at": _now(None)}}})
+    await _event(store, tid, "RenewalRefundChosen", {"renewal_id": r["renewal_id"], "envelope_id": r["envelope_id"],
+                 "test": bool(r.get("test"))}, f"renewal_refund:{r['renewal_id']}", by, role)
+    return await get(store, tid, r["renewal_id"])
+
+
+async def after_reactivation(store, tid, now=None) -> list[str]:
+    """R2.6: renewals that passed expiry while the tenant was suspended are held for the Operator instead of auto-lapsing."""
+    now, safe = _now(now), wrap(store)
+    async with use_tenant(tid):
+        rows = [r async for r in safe.renewals.find({"stage": {"$nin": list(TERMINAL)}}, {"_id": 0}) if _utc(r["expiry"]) <= now
+                and cur(r) != "signed"]
+        ids = [r["renewal_id"] for r in rows]
+        if ids:
+            await safe.renewals.update_many({"renewal_id": {"$in": ids}}, {"$set": {"lapse_hold": True}})
+            to = await notify._staff(safe, ("operator", "principal"))
+    if not ids:
+        return []
+    await _event(store, tid, "RenewalsPastDueAfterSuspension", {"renewal_ids": ids, "at": now.isoformat()},
+                 f"past_due_after_suspension:{now.isoformat()}")
+    for uid in to:
+        await notify.deliver(store, tid, uid, kind="renewal_past_due_review", title=f"{len(ids)} renewal(s) passed expiry while suspended",
+                             many="Renewals passed expiry while suspended", link=f"/o/renewals?r={ids[0]}",
+                             body="They weren't lapsed automatically. Review each: confirm the lapse, or carry on and bind.",
+                             dedupe_key=f"past_due:{tid}", idem=f"past_due:{now.isoformat()}:{uid}")
+    return ids
+
+
+async def past_due_review(store, tid) -> list[dict]:
+    async with use_tenant(tid):
+        return [{"renewal_id": r["renewal_id"], "client_name": r.get("client_name"), "product": r.get("product"),
+                 "expiry": _utc(r["expiry"]).isoformat(), "stage": cur(r), "stage_label": LABEL[cur(r)]}
+                async for r in wrap(store).renewals.find({"lapse_hold": True, "stage": {"$nin": list(TERMINAL)}}, {"_id": 0})]
+
+
+async def confirm_lapse(store, tid, r, *, by, role) -> dict:
+    if not r.get("lapse_hold"):
+        raise Bad("This renewal isn't waiting for a lapse decision.")
+    return await lapse(store, tid, r, by=by, role=role)
 
 
 # ---- periodic ----
@@ -726,14 +826,9 @@ async def tick(store, tid, now=None, policy_ids: list[str] | None = None) -> dic
             made["resumed"] += 1
             continue
         if now >= exp:
-            await _move(store, tid, r, "lapsed", now=now, note="not bound by expiry")
-            async with use_tenant(tid):
-                await safe.policies.update_one({"policy_id": r["policy_id"], "status": "managed"}, {"$set": {"status": "lapsed"}})
-            await _event(store, tid, "PolicyLapsed", {"policy_id": r["policy_id"], "renewal_id": r["renewal_id"],
-                         "expiry": exp.isoformat(), "test": bool(r.get("test"))}, f"policy_lapsed:{r['policy_id']}")
-            await _alert(store, tid, r, "principal", "renewal_lapsed", f"Policy lapsed: {r.get('client_name')}",
-                         f"{r.get('product')} expired on {exp.astimezone(holidays.SYD):%d/%m/%Y} without renewal.",
-                         f"renewal_lapsed_p:{r['renewal_id']}")
+            if r.get("lapse_hold"):  # R2.6: past due after a suspension — the Operator decides
+                continue
+            await lapse(store, tid, r, now=now)
             made["lapsed"] += 1
             continue
         if now >= exp - timedelta(days=LAPSE_RISK_DAYS) and not r.get("lapse_alerted"):
@@ -744,6 +839,11 @@ async def tick(store, tid, now=None, policy_ids: list[str] | None = None) -> dic
             for who in ("principal", "client"):
                 await _alert(store, tid, r, who, "renewal_lapse_risk", "Lapse risk" if who != "client" else "Your cover ends soon",
                              body, f"renewal_lapse_risk:{who}:{r['renewal_id']}")
+            if cur(r) == "paid":  # R2.6: money is already in trust — acceptance is the only thing missing
+                for who in ("ae", "principal"):
+                    await _alert(store, tid, r, who, "renewal_paid_unaccepted", f"Premium held in trust — acceptance needed: {r.get('client_name')}",
+                                 f"{body} The premium is held in trust and the client hasn't accepted yet. Get their acceptance "
+                                 "(or record Signed offline) before expiry.", f"renewal_paid_unaccepted:{who}:{r['renewal_id']}")
             made["lapse_risk"] += 1
         if cur(r) == "info_requested" and not holidays.in_quiet_hours(now):
             asked = _utc(r.get("info_requested_at") or r["stage_since"]).astimezone(holidays.SYD).date()

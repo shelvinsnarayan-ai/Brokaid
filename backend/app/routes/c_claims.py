@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from pydantic import ConfigDict, BaseModel, Field
 
 from app.auth.sessions import Session
 from app.db.tenant_safe import wrap as _wrap_safe
@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/c")
 
 
 class Party(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     name: str | None = Field(default=None, max_length=120)
     rego: str | None = Field(default=None, max_length=20)
     insurer: str | None = Field(default=None, max_length=120)
@@ -27,6 +28,7 @@ class Party(BaseModel):
 
 
 class FNOLBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     policy_id: str | None = None
     claim_class: str = "other"
     subtype: str | None = None
@@ -42,6 +44,7 @@ class FNOLBody(BaseModel):
 
 
 class TextBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     text: str = Field(..., min_length=1, max_length=4000)
 
 
@@ -133,7 +136,8 @@ async def list_claims(request: Request, session: Session = Depends(require_sessi
 async def get_claim(claim_id: str, request: Request, session: Session = Depends(require_session)) -> dict[str, Any]:
     store = _store(request)
     c = await _mine(store, session, claim_id)
-    return {"claim": ck.client_view(c, await compliance_docs.settings(store, session.tenant_id))}
+    return {"claim": {**ck.client_view(c, await compliance_docs.settings(store, session.tenant_id)),
+                      "policy_status": await ck.policy_status(store, session.tenant_id, c.get("policy_id"))}}
 
 
 @router.post("/claims/{claim_id}/files")

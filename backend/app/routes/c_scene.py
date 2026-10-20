@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import ConfigDict, BaseModel, Field
 
 from app.auth.sessions import Session
 from app.kernel import scene
@@ -128,6 +128,7 @@ def _store(request: Request):
 
 
 class RequestChangeBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     raw_message: str
     idempotency_key: str | None = Field(default=None, max_length=100)
 
@@ -546,6 +547,7 @@ async def pay(
 
 
 class PaidBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     paid_at: str | None = Field(default=None, max_length=40)
 
 

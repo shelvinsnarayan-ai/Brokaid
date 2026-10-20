@@ -43,7 +43,7 @@ async def test_sandbox_reset_back_to_blank(app_client, mongo_db):
     r = await http.post("/api/o/compliance/sandbox/reset", headers=pip)
     assert r.status_code == 200
     c = r.json()
-    assert c["details_cleared"] is True and c["withdrawn"] == 2 and c["created"] == 2 and c["redrafted"] == 3
+    assert c["details_cleared"] is True and c["withdrawn"] == 2 and c["created"] == 0 and c["redrafted"] == 3  # R2.6: withdrawn docs get a fresh blank draft on the same document
     after = {d["kind"]: d for d in await lib.listing(db, tid) if d.get("doc_id")}
     assert set(after) == set(lib.KINDS) and all(d["status"] == "draft" for d in after.values())
     for d in after.values():

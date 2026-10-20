@@ -66,6 +66,7 @@ export function ClaimDetail() {
         <h1 className="brokaid-tab__title" data-testid="claim-detail-ref">{c.claim_reference}</h1>
         <span className={`clm-stage clm-stage--${c.stage}`} data-testid={`claim-detail-status-${c.stage}`}>{c.stage_label}</span>
       </header>
+      {c.policy_status && c.policy_status.label !== "In force" ? <p className="clm-status" data-testid="claim-policy-status">{c.policy_status.text}</p> : null}
       <p className="clm-status" data-testid="claim-status-text">{c.status_text}{c.stage === "lodged" ? ` By ${new Date(c.ack_due).toLocaleString("en-AU", { weekday: "short", hour: "numeric", minute: "2-digit" })}.` : ""}</p>
       {c.insurer_claim_no ? <p data-testid="claim-insurer-no">Insurer claim no. {c.insurer_claim_no}{c.insurer_mocked ? " (MOCKED)" : ""}</p> : null}
       {c.excess != null ? <p className="clm-muted">Policy excess A${Number(c.excess).toLocaleString("en-AU")}</p> : null}

@@ -76,7 +76,19 @@ async def reset(store, tid: str, *, by: str, role: str) -> dict:
     async with use_tenant(tid):
         await safe.system("tenants").update_one({"tenant_id": tid}, {"$set": dict.fromkeys(
             ("legal_name", "trading_name", "abn", "acn", "afsl", "ar_number"))})
-        rows = [r async for r in safe.compliance_library.find({"status": {"$in": ["draft", "approved", "live"]}}, {"_id": 0})]
+        rows = [r async for r in safe.compliance_library.find({"status": {"$in": ["draft", "approved", "live"]}}, {"_id": 0}).sort("created_at", 1)]
+    seen, keep, archived = set(), [], []
+    for r in rows:  # R2.6: one document per kind — archive any duplicate (ledgered), keep the oldest
+        if r["kind"] in seen:
+            async with use_tenant(tid):
+                await safe.compliance_library.update_one({"doc_id": r["doc_id"]}, {"$set": {"status": "archived", "archived_at": datetime.now(timezone.utc)}})
+            await lib._event(store, tid, "ComplianceDocArchived", {"doc_id": r["doc_id"], "kind": r["kind"], "version": r.get("version"),
+                             "previous_status": r["status"], "reason": "duplicate_of_kind"}, f"sandbox_dedupe:{r['doc_id']}", by, role)
+            archived.append(r["kind"])
+            continue
+        seen.add(r["kind"])
+        keep.append(r)
+    rows = keep
     withdrawn, redrafted = [], []
     for r in rows:
         if r["status"] in ("approved", "live"):
@@ -90,13 +102,17 @@ async def reset(store, tid: str, *, by: str, role: str) -> dict:
             await lib._event(store, tid, "ComplianceDocWithdrawn", {"doc_id": r["doc_id"], "kind": r["kind"], "version": r["version"],
                              "previous_status": r["status"], "reason": "sandbox_reset"}, f"sandbox_withdraw:{r['doc_id']}:{r['version']}", by, role)
             withdrawn.append(r["kind"])
+            async with use_tenant(tid):  # R2.6: reuse the same document — a fresh blank DRAFT version, not a second doc
+                await safe.compliance_library.update_one({"doc_id": r["doc_id"]}, {"$set": {"overrides": {}}})
+            await lib._new_version(store, tid, {**r, "overrides": {}}, reason="sandbox_reset", by=by, role=role)
         elif r.get("overrides") or cleared or (r.get("blanks") or {}).get("filled"):
             async with use_tenant(tid):
                 await safe.compliance_library.update_one({"doc_id": r["doc_id"]}, {"$set": {"overrides": {}}})
             await lib._new_version(store, tid, {**r, "overrides": {}}, reason="sandbox_reset", by=by, role=role)
             redrafted.append(r["kind"])
     created = [m["kind"] for m in await lib.generate_drafts(store, tid, by=by, role=role)]
-    counts = {"details_cleared": cleared, "withdrawn": len(withdrawn), "redrafted": len(redrafted), "created": len(created)}
+    counts = {"details_cleared": cleared, "withdrawn": len(withdrawn), "redrafted": len(redrafted), "created": len(created),
+              **({"archived_duplicates": len(archived)} if archived else {})}
     from app.kernel.trail_dispatch import append_via_dispatch
     import uuid as _uuid
     async with use_tenant(tid):

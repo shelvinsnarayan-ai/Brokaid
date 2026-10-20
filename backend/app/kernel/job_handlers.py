@@ -12,20 +12,30 @@ async def _notify_event(store, job: dict) -> None:
     await notify.on_event(store, job["tenant_id"], p["type"], p.get("payload") or {}, p["event_id"])
 
 
+async def _paused(store, job: dict) -> bool:
+    """R2.6: a suspended tenant's periodic work is skipped (a job queued before the suspension does nothing)."""
+    from app.kernel.platform import is_suspended
+    return await is_suspended(store, job["payload"]["tenant_id"])
+
+
 @jobs.handler("notify.periodic")
 async def _notify_periodic(store, job: dict) -> None:
-    await notify.run_checks(store, job["payload"]["tenant_id"])
+    if not await _paused(store, job):
+        await notify.run_checks(store, job["payload"]["tenant_id"])
 
 
 @jobs.handler("renewals.tick")
 async def _renewals_tick(store, job: dict) -> None:
     from app.kernel import renewals
-    await renewals.tick(store, job["payload"]["tenant_id"])
+    if not await _paused(store, job):
+        await renewals.tick(store, job["payload"]["tenant_id"])
 
 
 @jobs.handler("compliance.tick")
 async def _compliance_tick(store, job: dict) -> None:
     from app.kernel import claims, complaints
+    if await _paused(store, job):
+        return
     await complaints.tick(store, job["payload"]["tenant_id"])
     await claims.tick(store, job["payload"]["tenant_id"])
 

@@ -66,7 +66,7 @@ async def _event(store, tid, kind, m, frm, to, by, role, idx, extra=None):
 
 
 async def create(store, tid, kind, *, client_id, category, summary, details, source, source_ref=None, by, role,
-                 received_at=None, assigned_user_id=None) -> dict:
+                 received_at=None, assigned_user_id=None, claim_id=None, renewal_id=None, envelope_id=None) -> dict:
     spec = KIND[kind]
     if category not in spec["categories"]:
         raise Bad(f"Category must be one of {', '.join(spec['categories'])}.")
@@ -78,6 +78,10 @@ async def create(store, tid, kind, *, client_id, category, summary, details, sou
         c = await safe.clients.find_one({"client_id": client_id})
         if not c:
             raise Bad("Unknown client.")
+        if claim_id and not await safe.claims.find_one({"claim_id": claim_id, "client_id": client_id}):
+            raise Bad("That claim isn't this client's.")
+        if renewal_id and not await safe.renewals.find_one({"renewal_id": renewal_id, "client_id": client_id}):
+            raise Bad("That renewal isn't this client's.")
         assigned = assigned_user_id or c.get("assigned_ae_user_id")
     st = await holidays.state_for(store, tid)
     m = {"matter_id": str(uuid.uuid4()), "kind": kind, "client_id": client_id, "client_name": c.get("display_name"),
@@ -85,7 +89,8 @@ async def create(store, tid, kind, *, client_id, category, summary, details, sou
          "source_ref": source_ref, "received_at": received, **clock(received, st), "stage": "received", "stage_since": received,
          "history": [{"to": "received", "at": received, "by": by, "note": None}], "assigned_user_id": assigned,
          "raised_by": by, "raised_role": role, "outcome": None, "response_text": None, "alerts": [], "closed_at": None,
-         "test": bool(c.get("test"))}
+         "test": bool(c.get("test")),
+         "links": {k: v for k, v in (("claim_id", claim_id), ("renewal_id", renewal_id), ("envelope_id", envelope_id)) if v}}
     async with use_tenant(tid):
         await getattr(safe, spec["coll"]).insert_one(dict(m))
     await _event(store, tid, kind, m, None, "received", by, role, 0, {"source": source,

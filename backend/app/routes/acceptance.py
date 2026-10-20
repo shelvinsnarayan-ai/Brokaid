@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from pydantic import ConfigDict, BaseModel, Field
 
 from app.kernel import acceptance as acc
 from app.kernel import renewals as rn
@@ -52,6 +52,8 @@ async def _complete(store, tid: str, kind: str, ref_id: str, rec: dict, by: str,
         r = await rn.get(store, tid, ref_id)
         if rn.cur(r) == "paid":
             r = await _run(rn.accepted(store, tid, r, rec, by=by, role=role))
+        elif rn.cur(r) == "lapsed" and rec.get("late"):
+            r = await _run(rn.late_accepted(store, tid, r, rec, by=by, role=role))
         return {"stage": r["stage"], "new_policy_id": r.get("new_policy_id"), "verifier_token": r.get("verifier_token")}
     from app.kernel.certificate import regenerate_certificate_dispatch
     from app.kernel.endorsement import execute_endorsement
@@ -67,6 +69,7 @@ async def _complete(store, tid: str, kind: str, ref_id: str, rec: dict, by: str,
 
 
 class AcceptBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     typed_name: str = Field(min_length=1, max_length=120)
     accepted: bool
     doc_sha256: str = Field(min_length=64, max_length=64)

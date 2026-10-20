@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, EmailStr
+from pydantic import ConfigDict, BaseModel, EmailStr
 
 from app.auth.sessions import Session
 from app.db.tenant_safe import wrap
@@ -82,6 +82,7 @@ async def read_one(notification_id: str, request: Request, session: Session = De
 
 
 class PrefsBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     email: bool = False
     push: bool = False  # stored for phase C; push is not sent yet
     documents_email: bool | None = None  # R2.5: "Documents by email" (separate from alert emails)

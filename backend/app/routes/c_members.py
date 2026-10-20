@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import ConfigDict, BaseModel
 
 from app.db.tenant_safe import wrap
 from app.kernel import auth_flows as af
@@ -18,11 +18,13 @@ router = APIRouter(prefix="/api/c", tags=["members"])
 
 
 class SwitchBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     switch: str
     on: bool
 
 
 class ClientBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     client_id: str
 
 

@@ -153,7 +153,7 @@ async def test_declined_claim_shows_idr_afca_and_dispute_alerts_staff(app_client
     tid, ids, ckies = await _setup(db)
     kw = {"by": ids["ae"], "role": "ae"}
     c = await ck.lodge(db, tid, client_id="kai", policy=None,
-                       body={"claim_class": "motor", "subtype": "theft", "description": "Ute stolen from the yard overnight."},
+                       body={"claim_class": "motor", "subtype": "theft", "description": "Ute stolen from the yard overnight.", "rego": "ABC-123"},
                        by=ids["owner"], role="client", channel="in_app")
     c = await ck.acknowledge(db, tid, c, **kw)
     c = await ck.submit_mocked(db, tid, c, **kw)  # test tenant: MOCKED channel allowed

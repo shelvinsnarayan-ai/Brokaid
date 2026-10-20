@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from app.db.tenant_safe import wrap
 from app.kernel import auth_flows as af
 from app.kernel.authority import ROLE_AUTHORITY
-from app.kernel.notify import assigned_ae
+from app.kernel.notify import active_ae, assigned_ae
 from app.kernel.tenant_ctx import use_tenant
 from app.kernel.test_data import test_client_ids
 from app.middleware.session import require_operator_session
@@ -148,15 +148,20 @@ async def change_role(user_id: str, body: RoleBody, request: Request, s=Depends(
 async def get_assignment(client_id: str, request: Request, s=Depends(require_operator_session)) -> dict:
     safe = wrap(request.app.state.mongo_db)
     async with use_tenant(s.tenant_id):
-        if not await safe.clients.find_one({"client_id": client_id}):
+        c = await safe.clients.find_one({"client_id": client_id})
+        if not c:
             raise HTTPException(status_code=404, detail="Client not found.")
         uid = await assigned_ae(safe, client_id)
-        aes = [{"user_id": r["user_id"], "name": (await safe.users.find_one({"user_id": r["user_id"]}) or {}).get("display_name")}
-               async for r in safe.user_brokerage_roles.find({"role": "ae", "active": True})]
+        stale = c.get("assigned_ae_user_id") if c.get("assigned_ae_user_id") and not uid else None
+        aes = [{"user_id": r["user_id"], "name": u.get("display_name")} async for r in safe.user_brokerage_roles.find({"role": "ae", "active": True})
+               if not (u := await safe.users.find_one({"user_id": r["user_id"]}) or {}).get("disabled")]
+        stale_name = (await safe.users.find_one({"user_id": stale}) or {}).get("display_name") if stale else None
     name = next((a["name"] for a in aes if a["user_id"] == uid), None)
-    return {"assigned": {"user_id": uid, "name": name} if uid else None, "aes": aes,
-            "can_edit": s.active_role in PRIVILEGED,
-            "warning": None if uid else "No account executive is assigned. Client alerts go to every AE until you pick one."}
+    warning = (f"Assigned AE disabled — reassign. {stale_name or 'The assigned AE'} can't receive alerts; client alerts go to the "
+               "Principal and every active AE until you pick someone." if stale else
+               None if uid else "No account executive is assigned. Client alerts go to every AE until you pick one.")
+    return {"assigned": {"user_id": uid, "name": name} if uid else None, "aes": aes, "assigned_disabled": bool(stale),
+            "can_edit": s.active_role in PRIVILEGED, "warning": warning}
 
 
 @router.put("/clients/{client_id}/assigned-ae")
@@ -168,7 +173,7 @@ async def set_assignment(client_id: str, body: AeBody, request: Request, s=Depen
         c = await safe.clients.find_one({"client_id": client_id})
         if not c:
             raise HTTPException(status_code=404, detail="Client not found.")
-        if body.user_id and not await safe.user_brokerage_roles.find_one({"user_id": body.user_id, "role": "ae", "active": True}):
+        if body.user_id and not await active_ae(safe, body.user_id):
             raise HTTPException(status_code=422, detail="Pick an active account executive.")
         await safe.clients.update_one({"client_id": client_id}, {"$set": {"assigned_ae_user_id": body.user_id}})
     await af.ledger(store, s.tenant_id, "ClientAeAssigned", af.human(s.user_id, s.active_role),

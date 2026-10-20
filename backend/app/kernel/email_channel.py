@@ -254,6 +254,8 @@ async def run_once(store, now: datetime | None = None, *, send=None, allow: list
         q["notification_id"] = {"$in": ids}
     else:  # background loop never sends test rows; explicit test sends pass ids
         q["test"] = {"$ne": True}
+    from app.kernel.platform import hold_suspended
+    q["tenant_id"] = {"$nin": await hold_suspended(store, "notifications", "channels_state.email")}  # R2.6
     out: dict = {}
     async for n in store.notifications.find(q).limit(200):
         status = await _process(store, n, now, send, allow, ignore_quiet, settings_override)
@@ -272,6 +274,8 @@ async def _process(store, n, now, send, allow, ignore_quiet=False, settings_over
     if n.get("read_at"):
         return await _set(store, n, "skipped:read_in_app")
     user = await store.users.find_one({"user_id": n["user_id"], "tenant_id": n["tenant_id"]}) or {}
+    if user.get("disabled"):  # R2.6: never email a disabled user
+        return await _set(store, n, "skipped:user_disabled")
     prefs = await store.notification_prefs.find_one({"user_id": n["user_id"], "tenant_id": n["tenant_id"]}) or {}
     if not prefs.get("email", user.get("kind") == "operator"):
         return await _set(store, n, "skipped:off")

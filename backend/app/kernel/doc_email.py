@@ -94,6 +94,8 @@ async def run_once(store, now: datetime | None = None, *, send=None, allow: list
     q: dict = {"channels_state.email": {"$in": ["pending", "held", "retry"]}, "$or": [{"next_at": None}, {"next_at": {"$lte": now}}]}
     if ids:
         q["email_id"] = {"$in": ids}
+    from app.kernel.platform import hold_suspended
+    q["tenant_id"] = {"$nin": await hold_suspended(store, "doc_emails", "channels_state.email")}  # R2.6
     out: dict = {}
     async for row in store.doc_emails.find(q).limit(100):
         status = await _process(store, row, now, send, allow, ignore_quiet)
@@ -111,6 +113,8 @@ async def _process(store, row, now, send, allow, ignore_quiet) -> str:
     if not ec.email_enabled():
         return await _set(store, row, "skipped:email_disabled")
     user = await store.users.find_one({"user_id": row["user_id"], "tenant_id": tid}) or {}  # tenant-safe: scoped
+    if user.get("disabled"):
+        return await _set(store, row, "skipped:user_disabled")
     prefs = await store.notification_prefs.find_one({"user_id": row["user_id"], "tenant_id": tid}) or {}  # tenant-safe: scoped
     if not prefs.get("documents_email", True):
         return await _set(store, row, "skipped:pref_off")

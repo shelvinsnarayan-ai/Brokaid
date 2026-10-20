@@ -92,6 +92,7 @@ export function OperatorClaim() {
             <p className="imp-muted">Injuries: {i.injuries == null ? "—" : i.injuries ? "yes" : "no"} · safe/drivable: {i.safe == null ? "—" : i.safe ? "yes" : "no"} · police report: {i.police_report_no || "—"}</p>
             {c.parties?.map((p: any, k: number) => <p key={k} className="imp-muted">Other party: {p.name || "—"} · {p.rego || "—"} · {p.insurer || "—"}</p>)}
           </div>
+          <ClaimLinks data={data} onDone={load} />
           <ClaimActions c={c} quotingMode={data.quoting_mode} onDone={load} />
           <Summary c={c} onDone={load} />
           <Files c={c} onDone={load} />
@@ -115,5 +116,29 @@ export function OperatorClaim() {
         </div>
       </div>
     </section>
+  );
+}
+
+function ClaimLinks({ data, onDone }: { data: any; onDone: () => void }) {
+  const c = data.claim;
+  const ps = data.policy_status;
+  const links: any[] = data.complaints || [];
+  const [err, setErr] = useState<string | null>(null);
+  const canLog = ["declined", "partial"].includes(c.decision?.outcome) && !links.some((x) => !["closed", "escalated_afca"].includes(x.stage));
+  return (
+    <div className="imp-card" data-testid="claim-links">
+      {ps ? <p className={ps.label === "In force" ? "imp-muted" : "clm-o-flag"} data-testid="claim-policy-status">Policy: <strong>{ps.label}</strong> — {ps.text}</p> : null}
+      {links.map((x) => (
+        <p key={x.matter_id} className="imp-muted" data-testid={`claim-linked-complaint-${x.matter_id}`}>
+          Linked complaint: {x.summary} — <strong>{x.stage_label}</strong> (<a href="/o/compliance">Compliance</a>)
+        </p>
+      ))}
+      {canLog ? (
+        <button className="k-btn" data-testid="claim-log-complaint"
+          onClick={() => post(`o/claims/${c.claim_id}/complaint`, {}).then(() => { setErr(null); onDone(); }).catch((e) => setErr(e.message))}>
+          Log a complaint linked to this claim</button>
+      ) : null}
+      {err ? <p className="imp-err" role="alert" data-testid="claim-links-error">{err}</p> : null}
+    </div>
   );
 }

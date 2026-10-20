@@ -273,6 +273,9 @@ class NewMatter(BaseModel):
     details: str | None = Field(default=None, max_length=5000)
     source: str = "call"
     source_ref: str | None = None
+    claim_id: str | None = None  # R2.6: link to a claim / renewal / envelope
+    renewal_id: str | None = None
+    envelope_id: str | None = None
 
 
 class MoveBody(BaseModel):
@@ -295,8 +298,8 @@ async def complaints(request: Request, s=Depends(_staff)) -> dict:
 
 @router.post("/complaints")
 async def log_complaint(body: NewMatter, request: Request, s=Depends(_staff)) -> dict:
-    if body.source not in ("thread", "request", "call", "email", "in_person"):
-        raise HTTPException(status_code=422, detail="Source must be thread, request, call, email or in_person.")
+    if body.source not in ("thread", "request", "call", "email", "in_person", "claim"):
+        raise HTTPException(status_code=422, detail="Source must be thread, request, call, email, in_person or claim.")
     m = await _run(cm.create(_store(request), s.tenant_id, "complaint", **body.model_dump(), by=s.user_id, role=s.active_role))
     return {"complaint": _row(m)}
 

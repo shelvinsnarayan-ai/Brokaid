@@ -134,13 +134,14 @@ async def certificate_qr(
 
 
 class RegenHolder(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     name: str | None = None
     address: str | None = None
     email: str | None = None
 
 
 class RegenRequirements(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
     interest_type: str | None = None
     effective_from: str | None = None
     effective_to: str | None = None
@@ -151,6 +152,7 @@ class RegenRequirements(BaseModel):
 
 
 class RegenRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     policy_id: str
     holder: RegenHolder | None = None
     requirements: RegenRequirements | None = None
@@ -222,6 +224,7 @@ async def _r_coc_01(request: Request, session: Session, body: "RegenRequest") ->
 
 
 class PdfRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     raw_token: str
     verify_origin: str | None = None
 

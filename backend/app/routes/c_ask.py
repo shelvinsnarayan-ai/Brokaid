@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import ConfigDict, BaseModel
 
 from app.auth.sessions import Session
 from app.db.tenant_safe import wrap as _wrap_safe
@@ -22,6 +22,7 @@ router = APIRouter(prefix="/api/c/ask")
 
 
 class AskBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     message: str
 
 
@@ -138,6 +139,7 @@ async def thread(
 
 # ---- R0.9 — unread broker replies (UI state only: no ledger events for "seen") ----
 class SeenBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # R2.6: unknown fields are a 422
     thread_id: str
 
 

@@ -199,7 +199,7 @@ async def scheduler_tick(store, me: str, now: datetime | None = None) -> int:
         return 0
     n = 0
     # tenant-safe: system-only — tenant ids for per-tenant periodic jobs.
-    tenants = [t["tenant_id"] async for t in raw(store).tenants.find({}, {"tenant_id": 1})]
+    tenants = [t["tenant_id"] async for t in raw(store).tenants.find({"status": {"$ne": "suspended"}}, {"tenant_id": 1})]  # R2.6
     for kind, every, per_tenant in PERIODIC:
         for tid in (tenants if per_tenant else [None]):
             key = f"{kind}:{tid or 'all'}:{_bucket(now, every)}"
