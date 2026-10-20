@@ -72,6 +72,9 @@ async def test_home_activity_policy_isolation(app_client, mongo_db):
     act = (await http.get("/api/c/activity", headers=h)).json()
     assert "due" in act, act
     assert len(act["due"]) == 1 and act["due"][0]["amount"] == "A$540"
+    assert act["panel"]["total_due"] == "A$540" and act["panel"]["open_claims"]["count"] == 0
+    dues_claims = (await http.get("/api/c/activity?f=claims", headers=h)).json()
+    assert len(dues_claims["due"]) == 1 and dues_claims["panel"]["total_due"] == "A$540"  # panel ignores the feed filter
     blob = str(act)
     assert "Foreign" not in blob and "CLM-X" not in blob and "Test Pack" not in blob
     for i in act["items"]:

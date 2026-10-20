@@ -88,3 +88,21 @@
 .brokaid-client-layout.mer { display: block; }
 .brokaid-client-layout.mer .brokaid-client-layout__main { width: 100%; }
 @media (min-width: 900px) { .mer-col:has(.mer-col--wide) { max-width: 980px; } }
+
+/* R3.2: Activity two-column on desktop — feed left (~62%), sticky payments panel right (~38%). */
+.mer-act { display: flex; flex-direction: column; }
+.mer-act__side .mer-sec { padding-bottom: 0; }
+.mer-desk { display: none; }
+.mer-due__pay { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.mer-total { display: flex; justify-content: space-between; margin: 10px 4px 0; font-size: 14px; }
+.mer-copy:focus-visible, .mer-chip:focus-visible, .mer-row:focus-visible, .mer-btn:focus-visible { outline: 3px solid var(--saffron); outline-offset: 2px; }
+@media (min-width: 768px) {
+  .mer-col:has(.mer-act) { max-width: 1180px; }
+  .mer-act { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 300px); grid-template-areas: "feed side"; gap: 24px; align-items: start; }
+  .mer-act__feed { grid-area: feed; min-width: 0; }
+  .mer-act__side { grid-area: side; position: sticky; top: 16px; min-width: 0; }
+  .mer-desk { display: block; }
+}
+@media (min-width: 1024px) {
+  .mer-act { grid-template-columns: minmax(0, 62fr) minmax(0, 38fr); gap: 32px; }
+}

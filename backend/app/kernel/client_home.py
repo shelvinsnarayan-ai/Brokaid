@@ -243,17 +243,47 @@ def activity_items(ctx, policy_id: str | None = None) -> list[dict]:
     return items
 
 
+def _pay_href(p: dict, ctx) -> str:
+    """'I've paid this' goes to the existing flow for the payable's kind."""
+    if p.get("kind") == "renewal_premium":
+        r = next((r for r in ctx["renewals"] if r.get("envelope_id") == p.get("envelope_id")), None)
+        if r:
+            return f"/c/renewal/{r['renewal_id']}"
+    if p.get("kind") == "endorsement_premium" and p.get("envelope_id"):
+        return f"/c/cover/{p['policy_id']}/pay/{p['envelope_id']}"
+    return "/c/messages/broker"
+
+
 def due_payments(ctx, settings, mode) -> list[dict]:
     pols = {p["policy_id"]: p for p in ctx["policies"]}
     out = []
-    for p in ctx["payables"]:
-        if payments.state_of(p) in ("owed", "partial"):
-            d = payments.details(p, settings, mode)
-            out.append({"payable_id": p["payable_id"], "policy": (pols.get(p["policy_id"]) or {}).get("product") or "Policy",
-                        "amount": money(p["amount"]), "due": _long(p.get("due_date")), "crn": p["crn"], "bpay": d.get("bpay"),
-                        "mocked": d.get("mocked", False), "message": d.get("message"),
-                        "pay_href": f"/c/cover/{p['policy_id']}/pay/{p['envelope_id']}" if p.get("envelope_id") else None})
+    dues = [p for p in ctx["payables"] if payments.state_of(p) in ("owed", "partial")]
+    for p in sorted(dues, key=lambda x: str(x.get("due_date") or "")):
+        d = payments.details(p, settings, mode)
+        out.append({"payable_id": p["payable_id"], "policy": (pols.get(p["policy_id"]) or {}).get("product") or "Policy",
+                    "amount": money(p["amount"]), "due": _long(p.get("due_date")), "crn": p["crn"], "bpay": d.get("bpay"),
+                    "mocked": d.get("mocked", False), "message": d.get("message"), "pay_href": _pay_href(p, ctx)})
     return out
+
+
+def panel(ctx, now) -> dict:
+    """Desktop side panel: total due, last payment received, and what's coming up."""
+    dues = [p for p in ctx["payables"] if payments.state_of(p) in ("owed", "partial")]
+    total = sum(float(payments.dec(p["amount"]) - payments.dec(p.get("received") or 0)) for p in dues)
+    pols = {p["policy_id"]: p for p in ctx["policies"]}
+    rec = [p for p in ctx["payables"] if payments.state_of(p) in ("received", "overpaid")]
+    last = max(rec, key=lambda p: utc(p.get("received_at") or p.get("created_at")) or now, default=None)
+    cur = [p for p in ctx["policies"] if p.get("status") in ("managed", "in_force") and (utc(p.get("expiry")) or now) > now]
+    nxt = min(cur, key=lambda p: utc(p["expiry"]), default=None)
+    claims = [c for c in ctx["claims"] if c.get("stage") not in ("closed", "withdrawn")]
+    return {
+        "total_due": money(total) if dues else None,
+        "last_received": {"amount": money(last["amount"]), "date": _long(utc(last.get("received_at") or last.get("created_at"))),
+                          "policy": (pols.get(last["policy_id"]) or {}).get("product") or "Policy"} if last else None,
+        "next_renewal": {"date": _long(nxt["expiry"]), "policy": nxt.get("product") or "Policy",
+                         "href": f"/c/policy/{nxt['policy_id']}"} if nxt else None,
+        "open_claims": {"count": len(claims), "href": "/c/activity?f=claims"},
+    }
 
 
 def policy_page(ctx, policy_id, now) -> dict | None:

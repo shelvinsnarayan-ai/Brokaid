@@ -67,13 +67,14 @@ async def activity(request: Request, f: str = "all", cursor: int = 0, s: Session
         raise HTTPException(status_code=422, detail="unknown_filter")
     store, ctx = await _ctx(request, s)
     if not ctx:
-        return {"items": [], "next_cursor": None, "due": []}
+        return {"items": [], "next_cursor": None, "due": [], "panel": None}
     items = [i for i in ch.activity_items(ctx) if f == "all" or i["type"] == f]
     page = items[cursor:cursor + ch.PAGE]
-    due = []
-    if cursor == 0 and f in ("all", "payments"):
+    due, side = [], None
+    if cursor == 0:  # dues and the side panel ignore the feed filter
         due = ch.due_payments(ctx, await payments.get_settings(store, s.tenant_id), await holidays.quoting_mode(store, s.tenant_id))
-    return {"items": page, "next_cursor": cursor + ch.PAGE if cursor + ch.PAGE < len(items) else None, "due": due}
+        side = ch.panel(ctx, datetime.now(timezone.utc))
+    return {"items": page, "next_cursor": cursor + ch.PAGE if cursor + ch.PAGE < len(items) else None, "due": due, "panel": side}
 
 
 @router.get("/policy/{policy_id}")
