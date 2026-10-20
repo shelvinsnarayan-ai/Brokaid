@@ -1,0 +1,90 @@
+/* R3.1 Meridian — bank-style client app. Navy #0F1F3D · cloud #F6F7FA · saffron #F2B01E · Inter / Sora. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700&display=swap");
+
+.mer { --navy: #0F1F3D; --navy-2: #1B2F57; --cloud: #F6F7FA; --saffron: #F2B01E; --ink: #0F1F3D; --muted: #5B6478;
+  --line: #E4E7EE; --ok: #1E7F4F; --warn: #9A5B00; --bad: #B42318; --card: #FFFFFF;
+  font-family: Inter, system-ui, sans-serif; color: var(--ink); background: var(--cloud); min-height: 100vh; }
+.mer *:focus-visible { outline: 3px solid var(--saffron); outline-offset: 2px; border-radius: 8px; }
+.mer-col { max-width: 480px; margin: 0 auto; padding-bottom: 96px; }
+.mer-h { font-family: Sora, Inter, sans-serif; letter-spacing: -0.01em; }
+.mer-head { background: var(--navy); color: #fff; padding: 20px 20px 28px; border-radius: 0 0 24px 24px; }
+.mer-head__top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.mer-head__greet { font-size: 14px; opacity: .8; margin: 0; }
+.mer .mer-head__name, .mer .mer-hero h1 { color: #fff; font-size: 22px; font-weight: 700; margin: 2px 0 0; }
+.mer-head .brokaid-bell__btn { color: #fff; border-color: rgba(255,255,255,.35); }
+.mer-head__broker { margin-top: 14px; display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.1); color: #fff;
+  border: 0; border-radius: 999px; padding: 8px 14px; font: 500 13px Inter, sans-serif; cursor: pointer; text-decoration: none; }
+.mer-sec { padding: 20px 16px 0; }
+.mer-sec__title { font: 600 15px Sora, Inter, sans-serif; margin: 0 0 10px; display: flex; justify-content: space-between; align-items: baseline; }
+.mer-sec__title small { font: 500 12px Inter, sans-serif; color: var(--muted); }
+.mer-strip { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
+.mer-att { flex: 0 0 72%; scroll-snap-align: start; background: var(--card); border-radius: 16px; padding: 14px; border-left: 4px solid var(--saffron);
+  box-shadow: 0 1px 2px rgba(15,31,61,.06); text-decoration: none; color: inherit; display: block; transition: transform .15s ease; }
+.mer-att:hover { transform: translateY(-2px); }
+.mer-att__t { font-weight: 600; font-size: 14px; margin: 0; }
+.mer-att__s { font-size: 13px; color: var(--muted); margin: 4px 0 0; }
+.mer-empty { background: var(--card); border-radius: 16px; padding: 18px; text-align: center; color: var(--muted); font-size: 14px; }
+.mer-card { background: var(--card); border-radius: 16px; box-shadow: 0 1px 2px rgba(15,31,61,.06); overflow: hidden; }
+.mer-group { font: 600 12px Inter, sans-serif; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 16px 4px 6px; }
+.mer-row { display: flex; align-items: center; gap: 12px; padding: 14px; text-decoration: none; color: inherit; border-top: 1px solid var(--line);
+  transition: background-color .15s ease; }
+.mer-row:first-child { border-top: 0; }
+.mer-row:hover { background: #FAFBFD; }
+.mer-ico { width: 40px; height: 40px; border-radius: 12px; background: #EEF1F7; display: grid; place-items: center; flex: none; color: var(--navy); }
+.mer-row__main { flex: 1; min-width: 0; }
+.mer-row__t { font-weight: 600; font-size: 15px; margin: 0; overflow-wrap: anywhere; }
+.mer-row__s { font-size: 12.5px; color: var(--muted); margin: 3px 0 0; }
+.mer-badge { display: inline-block; background: var(--saffron); color: var(--navy); font: 600 11px Inter, sans-serif; border-radius: 999px; padding: 2px 8px; margin-top: 4px; }
+.mer-fig { text-align: right; flex: none; }
+.mer-fig__n { font: 700 16px Sora, Inter, sans-serif; margin: 0; }
+.mer-fig__l { font-size: 11px; color: var(--muted); margin: 2px 0 0; }
+.mer-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid var(--line); z-index: 40; }
+.mer-bar__in { max-width: 480px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+.mer-tab { display: flex; flex-direction: column; align-items: center; gap: 2px; font: 500 11px Inter, sans-serif; color: var(--muted); text-decoration: none;
+  background: none; border: 0; padding: 6px 0; cursor: pointer; position: relative; }
+.mer-tab--on { color: var(--navy); font-weight: 700; }
+.mer-plus { width: 52px; height: 52px; border-radius: 50%; background: var(--saffron); color: var(--navy); border: 0; display: grid; place-items: center;
+  margin: -22px auto 0; box-shadow: 0 6px 16px rgba(242,176,30,.45); cursor: pointer; transition: transform .15s ease; }
+.mer-plus:hover { transform: scale(1.05); }
+.mer-dot { position: absolute; top: 2px; right: 22%; min-width: 16px; height: 16px; border-radius: 8px; background: var(--bad); color: #fff; font-size: 10px; display: grid; place-items: center; padding: 0 4px; }
+.mer-sheet-bg { position: fixed; inset: 0; background: rgba(15,31,61,.45); z-index: 50; display: flex; align-items: flex-end; justify-content: center; }
+.mer-sheet { background: #fff; width: 100%; max-width: 480px; border-radius: 24px 24px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); animation: mer-up .2s ease; }
+@keyframes mer-up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.mer-sheet__item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 8px; border: 0; background: none; font: 600 15px Inter, sans-serif;
+  color: var(--ink); text-decoration: none; border-radius: 12px; cursor: pointer; }
+.mer-sheet__item:hover { background: var(--cloud); }
+.mer-chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px; }
+.mer-chip { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 12px; font: 500 13px Inter, sans-serif; color: var(--ink); cursor: pointer; white-space: nowrap; flex: 0 0 auto; }
+.mer-chip--on { background: var(--navy); border-color: var(--navy); color: #fff; }
+.mer-date { font: 600 12px Inter, sans-serif; color: var(--muted); margin: 14px 4px 6px; }
+.mer-due { background: #FFF8E6; border: 1px solid #F7D27A; border-radius: 16px; padding: 14px; margin-bottom: 10px; }
+.mer-copy { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 6px 10px; font: 600 12px Inter, sans-serif; cursor: pointer; color: var(--navy); }
+.mer-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: var(--navy); color: #fff; border: 0; border-radius: 999px;
+  padding: 10px 18px; font: 600 14px Inter, sans-serif; text-decoration: none; cursor: pointer; }
+.mer-btn--ghost { background: #fff; color: var(--navy); border: 1px solid var(--line); }
+.mer-hero { background: var(--navy); color: #fff; border-radius: 20px; padding: 18px; margin: 16px; }
+.mer-hero__fig { font: 700 30px Sora, Inter, sans-serif; margin: 10px 0 0; }
+.mer-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 4px 16px 0; }
+.mer-quick a { display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; color: var(--ink); font: 500 12px Inter, sans-serif; text-align: center; }
+.mer-quick span.c { width: 52px; height: 52px; border-radius: 50%; background: #fff; display: grid; place-items: center; box-shadow: 0 1px 2px rgba(15,31,61,.08); color: var(--navy); }
+.mer-list { margin: 0; padding: 4px 16px 14px 32px; font-size: 14px; line-height: 1.6; }
+.mer-banner { display: block; background: var(--saffron); color: var(--navy); border-radius: 14px; padding: 12px 14px; margin: 12px 16px 0; font-weight: 600; text-decoration: none; }
+.mer-skel { background: linear-gradient(90deg, #ECEFF4 25%, #F5F7FA 37%, #ECEFF4 63%); background-size: 400% 100%; animation: mer-sk 1.2s ease infinite; border-radius: 12px; }
+@keyframes mer-sk { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+.mer-steps { list-style: none; margin: 0; padding: 6px 16px 14px; }
+.mer-step { display: flex; gap: 12px; position: relative; padding-bottom: 16px; }
+.mer-step:not(:last-child)::before { content: ""; position: absolute; left: 11px; top: 24px; bottom: 0; width: 2px; background: var(--line); }
+.mer-step--done:not(:last-child)::before { background: var(--ok); }
+.mer-step__dot { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line); background: #fff; flex: none; display: grid; place-items: center; font-size: 12px; }
+.mer-step--done .mer-step__dot { background: var(--ok); border-color: var(--ok); color: #fff; }
+.mer-step--now .mer-step__dot { border-color: var(--saffron); background: var(--saffron); }
+.mer-need { background: #FFF8E6; border: 1px solid #F7D27A; border-radius: 16px; padding: 14px; margin: 12px 16px 0; }
+.mer-legacy { padding: 0 16px; }
+@media (min-width: 900px) {
+  .mer-col--wide { max-width: 960px; display: grid; grid-template-columns: 420px 1fr; gap: 8px; align-items: start; }
+}
+
+/* R3.1: bottom-bar shell is single-column on every width (overrides the legacy tab-rail grid). */
+.brokaid-client-layout.mer { display: block; }
+.brokaid-client-layout.mer .brokaid-client-layout__main { width: 100%; }
+@media (min-width: 900px) { .mer-col:has(.mer-col--wide) { max-width: 980px; } }

@@ -2,7 +2,11 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Landing } from "./pages/Landing";
 import { ClientLayout } from "./shells/ClientLayout";
-import { ClientHome } from "./pages/ClientHome";
+import Home from "./pages/client/Home";
+import Activity from "./pages/client/Activity";
+import PolicyPage from "./pages/client/PolicyPage";
+import { Messages, Profile } from "./pages/client/MessagesProfile";
+import { ClaimTracker } from "./pages/client/ClaimTracker";
 import { ClientCover } from "./pages/ClientCover";
 import { ClientPendingQuote } from "./pages/ClientPendingQuote";
 import { ClientRequestChange } from "./pages/ClientRequestChange";
@@ -12,14 +16,12 @@ import { ClientCertificate } from "./pages/ClientCertificate";
 import { ClientCertificateNew } from "./pages/ClientCertificateNew";
 import { VerifyPublic } from "./pages/VerifyPublic";
 import "./styles/cert-phase2.css";
-import { ClientMoney } from "./pages/ClientMoney";
 import { ClientRenewal } from "./pages/ClientRenewal";
 import { ClientComplaint, ClientDocuments, ClientMyData } from "./pages/ClientCompliance";
 import { CompliancePage } from "./pages/operator/Compliance";
-import { ClientClaims, ClaimsNew, ClaimDetail } from "./pages/ClientClaims";
+import { ClaimsNew, ClaimDetail } from "./pages/ClientClaims";
 import { ClientNotifications } from "./pages/ClientNotifications";
 import { ClientAsk } from "./pages/ClientAsk";
-import { ClientProfile } from "./pages/ClientProfile";
 import { OperatorControlLayout } from "./shells/OperatorControlLayout";
 import { Dashboard as OperatorDashboard } from "./pages/operator/Dashboard";
 import { Queue as OperatorQueue } from "./pages/operator/Queue";
@@ -87,8 +89,13 @@ export function App() {
 
         <Route path="/c/login" element={import.meta.env.BROKAID_AUTH_DEV_MODE ? <ClientLogin /> : <Navigate to="/login" replace />} />
         <Route path="/c" element={<ClientLayout />}>
-          <Route index element={<ClientHome />} />
-          <Route path="cover" element={<ClientCover />} />
+          <Route index element={<Home />} />
+          <Route path="activity" element={<Activity />} />
+          <Route path="policy/:policy_id" element={<PolicyPage />} />
+          <Route path="messages" element={<Messages />} />
+          <Route path="messages/broker" element={<ClientAsk />} />
+          <Route path="cover" element={<Navigate to="/c" replace />} />
+          <Route path="cover/history" element={<ClientCover />} />
           <Route path="cover/:policy_id/pending" element={<ClientPendingQuote />} />
           <Route path="cover/:policy_id/request-change" element={<ClientRequestChange />} />
           <Route path="cover/:policy_id/pay/:envelope_id" element={<ClientPay />} />
@@ -98,18 +105,18 @@ export function App() {
           <Route path="cover/:policy_id/certificate/new" element={<ClientCertificateNew />} />
           <Route path="cover/:policy_id/certificate/:envelope_id" element={<ClientCertificate />} />
           <Route path="cover/:policy_id/certificate" element={<ClientCertificate />} />
-          <Route path="money" element={<ClientMoney />} />
+          <Route path="money" element={<Navigate to="/c/activity?f=payments" replace />} />
           <Route path="renewal/:renewal_id" element={<ClientRenewal />} />
           <Route path="documents" element={<ClientDocuments />} />
           <Route path="complaint" element={<ClientComplaint />} />
           <Route path="my-data" element={<ClientMyData />} />
-          <Route path="claims" element={<ClientClaims />} />
+          <Route path="claims" element={<Navigate to="/c/activity?f=claims" replace />} />
           <Route path="claims/new" element={<ClaimsNew />} />
-          <Route path="claims/:claim_id" element={<ClaimDetail />} />
+          <Route path="claims/:claim_id" element={<><ClaimTracker /><div id="claim-upload" className="mer-legacy"><ClaimDetail /></div></>} />
           <Route path="notifications" element={<ClientNotifications />} />
-          <Route path="ask" element={<ClientAsk />} />
+          <Route path="ask" element={<Navigate to="/c/messages/broker" replace />} />
           <Route path="alerts" element={<AlertsPage surface="client" />} />
-          <Route path="profile" element={<ClientProfile />} />
+          <Route path="profile" element={<Profile />} />
           {import.meta.env.BROKAID_AUTH_DEV_MODE ? (
             <Route
               path="_kitchen-sink"

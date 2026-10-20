@@ -8,20 +8,17 @@
  * layout box before any wrap into the safe-area inset — verified
  * clean down to 320 px viewports.
  */
-import { Link, Outlet } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { AuthGuard } from "../components/AuthGuard";
 import { AppFooter } from "../components/AppFooter";
-import { BrandMark } from "../components/BrandMark";
-import { BrandWordmark } from "../components/BrandWordmark";
 import { PreviewBanner } from "../components/PreviewBanner";
-import { TabBar } from "../components/TabBar";
+import { BottomBar } from "../pages/client/BottomBar";
+import "../styles/meridian.css";
 import { DemoBanner } from "../components/DemoBanner";
-import { YouMenu } from "../components/YouMenu";
 import "../styles/app-footer.css";
 import { useEffect } from "react";
 import { useUnreadStore } from "../state/unreadStore";
 import { useAlertsPoll } from "../state/alertsStore";
-import { Bell } from "../components/alerts/Bell";
 
 function useUnreadPoll() {
   const refresh = useUnreadStore((s) => s.refresh);
@@ -41,46 +38,18 @@ export function ClientLayout() {
   return (
     <AuthGuard>
       <div
-        className="surface-harbour brokaid-client-layout"
+        className="surface-harbour brokaid-client-layout mer"
         data-testid="client-layout-root"
       >
-        <header
-          className="brokaid-client-header"
-          data-testid="client-header"
-        >
-          <Link
-            to="/c"
-            className="brokaid-client-header__lockup"
-            data-testid="client-header-brand"
-            aria-label="brokAId — go to client home"
-          >
-            <BrandMark
-              variant="pulse-colour"
-              size={28}
-              className="brokaid-client-header__mark"
-              alt=""
-            />
-            <BrandWordmark
-              variant="harbour-bold"
-              height={20}
-              className="brokaid-client-header__wordmark"
-              alt="brokAId"
-            />
-          </Link>
-          <div className="brokaid-client-header__actions">
-            <Bell base="/c" />
-            <YouMenu />
-          </div>
-        </header>
         <PreviewBanner />
-        <main className="brokaid-client-layout__main">
+        <main className="brokaid-client-layout__main mer-col">
           <DemoBanner />
           <Outlet />
         </main>
         <div className="brokaid-client-layout__footer-row">
           <AppFooter variant="harbour" />
         </div>
-        <TabBar />
+        <BottomBar />
       </div>
     </AuthGuard>
   );
