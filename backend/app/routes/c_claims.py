@@ -120,7 +120,8 @@ async def list_claims(request: Request, session: Session = Depends(require_sessi
     cid = await _client(store, session)
     now = datetime.now(timezone.utc)
     async with use_tenant(session.tenant_id):
-        rows = [c async for c in _wrap_safe(store).claims.find({"client_id": cid}, {"_id": 0}).sort("opened_at", -1).limit(100)]
+        rows = [c async for c in _wrap_safe(store).claims.find({"client_id": cid, "test": {"$ne": True}}, {"_id": 0})
+                .sort("opened_at", -1).limit(100)]  # test-flagged claims never show to clients
     out = []
     for c in rows:
         if "stage" in c:

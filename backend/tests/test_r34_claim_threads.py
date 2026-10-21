@@ -109,6 +109,8 @@ async def test_claim_threads_end_to_end(app_client, mongo_db):
     assert all(r["claim_id"] != open_c["claim_id"] for r in (await http.get("/api/c/claim-threads", headers=other["owner"])).json()["threads"])
     assert (await http.post("/api/c/ask/seen", headers=other["owner"], json={"thread_id": thread_id})).status_code == 404
     assert (await http.get(f"/api/c/claims/{test_c['claim_id']}/thread", headers=h)).status_code == 404
+    refs = [c["claim_reference"] for c in (await http.get("/api/c/claims", headers=h)).json()["claims"]]
+    assert "CLM-4" not in refs and "CLM-1" in refs  # test-flagged claims stay out of the client's claims list
 
     # bookkeeper: can read; posting follows lodgement's can_lodge_claim switch
     assert (await http.get(f"/api/c/claims/{open_c['claim_id']}/thread", headers=cookies["bookkeeper"])).status_code == 200
