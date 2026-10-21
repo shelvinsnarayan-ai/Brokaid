@@ -52,14 +52,11 @@ async def _fix_liability_claim(db, tid, _event, ct):
         await _event(db, tid, "DemoClaimCorrected", {"claim_id": c["claim_id"], "claim_reference": LIABILITY_REF,
                                                      "from_class": c.get("claim_class"), "to_class": "liability"},
                      f"r34:fix_class:{c['claim_id']}", "r34", "operator")
-    thread_id = ct.thread_id_for(c["claim_id"])
-    if await db.events.find_one({"tenant_id": tid, "type": "ClientQuestionAsked", "payload.envelope_id": thread_id}):
-        r = await db.test_flags.update_one({"tenant_id": tid, "kind": "thread", "ref": thread_id},
-                                           {"$setOnInsert": {"reason": "r34 demo: motor wording on a liability claim; thread moved",
-                                                             "flagged_at": datetime.now(timezone.utc)}}, upsert=True)
-        if r.upserted_id:
-            await _event(db, tid, "DemoClaimThreadArchived", {"claim_id": c["claim_id"], "thread_id": thread_id},
-                         f"r34:archive_thread:{thread_id}", "r34", "operator")
+    from app.scripts.r36_claim_thread_flags import flag_claim_thread_messages
+    fixed = await db.events.find_one({"tenant_id": tid, "type": "DemoClaimCorrected", "payload.claim_id": c["claim_id"]})
+    # only messages that existed when the claim was corrected; later real messages on this claim stay visible
+    await flag_claim_thread_messages(db, tid, _event, ct.thread_id_for(c["claim_id"]),
+                                     "r34 demo: motor wording on a liability claim; thread moved", fixed["ts"] if fixed else None)
 
 
 QA_RX = __import__("re").compile(r"^T\d+ |\bQA\b|BROWSERTEST")
@@ -72,8 +69,7 @@ async def _archive_qa_threads(db, tid, _event):
         thread_id = e["payload"]["envelope_id"]
         if not QA_RX.search(e["payload"].get("message") or ""):
             continue
-        first = await db.events.find_one({"tenant_id": tid, "type": "ClientQuestionAsked", "payload.envelope_id": thread_id}, sort=[("seq", 1)])
-        kind, ref = ("thread", thread_id) if first["_id"] == e["_id"] else ("ask", e["payload"].get("msg_id"))
+        kind, ref = ("ask", e["payload"].get("msg_id")) if thread_id.startswith("claim-") else ("thread", thread_id)
         r = await db.test_flags.update_one({"tenant_id": tid, "kind": kind, "ref": ref},
                                            {"$setOnInsert": {"reason": "r34 demo: QA message", "flagged_at": datetime.now(timezone.utc)}}, upsert=True)
         if r.upserted_id:

@@ -141,3 +141,51 @@ def test_label_fallbacks():
     assert ct.label({"claim_class": "property", "incident": {}, "product": "Business pack — contents"}) == "Property claim · Business pack — contents"
     assert ct.label({"claim_class": "other", "incident": {}, "product": "Cyber"}) == "Cyber claim · Cyber"
     assert ct.label({"claim_class": "other", "incident": {}, "claim_reference": "CLM-9"}) == "Other claim · CLM-9"
+
+
+@pytest.mark.asyncio
+async def test_thread_level_flag_never_hides_later_claim_messages(app_client, mongo_db):
+    """A ("thread", claim-<id>) flag must not swallow later real messages: claim threads hide per message only."""
+    _, http = app_client
+    db = mongo_db
+    tid = await _tenant(db, f"r34f-{uuid.uuid4().hex[:4]}")
+    c = _claim("c1", "CLM-F1")
+    async with use_tenant(tid):
+        await wrap(db).clients.insert_one({"client_id": "c1", "display_name": "Client c1"})
+        await wrap(db).claims.insert_one(dict(c))
+    ids, cookies = await _people(db, tid, "c1")
+    h, thread_id = cookies["owner"], ct.thread_id_for(c["claim_id"])
+    old = (await http.post(f"/api/c/claims/{c['claim_id']}/thread", headers=h, json={"message": "QA ping please ignore"})).json()
+    async with use_tenant(tid):
+        await wrap(db).test_flags.insert_one({"kind": "thread", "ref": thread_id, "reason": "someone added one again"})
+        await wrap(db).test_flags.insert_one({"kind": "ask", "ref": old["msg_id"], "reason": "per-message flag"})
+    r = await http.post(f"/api/c/claims/{c['claim_id']}/thread", headers=h, json={"message": "Real question after the flag"})
+    assert r.status_code == 200
+    g = (await http.get(f"/api/c/claims/{c['claim_id']}/thread", headers=h)).json()
+    assert g["exists"] and [m["text"] for m in g["messages"]] == ["Real question after the flag"]  # per-message flag hides only the QA ping
+    assert (await http.get("/api/c/claim-threads", headers=h)).json()["threads"][0]["thread_id"] == thread_id
+    ae = await _staff_cookie(db, tid, ids["ae"], "ae")
+    rows = (await http.get("/api/o/inbox", headers=ae)).json()["threads"]
+    assert any(t["thread_id"] == thread_id for t in rows)  # default inbox (no include_tests) lists it
+    rep = await http.post(f"/api/o/inbox/{thread_id}/reply", headers=ae, json={"body": "Thanks, noted.", "idempotency_key": "r34f-reply-1"})
+    assert rep.status_code == 200, rep.text
+    g = (await http.get(f"/api/c/claims/{c['claim_id']}/thread", headers=h)).json()
+    assert [m["who"] for m in g["messages"]] == ["client", "broker"] and g["unread_reply_ids"]
+
+
+@pytest.mark.asyncio
+async def test_same_tenant_other_client_gets_404(app_client, mongo_db):
+    _, http = app_client
+    db = mongo_db
+    tid = await _tenant(db, f"r34x-{uuid.uuid4().hex[:4]}")
+    mine = _claim("c1", "CLM-X1")
+    async with use_tenant(tid):
+        for cid in ("c1", "c2"):
+            await wrap(db).clients.insert_one({"client_id": cid, "display_name": cid})
+        await wrap(db).claims.insert_one(dict(mine))
+    _, a = await _people(db, tid, "c1")
+    _, b = await _people(db, tid, "c2")
+    await http.post(f"/api/c/claims/{mine['claim_id']}/thread", headers=a["owner"], json={"message": "Mine"})
+    assert (await http.get(f"/api/c/claims/{mine['claim_id']}/thread", headers=b["owner"])).status_code == 404
+    assert (await http.post(f"/api/c/claims/{mine['claim_id']}/thread", headers=b["owner"], json={"message": "x"})).status_code == 404
+    assert (await http.get("/api/c/claim-threads", headers=b["owner"])).json()["threads"] == []

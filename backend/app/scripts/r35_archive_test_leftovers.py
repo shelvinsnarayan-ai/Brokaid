@@ -45,7 +45,10 @@ async def run(db) -> dict:
     async for e in db.events.find({"tenant_id": tid, "type": "ClientQuestionAsked", "payload.client_id": CID}).sort("seq", 1):
         p = e["payload"]
         if RX.search(p.get("message") or ""):
-            out["threads"] += await _flag(db, tid, _event, "thread", p.get("thread_id") or p.get("envelope_id"), "test-shaped message")
+            th = p.get("thread_id") or p.get("envelope_id")
+            # claim threads are hidden per message (their id is fixed per claim, so a thread flag would hide later real messages)
+            kind, ref = ("ask", p.get("msg_id")) if str(th).startswith("claim-") else ("thread", th)
+            out["threads"] += await _flag(db, tid, _event, kind, ref, "test-shaped message")
     async for m in db.thread_messages.find({"tenant_id": tid, "client_id": CID}):
         if RX.search(m.get("body") or ""):
             out["replies"] += await _flag(db, tid, _event, "reply", m["reply_id"], "test-shaped broker reply")

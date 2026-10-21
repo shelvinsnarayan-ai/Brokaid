@@ -80,6 +80,7 @@ async def post_client(store, tid: str, *, user_id: str, role: str, claim: dict, 
         from app.kernel.holidays import state_for
         await inbox._emit(store, tid, "PromiseMade", {
             "thread_id": thread_id, "client_id": claim["client_id"], "claim_id": claim["claim_id"], "received_at": inbox._utc(received).isoformat(),
-            "reply_by": inbox.reply_by_for(inbox._utc(received), await state_for(store, tid)).isoformat(), "data_basis": inbox.BASIS},
+            "reply_by": inbox.reply_by_for(inbox._utc(received), await state_for(store, tid)).isoformat(), "data_basis": inbox.BASIS,
+            "msg_id": msg_id},
             f"promise:{thread_id}:{msg_id}")
     return {"thread_id": thread_id, "msg_id": msg_id, "replayed": ev is None}

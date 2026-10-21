@@ -25,7 +25,8 @@ async def _scope(safe, session: Session, include_tests: bool) -> dict:
     if not include_tests:
         flags = [f async for f in safe.test_flags.find({})]
         q |= {"test": {"$ne": True},
-              "thread_id": {"$nin": [f["ref"] for f in flags if f["kind"] == "thread"]},
+              "thread_id": {"$nin": [f["ref"] for f in flags if f["kind"] == "thread"
+                                     and not str(f["ref"]).startswith("claim-")]},  # R3.4: claim threads hide per message
               "reply_id": {"$nin": [f["ref"] for f in flags if f["kind"] == "reply"]}}
     return q
 

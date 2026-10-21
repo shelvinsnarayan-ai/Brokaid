@@ -124,8 +124,14 @@ async def load_threads(store, tenant_id: str, *, client_id: str | None = None,
             "claim_id": None})
         t["claim_id"] = t["claim_id"] or p.get("claim_id")
         typ = e["type"]
-        t["test"] = t["test"] or ("thread", tid) in flags
+        claim_thread = str(tid).startswith("claim-")
+        # R3.4: a claim thread's id is fixed per claim, so a thread-level flag would hide every later real message.
+        # Claim threads are only ever hidden message by message (("ask", msg_id) / ("reply", reply_id) flags).
+        t["test"] = t["test"] or (("thread", tid) in flags and not claim_thread)
         if not include_tests and typ in ("BrokerReplied", "PromiseKept") and ("reply", p.get("reply_id")) in flags:
+            continue
+        if not include_tests and claim_thread and typ in ("ClientQuestionAsked", "PromiseMade") and (
+                ("ask", p.get("msg_id")) in flags or ("ask", str(e.get("idempotency_key") or "").rpartition(":")[2]) in flags):
             continue
         if typ == "ClientQuestionAsked":
             at = _utc(p.get("received_at") or ts)
