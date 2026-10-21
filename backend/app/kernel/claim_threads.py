@@ -24,12 +24,27 @@ def is_closed(c: dict) -> bool:
     return (c.get("stage") or c.get("status")) in CLOSED
 
 
+_PRODUCT_CLASS = (("liability", "Liability"), ("cyber", "Cyber"), ("motor", "Motor"), ("vehicle", "Motor"), ("fleet", "Motor"),
+                  ("tools", "Tools"), ("contents", "Property"), ("pack", "Property"), ("building", "Property"), ("property", "Property"),
+                  ("marine", "Marine"))
+
+
+def policy_class(product: str | None) -> str | None:
+    p = (product or "").lower()
+    return next((v for k, v in _PRODUCT_CLASS if k in p), None)
+
+
 def label(c: dict, things: dict | None = None) -> str:
-    cls = (c.get("claim_class") or c.get("claim_type") or "other").split("_")[0].title()
+    """'Motor claim · Ford Ranger XLT XYZ-789'; without a vehicle, the policy name, and the policy's own class when the
+    claim says motor but the policy isn't a motor/fleet one (e.g. 'Liability claim · Marine Liability')."""
+    cls = (c.get("claim_class") or c.get("claim_type") or "other").split("_")[0].lower()
     rego = (c.get("incident") or {}).get("rego")
-    thing = (things or {}).get(rego) if rego else None
-    what = f"{thing} {rego}" if thing else rego or c.get("product") or c.get("claim_reference")
-    return f"{cls} claim · {what}"
+    if cls == "motor" and rego:
+        thing = (things or {}).get(str(rego).upper())
+        return f"Motor claim · {thing} {rego}" if thing else f"Motor claim · {rego}"
+    product, pcls = c.get("product"), policy_class(c.get("product"))
+    title = (pcls or "Other") if (cls == "motor" and pcls != "Motor") or cls == "other" else cls.title()
+    return f"{title} claim · {product or c.get('claim_reference')}"
 
 
 async def vehicle_names(store, tid: str, client_id: str) -> dict:

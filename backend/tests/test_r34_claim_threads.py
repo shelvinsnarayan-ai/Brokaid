@@ -125,3 +125,17 @@ def test_openapi_lists_new_endpoints():
     paths = app.openapi()["paths"]
     for p in ("/api/c/claim-threads", "/api/c/claims/{claim_id}/thread", "/api/o/claims/{claim_id}/thread"):
         assert p in paths, p
+
+
+def test_label_fallbacks():
+    names = {"XYZ-789": "Ford Ranger XLT"}
+    motor = {"claim_class": "motor", "incident": {"rego": "XYZ-789"}, "product": "Motor — Commercial Vehicle"}
+    assert ct.label(motor, names) == "Motor claim · Ford Ranger XLT XYZ-789"
+    assert ct.label({**motor, "incident": {"rego": "ABC-111"}}, names) == "Motor claim · ABC-111"
+    assert ct.label({**motor, "incident": {"rego": None}}) == "Motor claim · Motor — Commercial Vehicle"  # motor policy, no vehicle
+    odd = {"claim_class": "motor", "incident": {"rego": None}, "product": "Marine Liability"}
+    assert ct.label(odd) == "Liability claim · Marine Liability"  # motor claim on a non-motor policy → policy's own class
+    assert ct.label({"claim_class": "liability", "incident": {}, "product": "Marine Liability"}) == "Liability claim · Marine Liability"
+    assert ct.label({"claim_class": "property", "incident": {}, "product": "Business pack — contents"}) == "Property claim · Business pack — contents"
+    assert ct.label({"claim_class": "other", "incident": {}, "product": "Cyber"}) == "Cyber claim · Cyber"
+    assert ct.label({"claim_class": "other", "incident": {}, "claim_reference": "CLM-9"}) == "Other claim · CLM-9"
