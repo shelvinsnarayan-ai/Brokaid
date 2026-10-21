@@ -2,10 +2,33 @@
 import os
 import time
 import uuid
-import requests
-import pytest
+from datetime import datetime, timezone
+from pathlib import Path
 
-BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://brokaid-demo.preview.emergentagent.com").rstrip("/")
+import pytest
+import requests
+from dotenv import dotenv_values
+
+ROOT = Path(__file__).resolve().parents[2]
+# Under pytest, conftest points REACT_APP_BACKEND_URL at a throwaway server + test DB; never a hardcoded preview URL.
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or dotenv_values(ROOT / "frontend/.env").get("REACT_APP_BACKEND_URL") or "").rstrip("/")
+
+
+def _flag_test_thread(thread_id: str) -> None:
+    """Flag a thread this test created as test data at creation, in whichever DB the target API uses.
+
+    Throwaway local server → the per-run test DB; anything else (e.g. preview) → the DB in backend/.env.
+    The existing test_flags mechanism hides it from clients, the demo inbox and notifications.
+    """
+    from pymongo import MongoClient
+    env = dotenv_values(ROOT / "backend/.env")
+    local = BASE.startswith(("http://127.0.0.1", "http://localhost"))
+    db = MongoClient(os.environ.get("MONGO_URL") or env["MONGO_URL"])[os.environ["DB_NAME"] if local else env["DB_NAME"]]
+    t = db.tenants.find_one({"slug": "harbourline"})
+    if t:
+        db.test_flags.update_one({"tenant_id": t["tenant_id"], "kind": "thread", "ref": thread_id},
+                                 {"$setOnInsert": {"reason": "pytest r11 integration", "flagged_at": datetime.now(timezone.utc)}},
+                                 upsert=True)
 
 
 def _sess(email: str) -> requests.Session:
@@ -99,6 +122,7 @@ def test_kai_question_produces_single_client_question(kai, cass):
     body = r.json()
     envelope_id = body.get("envelope_id")
     assert envelope_id, f"no envelope_id in ask response: {body}"
+    _flag_test_thread(envelope_id)  # flag on creation so QA chatter never reaches the demo client
     print("envelope_id (thread):", envelope_id)
     # Poll Cass's notifications; link contains /o/inbox/{thread_id}
     found = []
