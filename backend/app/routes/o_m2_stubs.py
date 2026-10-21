@@ -122,13 +122,24 @@ async def weekly_pack_pdf(request: Request, session: Session = Depends(require_g
                     headers={"Content-Disposition": 'attachment; filename="harbourline-weekly-pack.pdf"'})
 
 
-def _thread_row(t: dict, now: datetime) -> dict:
+def _thread_row(t: dict, now: datetime, claims: dict | None = None) -> dict:
     return {"thread_id": t["thread_id"], "client": t["client"], "subject": t["subject"],
             "last_message": t["last_message"], "last_at": t["last_at"].isoformat(),
             "reply_by": t["reply_by"].isoformat() if t["reply_by"] else None,
             "reply_by_text": inbox_k.fmt_short(t["reply_by"]) if t["reply_by"] else "No reply-by",
             "reply_by_basis": inbox_k.BASIS, "status": inbox_k.status_for(t, now),
-            "messages": _n(len([m for m in t["messages"] if m["who"] != "pending"]))}
+            "messages": _n(len([m for m in t["messages"] if m["who"] != "pending"])),
+            "claim": {"claim_id": t["claim_id"], "label": (claims or {}).get(t["claim_id"]) or "Claim"} if t.get("claim_id") else None}
+
+
+async def _claim_labels(store, tenant_id: str) -> dict:
+    from app.db.tenant_safe import wrap
+    from app.kernel import claim_threads
+    from app.kernel.tenant_ctx import use_tenant
+    async with use_tenant(tenant_id):
+        return {c["claim_id"]: f"{c.get('claim_reference')} · {claim_threads.label(c)}"
+                async for c in wrap(store).claims.find({}, {"_id": 0, "claim_id": 1, "claim_reference": 1, "claim_class": 1,
+                                                            "claim_type": 1, "incident": 1, "product": 1})}
 
 
 @router.get("/inbox")
@@ -136,7 +147,8 @@ async def inbox(request: Request, include_tests: bool = False,
                 session: Session = Depends(require_operator_session)) -> dict:
     now = datetime.now(timezone.utc)
     rows = await inbox_k.load_threads(request.app.state.mongo_db, session.tenant_id, include_tests=include_tests)
-    out = [_thread_row(t, now) for t in inbox_k.sort_threads(rows, now)]
+    labels = await _claim_labels(request.app.state.mongo_db, session.tenant_id)
+    out = [_thread_row(t, now, labels) for t in inbox_k.sort_threads(rows, now)]
     return {"threads": out, "count": _n(len(out))}
 
 
@@ -147,7 +159,7 @@ async def inbox_thread(thread_id: str, request: Request,
     t = await inbox_k.get_thread(request.app.state.mongo_db, session.tenant_id, thread_id)
     msgs = [{"who": m["who"], "text": m["text"], "at": m["at"].isoformat(), "author": m.get("author")}
             for m in t["messages"]]
-    return {**_thread_row(t, now), "conversation": msgs,
+    return {**_thread_row(t, now, await _claim_labels(request.app.state.mongo_db, session.tenant_id)), "conversation": msgs,
             "can_reply": session.active_role in inbox_k.REPLY_ROLES,
             "advice_approvals": await inbox_k.approvals(request.app.state.mongo_db, session.tenant_id, thread_id),
             "kept": ({"kept_at": t["kept"]["kept_at"].isoformat(), "late": t["kept"]["late"]} if t["kept"] else None)}

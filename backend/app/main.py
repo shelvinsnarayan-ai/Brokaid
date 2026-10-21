@@ -201,6 +201,7 @@ def create_app(
     from app.routes.c_me import router as c_me_router
     from app.routes.c_next_action import router as c_next_action_router
     from app.routes.c_home import router as c_home_router
+    from app.routes.c_claim_threads import router as c_claim_threads_router
     from app.routes.c_pending_quote import router as c_pending_quote_router
     from app.routes.c_scene import router as c_scene_router
     from app.routes.client_360 import router as client_360_router
@@ -232,7 +233,7 @@ def create_app(
         c_envelope_router,
         auth_login_router, o_invites_router, o_users_router, o_import_router, o_bank_router, c_money_router, o_renewals_router, o_renewal_review_router, c_renewals_router, o_compliance_router, c_compliance_router, c_members_router, platform_router,
         c_ask_router, c_cert_router, c_claims_router, c_me_router,
-        c_next_action_router, c_home_router, c_pending_quote_router, c_scene_router,
+        c_next_action_router, c_home_router, c_claim_threads_router, c_pending_quote_router, c_scene_router,
         client_360_router, client_preferences_router,
         compliance_router, daily_brief_router, jurisdictions_router,
         kpi_router, matters_router,

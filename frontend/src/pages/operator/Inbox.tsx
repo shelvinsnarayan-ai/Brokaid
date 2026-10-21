@@ -7,6 +7,7 @@ export interface ThreadRow {
   thread_id: string; client: string; subject: string; last_message: string; last_at: string;
   reply_by: string | null; reply_by_text: string; reply_by_basis: string; status: string;
   messages: { value: number; data_basis: string };
+  claim?: { claim_id: string; label: string } | null;
 }
 
 const TONE: Record<string, string> = {
@@ -44,7 +45,10 @@ export function Inbox() {
             <Link key={t.thread_id} to={`/o/inbox/${encodeURIComponent(t.thread_id)}`} className={grid} role="row"
               data-testid={`inbox-row-${i}`}
               style={{ padding: "10px", borderTop: "1px solid var(--line, #1E2E5A)", color: "inherit", textDecoration: "none" }}>
-              <span data-testid={`inbox-client-${i}`}>{t.client}</span>
+              <span data-testid={`inbox-client-${i}`}>{t.client}
+                {t.claim ? <span data-testid={`inbox-claim-tag-${i}`} style={{ display: "block", fontSize: 12, marginTop: 2 }}>
+                  <span style={{ border: "1px solid var(--signal-amber, #F5A524)", padding: "0 6px", marginRight: 6 }}>Claim</span>{t.claim.label}</span> : null}
+              </span>
               <span style={{ overflowWrap: "anywhere" }}>{t.last_message}
                 <span style={{ ...muted, display: "block" }}>{t.messages.value} message{t.messages.value === 1 ? "" : "s"}<Basis b={t.messages.data_basis} /></span>
               </span>

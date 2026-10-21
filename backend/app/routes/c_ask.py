@@ -120,7 +120,7 @@ async def thread(
                                        include_tests=include_tests)
     items: list[tuple] = []
     waiting = []
-    for t in threads:
+    for t in [t for t in threads if not t.get("claim_id")]:  # R3.4: claim threads live under their claim
         for m in t["messages"]:
             if m["who"] == "client":
                 items.append((m["at"], {"who": "client", "text": m["text"], "thread_id": t["thread_id"]}))
@@ -169,7 +169,7 @@ async def unread(request: Request, include_tests: bool = False,
         since = seen.get(t["thread_id"])
         ids = [m["reply_id"] for m in t["messages"] if m.get("reply_id") and (since is None or m["at"] > since)]
         if ids:
-            out.append({"thread_id": t["thread_id"], "unread": len(ids), "reply_ids": ids})
+            out.append({"thread_id": t["thread_id"], "unread": len(ids), "reply_ids": ids, "claim_id": t.get("claim_id")})
     return {"count": sum(t["unread"] for t in out), "threads": out}
 
 

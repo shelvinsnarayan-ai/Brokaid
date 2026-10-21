@@ -108,6 +108,7 @@ export function OperatorClaim() {
             <h2>Completeness</h2>
             {c.checklist.map((x: any) => <p key={x.key} data-testid={`claim-check-${x.key}`}>{x.done ? "✓" : "○"} {x.label}</p>)}
           </div>
+          <ClaimMessages claimId={c.claim_id} />
           <div className="imp-card" data-testid="claim-timeline">
             <h2>Timeline</h2>
             {c.timeline.map((t: any, k: number) => <p key={k}><strong>{t.label}</strong> · {dt(t.at)}{t.note ? ` — ${t.note}` : ""}</p>)}
@@ -139,6 +140,26 @@ function ClaimLinks({ data, onDone }: { data: any; onDone: () => void }) {
           Log a complaint linked to this claim</button>
       ) : null}
       {err ? <p className="imp-err" role="alert" data-testid="claim-links-error">{err}</p> : null}
+    </div>
+  );
+}
+
+function ClaimMessages({ claimId }: { claimId: string }) {
+  const { data } = useLoad<any>(`o/claims/${claimId}/thread`);
+  if (!data) return null;
+  return (
+    <div className="imp-card" data-testid="claim-messages">
+      <h2>Messages</h2>
+      {!data.exists ? <p className="imp-muted" data-testid="claim-messages-empty">No messages about this claim yet.</p> : (
+        data.conversation.map((m: any, k: number) => (
+          <p key={k} data-testid={`claim-message-${k}`}><strong>{m.who === "client" ? "Client" : m.who === "broker" ? (m.author || "Broker") : "Note"}</strong> · {dt(m.at)}<br />{m.text}</p>
+        ))
+      )}
+      {data.reply_by_text ? <p className="imp-muted" data-testid="claim-messages-reply-by">Reply by {data.reply_by_text}</p> : null}
+      {data.exists ? (
+        <Link className="k-btn" to={`/o/inbox/${encodeURIComponent(data.thread_id)}`} data-testid="claim-messages-open">
+          {data.can_reply ? "Reply in Inbox" : "Open in Inbox (read-only)"}</Link>
+      ) : null}
     </div>
   );
 }

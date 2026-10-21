@@ -240,7 +240,9 @@ async def on_event(store, tenant_id: str, type_: str, payload: dict, event_id: s
     for uid in recipients:
         await deliver(store, tenant_id, uid, kind=rule["kind"], title=rule["title"].format(**ctx),
                       many=rule["many"].replace("{client}", ctx["client"]), body=rule["body"].format(**ctx),
-                      link=rule["link"].format(**ctx), dedupe_key=f"{rule['kind']}:{ref}",
+                      link=(f"/c/messages/claim/{thread_id[6:]}" if type_ == "BrokerReplied" and str(thread_id).startswith("claim-")
+                            else f"/o/claims/{thread_id[6:]}" if type_ == "ClientQuestionAsked" and str(thread_id).startswith("claim-")
+                            else rule["link"].format(**ctx)), dedupe_key=f"{rule['kind']}:{ref}",
                       idem=rule["once"].format(**ctx) if rule.get("once") else f"ev:{event_id}",
                       source_event_id=event_id, thread_id=thread_id, reply_id=p.get("reply_id"),
                       test=test)

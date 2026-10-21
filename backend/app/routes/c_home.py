@@ -65,13 +65,7 @@ async def home(request: Request, s: Session = Depends(require_session)) -> dict:
 
 
 async def _can_pay(store, s: Session) -> bool:
-    """Read-only authority lookup (same switches as the pay flow); records nothing."""
-    async with use_tenant(s.tenant_id):
-        m = await wrap(store).memberships.find_one({"user_id": s.user_id, "client_id": s.client_id, "revoked_at": None})
-        if m:
-            return bool(authority.effective(m).get("can_pay"))
-        link = await wrap(store).user_client_links.find_one({"user_id": s.user_id, "client_id": s.client_id})
-    return bool(link and link.get("role") == "client_owner")
+    return await authority.has(store, s, s.client_id, "can_pay")
 
 
 @router.get("/activity")

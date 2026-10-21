@@ -113,3 +113,16 @@
 .mer-remind__t { margin: 0; font-weight: 700; font-size: 16px; color: var(--ink); }
 .mer-remind .mer-btn { margin-top: 10px; }
 .mer-due--hl { box-shadow: 0 0 0 3px var(--saffron); }
+
+/* R3.4: claim message threads. */
+.mer-bubble { max-width: 86%; padding: 10px 12px; border-radius: 14px; margin: 0 0 10px; font-size: 14px; background: #fff; border: 1px solid var(--line, #E3E7EF); }
+.mer-bubble--client { margin-left: auto; background: var(--navy); color: #fff; border-color: var(--navy); }
+.mer-bubble--client .mer-row__s { color: rgba(255,255,255,.8); }
+.mer-bubble--new { border: 2px solid var(--saffron); background: #FFF6DD; }
+.mer-compose { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.mer-compose textarea { width: 100%; border: 1px solid #C9D0DD; border-radius: 12px; padding: 10px; font: 14px Inter, sans-serif; resize: vertical; }
+.mer-compose textarea:focus-visible { outline: 3px solid var(--saffron); outline-offset: 1px; }
+.mer-compose .mer-btn { align-self: flex-end; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mer-copy--dark { background: transparent; color: #fff; border-color: rgba(255,255,255,.55); }
+.mer-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

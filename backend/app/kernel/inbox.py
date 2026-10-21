@@ -120,7 +120,9 @@ async def load_threads(store, tenant_id: str, *, client_id: str | None = None,
             continue
         t = threads.setdefault(tid, {
             "thread_id": tid, "client_id": p.get("client_id"), "client": names.get(p.get("client_id"), "Unknown client"),
-            "subject": None, "messages": [], "reply_by": None, "kept": None, "test": False, "answered": False})
+            "subject": None, "messages": [], "reply_by": None, "kept": None, "test": False, "answered": False,
+            "claim_id": None})
+        t["claim_id"] = t["claim_id"] or p.get("claim_id")
         typ = e["type"]
         t["test"] = t["test"] or ("thread", tid) in flags
         if not include_tests and typ in ("BrokerReplied", "PromiseKept") and ("reply", p.get("reply_id")) in flags:
@@ -144,6 +146,7 @@ async def load_threads(store, tenant_id: str, *, client_id: str | None = None,
             t["answered"] = True
         elif typ == "PromiseMade":
             t["reply_by"] = _utc(p["reply_by"])
+            t["kept"] = None  # R3.4: a claim thread can hold a fresh promise per round
         elif typ == "PromiseKept":
             t["kept"] = {"kept_at": _utc(p["kept_at"]), "late": bool(p.get("late"))}
     out = [t for t in threads.values() if t["messages"] and (include_tests or not t["test"])]
@@ -282,7 +285,7 @@ async def reply(store, session, thread_id: str, body: str, idempotency_key: str,
         await _emit(store, tenant_id, "PromiseKept", {
             "thread_id": thread_id, "client_id": t["client_id"], "reply_id": reply_id,
             "reply_by": t["reply_by"].isoformat(), "kept_at": now.isoformat(), "late": late},
-            f"kept:{thread_id}", actor)
+            f"kept:{thread_id}:{t['reply_by'].isoformat()}" if t.get("claim_id") else f"kept:{thread_id}", actor)
     await _audit(store, session, t["client_id"], thread_id, "allowed")
     async with use_tenant(tenant_id):
         await safe.proj_notifications.insert_one({

@@ -7,6 +7,7 @@ import Activity from "./pages/client/Activity";
 import PolicyPage from "./pages/client/PolicyPage";
 import { Messages, Profile } from "./pages/client/MessagesProfile";
 import { ClaimTracker } from "./pages/client/ClaimTracker";
+import ClaimThread from "./pages/client/ClaimThread";
 import { ClientCover } from "./pages/ClientCover";
 import { ClientPendingQuote } from "./pages/ClientPendingQuote";
 import { ClientRequestChange } from "./pages/ClientRequestChange";
@@ -94,6 +95,7 @@ export function App() {
           <Route path="policy/:policy_id" element={<PolicyPage />} />
           <Route path="messages" element={<Messages />} />
           <Route path="messages/broker" element={<ClientAsk />} />
+          <Route path="messages/claim/:claimId" element={<ClaimThread />} />
           <Route path="cover" element={<Navigate to="/c" replace />} />
           <Route path="cover/history" element={<ClientCover />} />
           <Route path="cover/:policy_id/pending" element={<ClientPendingQuote />} />

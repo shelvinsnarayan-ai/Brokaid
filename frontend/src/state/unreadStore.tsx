@@ -5,9 +5,9 @@ const API = import.meta.env.VITE_API_BASE || "";
 
 interface UnreadState {
   count: number;
-  threads: { thread_id: string; unread: number; reply_ids?: string[] }[];
+  threads: { thread_id: string; unread: number; reply_ids?: string[]; claim_id?: string | null }[];
   refresh: () => Promise<void>;
-  markSeen: () => Promise<void>;
+  markSeen: (only?: string[]) => Promise<void>;
 }
 
 export const useUnreadStore = create<UnreadState>((set, get) => ({
@@ -24,13 +24,15 @@ export const useUnreadStore = create<UnreadState>((set, get) => ({
       // best effort
     }
   },
-  markSeen: async () => {
-    const ids = get().threads.map((t) => t.thread_id);
+  markSeen: async (only?: string[]) => {
+    // R3.4: by default only the main broker thread(s); claim threads are marked seen from their own page
+    const ids = get().threads.filter((t) => (only ? only.includes(t.thread_id) : !t.claim_id)).map((t) => t.thread_id);
     await Promise.all(ids.map((thread_id) => fetch(`${API}/api/c/ask/seen`, {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" }, body: JSON.stringify({ thread_id }),
     }).catch(() => null)));
-    set({ count: 0, threads: [] });
+    const rest = get().threads.filter((t) => !ids.includes(t.thread_id));
+    set({ count: rest.reduce((n, t) => n + t.unread, 0), threads: rest });
   },
 }));
 

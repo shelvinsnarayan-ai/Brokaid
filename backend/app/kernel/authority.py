@@ -98,3 +98,13 @@ async def require_client_authority(store, session, *, action: str, needed: str) 
         raise HTTPException(status_code=404, detail="client_not_linked")
     await require_authority(store, session, client_id=client_id, action=action, needed=needed)
     return client_id
+
+
+async def has(store, session, client_id: str, needed: str) -> bool:
+    """Read-only check of the same switches require_authority uses (records nothing; for showing or hiding actions)."""
+    async with use_tenant(session.tenant_id):
+        m = await wrap(store).memberships.find_one({"user_id": session.user_id, "client_id": client_id, "revoked_at": None})
+        if m:
+            return bool(effective(m).get(needed))
+        link = await wrap(store).user_client_links.find_one({"user_id": session.user_id, "client_id": client_id})
+    return bool(link and link.get("role") == "client_owner")

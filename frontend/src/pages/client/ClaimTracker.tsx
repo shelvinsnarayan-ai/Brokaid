@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { useC } from "./api";
+import { useUnreadStore } from "../../state/unreadStore";
 
 const STEPS: [string, string[]][] = [
   ["Lodged", ["lodged"]], ["Broker reviewing", ["triage", "info_requested"]], ["Sent to insurer", ["submitted"]],
@@ -12,6 +13,7 @@ export function ClaimTracker() {
   const { claim_id } = useParams();
   const { data } = useC<{ claim: Claim }>(`c/claims/${claim_id}`);
   const home = useC<{ broker: { name: string; phone?: string | null } }>("c/home").data;
+  const unread = useUnreadStore((st) => st.threads.find((x) => x.thread_id === `claim-${claim_id}`)?.unread || 0);
   if (!data) return null;
   const c = data.claim;
   const at = STEPS.findIndex(([, ks]) => ks.includes(c.stage));
@@ -30,6 +32,8 @@ export function ClaimTracker() {
           <a href="#claim-upload" className="mer-btn" style={{ marginTop: 8 }} data-testid="mer-claim-upload-link">Upload now</a>
         </div>
       ) : null}
+      <Link to={`/c/messages/claim/${claim_id}`} className="mer-btn" style={{ margin: "14px 16px 0", display: "flex", justifyContent: "center", gap: 8 }}
+        data-testid="mer-claim-thread-btn">Message about this claim{unread ? <span className="mer-badge" style={{ margin: 0 }} data-testid="mer-claim-thread-unread">{unread}</span> : null}</Link>
       <section className="mer-sec">
         <h2 className="mer-sec__title">Progress</h2>
         <ol className="mer-card mer-steps" data-testid="mer-claim-steps">
@@ -47,7 +51,7 @@ export function ClaimTracker() {
         <h2 className="mer-sec__title">Handled by</h2>
         <div className="mer-card"><div className="mer-row">
           <span className="mer-row__main"><p className="mer-row__t">Account executive</p><p className="mer-row__s">{home?.broker.name || "Your broker"}</p></span>
-          <Link to="/c/messages/broker" className="mer-copy" data-testid="mer-claim-message">Message</Link>
+          <Link to={`/c/messages/claim/${claim_id}`} className="mer-copy" data-testid="mer-claim-message">Message</Link>
           {home?.broker.phone ? <a href={`tel:${home.broker.phone}`} className="mer-copy" data-testid="mer-claim-call">Call</a> : null}
         </div></div>
       </section>

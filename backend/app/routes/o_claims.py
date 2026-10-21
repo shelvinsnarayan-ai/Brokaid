@@ -96,6 +96,18 @@ async def lodge(body: StaffFNOL, request: Request, s: Session = Depends(_staff))
     return _view(c)
 
 
+@router.get("/{claim_id}/thread")
+async def claim_thread(claim_id: str, request: Request, s: Session = Depends(_staff)) -> dict:
+    """R3.4: the claim's message thread for the staff claim page (reply goes through the Inbox reply route)."""
+    from app.kernel import claim_threads, inbox
+    c = await _get(request, s, claim_id)
+    t = await claim_threads.thread_for(_store(request), s.tenant_id, c["client_id"], claim_id, include_tests=True)
+    return {"thread_id": claim_threads.thread_id_for(claim_id), "exists": bool(t), "can_reply": s.active_role in inbox.REPLY_ROLES,
+            "conversation": [{"who": m["who"], "text": m["text"], "at": m["at"].isoformat(), "author": m.get("author")}
+                             for m in (t or {}).get("messages", [])],
+            "reply_by_text": inbox.fmt_short(t["reply_by"]) if t and t["reply_by"] and not t["answered"] else None}
+
+
 @router.get("/{claim_id}")
 async def detail(claim_id: str, request: Request, s: Session = Depends(_staff)) -> dict:
     c = await _get(request, s, claim_id)
