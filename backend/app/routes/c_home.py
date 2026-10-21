@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from app.auth.sessions import Session
 from app.db.tenant_safe import wrap
 from app.kernel import client_home as ch
-from app.kernel import holidays, payments
+from app.kernel import authority, holidays, payments
 from app.kernel.tenant_ctx import use_tenant
 from app.middleware.client_guard import member_clients
 from app.middleware.session import require_session
@@ -57,8 +57,21 @@ async def home(request: Request, s: Session = Depends(require_session)) -> dict:
     except Exception:  # noqa: BLE001 — the certificate card is optional
         cert = None
     current = [p for p in ctx["policies"] if p.get("status") in ch.CURRENT]
+    rem = ch.reminders(ctx, now.astimezone(holidays.SYD).date(), await _can_pay(store, s))
+    reminded = set(ch.reminded_ids(ctx, now.astimezone(holidays.SYD).date())) if rem else set()  # the reminder replaces its attention card
     return {"greeting": greeting, "client_name": ctx["client"].get("display_name"), "broker": await _broker(store, s.tenant_id),
-            "attention": ch.attention(ctx, unread, cert), "cover": ch.cover_rows(current, ch._latest_renewals(ctx["renewals"]), now)}
+            "reminder": rem, "attention": [a for a in ch.attention(ctx, unread, cert) if a.get("payable_id") not in reminded],
+            "cover": ch.cover_rows(current, ch._latest_renewals(ctx["renewals"]), now)}
+
+
+async def _can_pay(store, s: Session) -> bool:
+    """Read-only authority lookup (same switches as the pay flow); records nothing."""
+    async with use_tenant(s.tenant_id):
+        m = await wrap(store).memberships.find_one({"user_id": s.user_id, "client_id": s.client_id, "revoked_at": None})
+        if m:
+            return bool(authority.effective(m).get("can_pay"))
+        link = await wrap(store).user_client_links.find_one({"user_id": s.user_id, "client_id": s.client_id})
+    return bool(link and link.get("role") == "client_owner")
 
 
 @router.get("/activity")
@@ -73,6 +86,9 @@ async def activity(request: Request, f: str = "all", cursor: int = 0, s: Session
     due, side = [], None
     if cursor == 0:  # dues and the side panel ignore the feed filter
         due = ch.due_payments(ctx, await payments.get_settings(store, s.tenant_id), await holidays.quoting_mode(store, s.tenant_id))
+        if not await _can_pay(store, s):  # no payment authority: details only, no pay action (same rule as the Home reminder)
+            for d in due:
+                d["pay_href"] = None
         side = ch.panel(ctx, datetime.now(timezone.utc))
     return {"items": page, "next_cursor": cursor + ch.PAGE if cursor + ch.PAGE < len(items) else None, "due": due, "panel": side}
 

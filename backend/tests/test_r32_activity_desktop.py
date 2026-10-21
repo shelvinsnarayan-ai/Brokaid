@@ -18,6 +18,15 @@ def test_demo_payment_due_seed_is_idempotent():
         rows = [p async for p in db.payables.find({"envelope_id": seed32.ENVELOPE})]
         assert len(rows) == 1 and rows[0]["state"] == "owed" and rows[0]["kind"] == "invoice"
         assert await db.events.count_documents({"type": "DemoPaymentDueSeeded"}) == 1  # same-day re-run is one ledger row
+        c = await seed32.seed(db, 2)
+        d = await seed32.seed(db, 2)
+        assert c["payable_id"] == d["payable_id"] == a["payable_id"]  # moves the same invoice, never a new one
+        assert await db.payables.count_documents({"envelope_id": seed32.ENVELOPE}) == 1
+        from datetime import datetime, timedelta
+
+        from app.kernel import holidays
+        assert d["due_date"] == (datetime.now(holidays.SYD).date() + timedelta(days=2)).isoformat()
+        assert await db.events.count_documents({"type": "DemoPaymentDueSeeded"}) == 2
     run(go, {})
 
 

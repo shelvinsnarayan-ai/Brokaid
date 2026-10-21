@@ -4,7 +4,10 @@ import { Ico, Skel, useC } from "./api";
 
 export interface Fig { text: string; label: string; kind: string }
 interface Row { policy_id: string; title: string; subtitle: string; badge: string | null; figure: Fig | null; icon: string; anchor: string | null }
+interface RemItem { payable_id: string; amount: string; policy: string; due_text: string; overdue: boolean; href: string | null }
+type Reminder = { combined: false; item: RemItem; can_pay: boolean } | { combined: true; count: number; total: string; overdue: boolean; href: string; can_pay: boolean };
 interface HomeData {
+  reminder?: Reminder | null;
   greeting: string; client_name: string | null; broker: { name: string; email?: string | null; phone?: string | null };
   attention: { kind: string; title: string; subtitle: string; href: string }[];
   cover: { key: string; label: string; rows: Row[] }[];
@@ -31,6 +34,7 @@ export default function Home() {
       {pick ? <p className="mer-banner" data-testid="mer-pick-hint">Choose the policy{pick === "certificate" ? " for your certificate" : " to change"} below.</p> : null}
       <section className="mer-sec" aria-labelledby="att-h">
         <h2 id="att-h" className="mer-sec__title">Needs your attention</h2>
+        {data?.reminder ? <PayReminder r={data.reminder} /> : null}
         {!data ? <Skel h={70} n={1} /> : data.attention.length ? (
           <div className="mer-strip" data-testid="mer-attention">
             {data.attention.map((a, i) => (
@@ -72,5 +76,26 @@ function CoverRow({ r, pick }: { r: Row; pick: string | null }) {
           : <p className="mer-fig__l">View details</p>}
       </span>
     </Link>
+  );
+}
+
+function PayReminder({ r }: { r: Reminder }) {
+  if (r.combined) {
+    return (
+      <div className={`mer-remind${r.overdue ? " mer-remind--late" : ""}`} data-testid="mer-pay-reminder-combined">
+        <p className="mer-remind__t">{r.count} payments due soon · {r.total} total</p>
+        <p className="mer-row__s">{r.overdue ? "One or more was due already — " : ""}see the details and payment references in Activity.</p>
+        <Link to={r.href} className="mer-btn" data-testid="mer-pay-reminder-view">{r.can_pay ? "Pay now" : "View payments"}</Link>
+      </div>
+    );
+  }
+  const i = r.item;
+  return (
+    <div className={`mer-remind${i.overdue ? " mer-remind--late" : ""}`} data-testid={`mer-pay-reminder-${i.payable_id}`}>
+      <p className="mer-remind__t" data-testid="mer-pay-reminder-amount">{i.amount} {i.due_text}</p>
+      <p className="mer-row__s">{i.policy}{i.overdue ? " · please pay when you can, or tell your broker if you already have" : ""}</p>
+      {i.href ? <Link to={i.href} className="mer-btn" data-testid="mer-pay-reminder-pay">Pay now</Link>
+        : <p className="mer-row__s" data-testid="mer-pay-reminder-noauth">Someone with payment authority for your business can pay this.</p>}
+    </div>
   );
 }

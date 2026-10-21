@@ -5,7 +5,7 @@ test data. Every query is tenant-scoped and limited to the session's client.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from app.db.tenant_safe import wrap
 from app.kernel import holidays, payments
@@ -183,7 +183,7 @@ def attention(ctx, unread: int, cert: dict | None) -> list[dict]:
         if payments.state_of(p) in ("owed", "partial"):
             due = _short(p.get("due_date"))
             out.append({"kind": "payment_due", "title": "Payment due", "subtitle": f"{money(p['amount'])}" + (f" by {due}" if due else ""),
-                        "href": "/c/activity?f=payments"})
+                        "href": "/c/activity?f=payments", "payable_id": p["payable_id"]})
     for c in ctx["claims"]:
         if any(q.get("status") == "open" for q in c.get("info_requests") or []):
             out.append({"kind": "claim_document", "title": "Document requested", "subtitle": f"Claim {c['claim_reference']}",
@@ -243,7 +243,7 @@ def activity_items(ctx, policy_id: str | None = None) -> list[dict]:
     return items
 
 
-def _pay_href(p: dict, ctx) -> str:
+def _pay_href(p: dict, ctx, other: str = "/c/messages/broker") -> str:
     """'I've paid this' goes to the existing flow for the payable's kind."""
     if p.get("kind") == "renewal_premium":
         r = next((r for r in ctx["renewals"] if r.get("envelope_id") == p.get("envelope_id")), None)
@@ -251,7 +251,55 @@ def _pay_href(p: dict, ctx) -> str:
             return f"/c/renewal/{r['renewal_id']}"
     if p.get("kind") == "endorsement_premium" and p.get("envelope_id"):
         return f"/c/cover/{p['policy_id']}/pay/{p['envelope_id']}"
-    return "/c/messages/broker"
+    return other
+
+
+def _due_day(v) -> date | None:
+    if isinstance(v, datetime):
+        return (v if v.tzinfo else v.replace(tzinfo=timezone.utc)).astimezone(holidays.SYD).date()
+    try:
+        return date.fromisoformat(str(v)[:10]) if v else None
+    except ValueError:
+        return None
+
+
+def _due_words(days: int, d: date) -> str:
+    if days < 0:
+        return f"was due on {d.day} {d.strftime('%b')}"
+    return {0: "due today", 1: "due tomorrow"}.get(days, f"due in {days} days")
+
+
+REMIND_DAYS = 3
+
+
+def reminded_ids(ctx, today: date) -> list[str]:
+    return [p["payable_id"] for p in ctx["payables"] if payments.state_of(p) in ("owed", "partial")
+            and (d := _due_day(p.get("due_date"))) and (d - today).days <= REMIND_DAYS]
+
+
+def reminders(ctx, today: date, can_pay: bool) -> dict | None:
+    """Home payment reminder: Owed payables due within 3 days (Australian date) or overdue; one combined card for 2+."""
+    pols = {p["policy_id"]: p for p in ctx["policies"]}
+    rows = []
+    for p in ctx["payables"]:
+        d = _due_day(p.get("due_date"))
+        if payments.state_of(p) not in ("owed", "partial") or not d or (d - today).days > REMIND_DAYS:
+            continue
+        days = (d - today).days
+        rows.append({"payable_id": p["payable_id"], "amount": money(payments.dec(p["amount"]) - payments.dec(p.get("received") or 0)),
+                     "policy": (pols.get(p["policy_id"]) or {}).get("product") or "Policy", "due_text": _due_words(days, d),
+                     "overdue": days < 0, "days": days,
+                     "href": _pay_href(p, ctx, f"/c/activity?f=payments#due-{p['payable_id']}") if can_pay else None, "_amt": p})
+    if not rows:
+        return None
+    rows.sort(key=lambda r: r["days"])
+    total = sum(float(payments.dec(r["_amt"]["amount"]) - payments.dec(r["_amt"].get("received") or 0)) for r in rows)
+    for r in rows:
+        r.pop("_amt")
+    if len(rows) == 1:
+        return {"combined": False, "item": rows[0], "can_pay": can_pay}
+    return {"combined": True, "count": len(rows), "total": money(total), "overdue": any(r["overdue"] for r in rows),
+            "href": "/c/activity?f=payments", "can_pay": can_pay}
 
 
 def due_payments(ctx, settings, mode) -> list[dict]:

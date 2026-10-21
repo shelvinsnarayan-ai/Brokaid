@@ -106,3 +106,10 @@
 @media (min-width: 1024px) {
   .mer-act { grid-template-columns: minmax(0, 62fr) minmax(0, 38fr); gap: 32px; }
 }
+
+/* R3.3: gentle payment reminder on Home (warm saffron, never alarm red). */
+.mer-remind { background: #FFF6DD; border: 1px solid #F2C55C; border-left: 4px solid var(--saffron); border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
+.mer-remind--late { background: #FDEFD3; border-color: #E9B24A; border-left-color: #C98A0B; }
+.mer-remind__t { margin: 0; font-weight: 700; font-size: 16px; color: var(--ink); }
+.mer-remind .mer-btn { margin-top: 10px; }
+.mer-due--hl { box-shadow: 0 0 0 3px var(--saffron); }

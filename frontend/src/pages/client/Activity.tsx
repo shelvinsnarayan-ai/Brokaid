@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Copy, cget, Skel } from "./api";
 
 export interface Item { type: string; at: string; date: string; title: string; subtitle: string; amount?: string; state?: string; crn?: string; href: string }
@@ -47,6 +47,10 @@ export default function Activity() {
     cget<{ items: Item[]; due: Due[]; panel: Side | null; next_cursor: number | null }>(`c/activity?f=${f}`)
       .then((d) => { setItems(d.items); setDue(d.due); setSide(d.panel); setNext(d.next_cursor); }).catch((e) => setErr(e.message));
   }, [f]);
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash.startsWith("#due-") && due.length) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [hash, due]);
   const more = () => next !== null && cget<{ items: Item[]; next_cursor: number | null }>(`c/activity?f=${f}&cursor=${next}`)
     .then((d) => { setItems((x) => [...(x || []), ...d.items]); setNext(d.next_cursor); });
   return (
@@ -71,7 +75,8 @@ export default function Activity() {
 
 function DueItem({ d }: { d: Due }) {
   return (
-    <div className="mer-due" data-testid={`mer-due-${d.payable_id}`}>
+    <div className={`mer-due${useLocation().hash === `#due-${d.payable_id}` ? " mer-due--hl" : ""}`} id={`due-${d.payable_id}`}
+      data-testid={`mer-due-${d.payable_id}`}>
       <p style={{ margin: 0, fontWeight: 700 }}>{d.amount}{d.due ? <span className="mer-row__s"> · due {d.due}</span> : null}</p>
       <p className="mer-row__s">{d.policy}</p>
       {d.bpay ? (
