@@ -22,6 +22,28 @@ def _sup(http, claim_id, h, data, name, draft, label=None):
                      data={"msg_id": draft, **({"label": label} if label else {})}, files={"file": (name, data, "application/octet-stream")})
 
 
+def _pdf_text(data: bytes) -> str:
+    """Text drawn in a reportlab PDF (page streams may be Flate-compressed)."""
+    import re
+    import zlib
+    out = [data]
+    for m in re.finditer(rb"stream\r?\n(.*?)endstream", data, re.S):
+        try:
+            out.append(zlib.decompress(m[1]))
+        except zlib.error:
+            out.append(m[1])
+    raw = b"".join(out)
+    if b"ASCII85Decode" in data:
+        import base64
+        for m in re.finditer(rb"stream\r?\n(.*?)~>", data, re.S):
+            try:
+                out.append(zlib.decompress(base64.a85decode(m[1].strip(), adobe=False)))
+            except Exception:  # noqa: BLE001
+                pass
+        raw = b"".join(out)
+    return " ".join(x.decode("latin-1") for x in re.findall(rb"\((.*?)\) Tj", raw)).replace("\\267", "·").replace("\xb7", "·")
+
+
 def test_pdf_checks():
     media.check_pdf(ps.clean_pdf())
     for bad in (ps.js_pdf(), ps.hex_js_pdf(), ps.hidden_js_pdf(), ps.encrypted_pdf(), ps.launch_pdf(), ps.embedded_pdf()):
@@ -110,6 +132,8 @@ async def test_broker_attachments_end_to_end(app_client, mongo_db):
         c = await wrap(mongo_db).claims.find_one({"claim_id": cid})
     names = zipfile.ZipFile(io.BytesIO(BLOBS[c["pack"]["zip_path"]])).namelist()
     assert sum(n.startswith("document/") for n in names) == 2 and any(n.startswith("photo/") for n in names)
+    pdf_text = _pdf_text(BLOBS[c["pack"]["pdf_path"]])
+    assert "Repair quote · quote.pdf" in pdf_text and "Assessor report · assessor.pdf" in pdf_text and "Photo · bumper.jpg" in pdf_text
     assert c["stage"] == open_c["stage"]  # a label never moves the claim or records a decision
 
     # non-claim threads can't take attachments

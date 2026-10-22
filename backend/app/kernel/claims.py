@@ -470,9 +470,10 @@ def pack_pdf(c: dict, policy: dict | None) -> bytes:
         for pt in c["parties"]:
             line(f"{pt.get('name') or '—'} · rego {pt.get('rego') or '—'} · insurer {pt.get('insurer') or '—'}")
     line("Attachments", True, 12)
+    from app.kernel.media import LABELS
     for d in c.get("docs") or []:
-        what = (d.get("label") or d["kind"]).replace("_", " ")
-        line(f"{what}: {d['filename']} ({d['size']} bytes, sha256 {d['sha256'][:16]}…)")
+        what = LABELS.get(d.get("label") or "", "") or d["kind"].replace("_", " ").capitalize()
+        line(f"{what} · {d['filename']} ({d['size']} bytes, sha256 {d['sha256'][:16]}…)")
     if not c.get("docs"):
         line("None")
     line("Prepared by the broker for the insurer. This pack is not a coverage decision.", size=8)
