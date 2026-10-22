@@ -161,6 +161,13 @@ async def test_limits_and_existing_upload_heic(app_client, mongo_db):
     async with use_tenant(tid):  # a test-flagged file is hidden from the client
         await wrap(mongo_db).claims.update_one({"claim_id": cid, "docs.file_id": f["file_id"]}, {"$set": {"docs.$.test": True}})
     assert (await http.get(f"/api/c/claims/{cid}/files/{f['file_id']}", headers=h)).status_code == 404
+    ae = await _staff_cookie(mongo_db, tid, ids["ae"], "ae")  # ...and from staff documents and the claim pack
+    det = (await http.get(f"/api/o/claims/{cid}", headers=ae)).json()
+    assert f["file_id"] not in {x["file_id"] for x in (det.get("claim") or det)["files"]}
+    assert (await http.post(f"/api/o/claims/{cid}/pack", headers=ae)).status_code == 200
+    async with use_tenant(tid):
+        c = await wrap(mongo_db).claims.find_one({"claim_id": cid})
+    assert not any(f["file_id"][:8] in n for n in zipfile.ZipFile(io.BytesIO(BLOBS[c["pack"]["zip_path"]])).namelist())
 
 
 def test_strip_fails_closed(monkeypatch):

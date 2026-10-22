@@ -484,18 +484,19 @@ async def build_pack(store, tid, c, *, by, role) -> dict:
     if c.get("policy_id"):
         async with use_tenant(tid):
             policy = await wrap(store).policies.find_one({"policy_id": c["policy_id"]}, {"_id": 0})
-    pdf = pack_pdf(c, policy)
+    docs = [d for d in c.get("docs") or [] if not d.get("test")]  # test-flagged files never go to an insurer
+    pdf = pack_pdf({**c, "docs": docs}, policy)
     zbuf = io.BytesIO()
     with zipfile.ZipFile(zbuf, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr(f"{c['claim_reference']}-claim-pack.pdf", pdf)
-        for d in c.get("docs") or []:
+        for d in docs:
             data, _ = await object_store.get_object(d["storage_path"])
             z.writestr(f"{d['kind']}/{d['file_id'][:8]}-{d['filename']}", data)
     base = f"{object_store.APP_NAME}/claims/{tid}/{c['claim_id']}/pack-{uuid.uuid4()}"
     await object_store.put_object(f"{base}.pdf", pdf, "application/pdf")
     await object_store.put_object(f"{base}.zip", zbuf.getvalue(), "application/zip")
     pack = {"pdf_path": f"{base}.pdf", "zip_path": f"{base}.zip", "pdf_sha256": hashlib.sha256(pdf).hexdigest(),
-            "zip_sha256": hashlib.sha256(zbuf.getvalue()).hexdigest(), "files": len(c.get("docs") or []), "at": _now(), "by": by}
+            "zip_sha256": hashlib.sha256(zbuf.getvalue()).hexdigest(), "files": len(docs), "at": _now(), "by": by}
     async with use_tenant(tid):
         await wrap(store).claims.update_one({"claim_id": c["claim_id"]}, {"$set": {"pack": pack}})
     c["pack"] = pack
@@ -703,7 +704,7 @@ def staff_view(c: dict, now: datetime) -> dict:
     out = {k: _iso(v) for k, v in c.items() if k not in ("docs", "history", "notes", "info_requests", "pack")}  # "docs" → "files" out
     out.update(row(c, now))
     out["checklist"] = checklist(c)
-    out["files"] = [_doc_out(d) for d in c.get("docs") or []]
+    out["files"] = [_doc_out(d) for d in c.get("docs") or [] if not d.get("test")]
     out["notes"] = [{**n, "at": _iso(n["at"])} for n in c.get("notes") or []]
     out["info_requests"] = [{**r, "asked_at": _iso(r["asked_at"]),
                              "answer": r["answer"] and {**r["answer"], "at": _iso(r["answer"]["at"])}} for r in c.get("info_requests") or []]

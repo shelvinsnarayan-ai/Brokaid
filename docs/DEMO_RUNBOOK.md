@@ -20,6 +20,11 @@ Client seat throughout: **Kai Owner** — `owner@fictionalclient.example`
 > `MOCKED · <label>` pill on screen and its ledger event carries
 > `mocked: true`.
 
+> **Before each demo (Harbourline client app):** run
+> `cd backend && python -m app.scripts.demo_refresh_unread`. Anyone who opened the claim thread earlier (rehearsals, testers)
+> will have marked it read. This puts back exactly one unread broker reply on CLM-2026-000013, so Messages and the claim
+> tracker show the "New" highlight again. It is safe to run any number of times and writes a ledger row only when it changes something.
+
 ---
 
 | # | Scene | Persona / Tab | URL | Click path (compressed) | Expected on-screen proof | Talking-point cue |
