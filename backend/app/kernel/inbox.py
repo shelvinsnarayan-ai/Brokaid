@@ -240,10 +240,12 @@ async def pending_approval(store, session, thread_id: str, approval_id: str, *, 
     if approver and session.active_role != "principal":
         raise HTTPException(status_code=403, detail="Only a Principal can approve personal advice.")
     async with use_tenant(session.tenant_id):
-        a = await wrap(store).reply_advice_approvals.find_one({"approval_id": approval_id, "thread_id": thread_id, "status": "pending"},
-                                                              {"_id": 0})
+        a = await wrap(store).reply_advice_approvals.find_one({"approval_id": approval_id, "thread_id": thread_id}, {"_id": 0})
     if not a:
         raise HTTPException(status_code=404, detail="approval_not_found")
+    if a["status"] != "pending":
+        raise HTTPException(status_code=409, detail={"code": "approval_not_pending",
+                                                     "detail": f"This approval is already {a['status']}. Ask for a fresh approval to send again."})
     if approver and a["requested_by"] == session.user_id:
         raise HTTPException(status_code=403, detail={"code": "SeparationOfDuties",
                                                      "detail": "A different Principal must approve a reply you wrote."})

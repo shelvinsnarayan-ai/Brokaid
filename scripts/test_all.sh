@@ -37,6 +37,7 @@ if [ "$MODE" != "--fast" ]; then
   step "backend pytest (-n $WORKERS)" bash -c "cd backend && python -m pytest tests -q -p no:warnings -n $WORKERS -p no:cacheprovider"
   step "frontend build" bash -c "cd frontend && yarn -s build"
   step "deny-list (bundle)" node ci/deny-list.js frontend/dist
+  step "pwa bundle (service worker)" node ci/pwa_bundle_check.js frontend/dist
   step "chain verify (read-only)" bash -c "cd backend && set -a && MONGO_URL=\$(grep ^MONGO_URL= .env | cut -d= -f2- | tr -d '\"') DB_NAME=\$(grep ^DB_NAME= .env | cut -d= -f2- | tr -d '\"') python ../scripts/chain_verify_nightly.py"
 fi
 

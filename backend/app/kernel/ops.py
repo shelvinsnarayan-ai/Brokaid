@@ -129,9 +129,11 @@ async def ready(store) -> dict:
     alive = bool(exp and (exp if exp.tzinfo else exp.replace(tzinfo=timezone.utc)) > now())
     checks["job_leader"] = {"ok": alive, "owner": (lead or {}).get("owner")}
     checks["llm_key"] = {"ok": bool(os.environ.get("EMERGENT_LLM_KEY"))}
-    from app.kernel import media
+    from app.kernel import media, pwa
     ok = all(c["ok"] for c in checks.values())
     checks["media_ffmpeg"] = {"ok": bool(media.ffmpeg_exe()), "gates": "video uploads only"}  # missing → videos refused, app stays up
+    sw = await pwa.cached()  # informational like ffmpeg: a broken SW stops web push, not the app
+    checks["pwa_service_worker"] = {"ok": sw["ok"], "mode": sw.get("mode"), "gates": "web push only"}
     return {"ok": ok, "checks": checks}
 
 

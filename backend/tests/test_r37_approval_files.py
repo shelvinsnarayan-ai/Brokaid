@@ -117,7 +117,10 @@ async def test_attach_on_approval(app_client, mongo_db):
     d3, f3, a3 = await _held(http, th, ae, cid)
     assert (await http.post(f"/api/o/inbox/{th}/advice-approval/{a3}/reject", headers=ae)).status_code == 403
     assert (await http.post(f"/api/o/inbox/{th}/advice-approval/{a3}/reject", headers=pr)).status_code == 200
-    assert (await http.post(f"/api/o/inbox/{th}/advice-approval/{a3}/approve", headers=pr)).status_code == 404
+    r = await http.post(f"/api/o/inbox/{th}/advice-approval/{a3}/approve", headers=pr)
+    assert r.status_code == 409 and r.json()["detail"]["code"] == "approval_not_pending"
+    r = await http.post(f"/api/o/inbox/{th}/advice-approval/{aid}/approve", headers=pr)  # used
+    assert r.status_code == 409 and r.json()["detail"]["code"] == "approval_not_pending"
     ok = await http.post(f"/api/o/inbox/{th}/reply", headers=ae,
                          json={"body": "The quote and photo are attached.", "idempotency_key": f"k2-{d3}", "file_ids": f3, "draft_id": d3})
     assert ok.status_code == 200, ok.text
