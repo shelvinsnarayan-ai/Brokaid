@@ -91,17 +91,27 @@ async def post_client(store, tid: str, *, user_id: str, role: str, claim: dict, 
 
 # ---- R3.5 attachments: staged per draft message (claim_uploads), attached as ordinary claim files when the message is sent ----
 
-def summary(docs: list[dict]) -> str | None:
-    n_p = sum(1 for d in docs if d.get("kind") == "photo")
-    n_v = sum(1 for d in docs if d.get("kind") == "video")
-    parts = [f"{n} {w}{'s' if n != 1 else ''}" for n, w in ((n_p, "photo"), (n_v, "video")) if n]
-    return " and ".join(parts) or None
+_NOUN = {"photo": ("photo", "photos"), "video": ("video", "videos"), "repair_quote": ("repair quote", "repair quotes"),
+         "assessor_report": ("assessor report", "assessor reports"), "insurer_letter": ("insurer letter", "insurer letters"),
+         "other": ("document", "documents")}
+
+
+def summary(docs: list[dict], broker: bool = False) -> str | None:
+    """'2 photos', '1 photo and 1 video' (client); 'a repair quote and 2 photos' (broker, by label)."""
+    counts: dict[str, int] = {}
+    for d in docs:
+        k = (d.get("label") or d.get("kind")) if broker else d.get("kind")
+        k = k if k in _NOUN else "other"
+        counts[k] = counts.get(k, 0) + 1
+    parts = [f"{('an' if _NOUN[k][0][0] in 'aeiou' else 'a') if broker and n == 1 else n} {_NOUN[k][n != 1]}" for k, n in counts.items()]
+    return (", ".join(parts[:-1]) + " and " + parts[-1] if len(parts) > 1 else parts[0]) if parts else None
 
 
 def attachments(c: dict, file_ids: list[str]) -> list[dict]:
     docs = {d["file_id"]: d for d in c.get("docs") or []}
     return [{"file_id": f, "kind": docs[f]["kind"], "content_type": docs[f]["content_type"], "filename": docs[f]["filename"],
-             "size": docs[f]["size"], "duration_s": docs[f].get("duration_s"), "has_preview": bool(docs[f].get("preview_path"))}
+             "size": docs[f]["size"], "duration_s": docs[f].get("duration_s"), "has_preview": bool(docs[f].get("preview_path")),
+             "label": docs[f].get("label")}
             for f in file_ids if f in docs]
 
 
@@ -116,7 +126,8 @@ async def staged(store, tid: str, claim_id: str, msg_id: str, user_id: str) -> l
                                                                  "status": "staged"}, {"_id": 0})]
 
 
-async def stage(store, tid: str, c: dict, *, src: str, content_type: str, filename: str, user_id: str, msg_id: str) -> dict:
+async def stage(store, tid: str, c: dict, *, src: str, content_type: str, filename: str, user_id: str, msg_id: str,
+                role: str = "client", label: str | None = None) -> dict:
     """Strip metadata (fail closed), store the clean file (+ JPEG preview for HEIC / poster for video) and stage it for the draft."""
     import asyncio
     import hashlib
@@ -134,6 +145,10 @@ async def stage(store, tid: str, c: dict, *, src: str, content_type: str, filena
                 data = f.read()
             with open(poster, "rb") as f:
                 preview = await asyncio.to_thread(media.jpeg_preview, f.read(), 640)
+        elif kind == "document":  # R3.6: PDFs are checked, then stored exactly as uploaded
+            with open(src, "rb") as f:
+                data = f.read()
+            await asyncio.to_thread(media.check_pdf, data)
         else:
             with open(src, "rb") as f:
                 data = await asyncio.to_thread(media.strip_photo, f.read(), content_type)
@@ -148,8 +163,10 @@ async def stage(store, tid: str, c: dict, *, src: str, content_type: str, filena
     now = datetime.now(timezone.utc)
     doc = {"file_id": str(uuid.uuid4()), "kind": kind, "filename": name, "content_type": content_type, "size": len(data),
            "sha256": hashlib.sha256(data).hexdigest(), "storage_path": path, "preview_path": f"{path}.preview.jpg" if preview else None,
-           "duration_s": info.get("duration_s"), "uploaded_by": user_id, "uploaded_role": "client", "uploaded_at": now,
+           "duration_s": info.get("duration_s"), "uploaded_by": user_id, "uploaded_role": role, "uploaded_at": now,
            "location_kept": False, "client_visible": True, "req_id": None, "source": "claim_thread", "msg_id": msg_id}
+    if role != "client":
+        doc["label"] = label or media.default_label(content_type)
     async with use_tenant(tid):
         await wrap(store).claim_uploads.insert_one({"file_id": doc["file_id"], "claim_id": c["claim_id"], "msg_id": msg_id,
                                                     "user_id": user_id, "status": "staged", "at": now, "doc": doc})
@@ -163,13 +180,19 @@ async def discard(store, tid: str, claim_id: str, file_id: str, user_id: str) ->
     return bool(r.modified_count)
 
 
-async def attach(store, tid: str, c: dict, *, file_ids: list[str], msg_id: str, user_id: str, role: str) -> list[dict]:
+async def attach(store, tid: str, c: dict, *, file_ids: list[str], msg_id: str, user_id: str, role: str,
+                 reply_id: str | None = None, labels: dict | None = None) -> list[dict]:
     """Staged uploads become claim files: one ClaimDocumentAdded ledger event per file (source claim_thread, msg_id, sha256)."""
     from app.kernel import claims as ck, media
     rows = {r["file_id"]: r["doc"] for r in await staged(store, tid, c["claim_id"], msg_id, user_id)}
     if len(set(file_ids)) != len(file_ids) or any(f not in rows for f in file_ids):
         raise ck.Bad("One of the attachments is missing or was removed. Remove it and attach it again.")
     docs = [rows[f] for f in file_ids]
+    for d in docs:
+        if reply_id:
+            d["reply_id"] = reply_id
+        if d.get("label") and (labels or {}).get(d["file_id"]) in media.LABELS:
+            d["label"] = labels[d["file_id"]]
     if sum(d["size"] for d in docs) > media.MAX_MESSAGE:
         raise ck.Bad("Attachments on one message can add up to 250 MB.")
     for d in docs:
@@ -179,6 +202,7 @@ async def attach(store, tid: str, c: dict, *, file_ids: list[str], msg_id: str, 
         c.setdefault("docs", []).append(d)
         await ck._event(store, tid, "ClaimDocumentAdded", {"claim_id": c["claim_id"], "file_id": d["file_id"], "kind": d["kind"],
                                                            "sha256": d["sha256"], "size": d["size"], "location_kept": False,
-                                                           "source": "claim_thread", "msg_id": msg_id, "test": bool(c.get("test"))},
+                                                           "source": "claim_thread", "msg_id": msg_id, "uploaded_role": d["uploaded_role"],
+                                                           "reply_id": reply_id, "label": d.get("label"), "test": bool(c.get("test"))},
                         f"claim_doc:{d['file_id']}", user_id, role)
     return docs

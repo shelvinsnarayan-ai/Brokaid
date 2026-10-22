@@ -55,7 +55,7 @@ RULES: dict[str, dict] = {
     "ClientQuestionAsked": dict(kind="client_question", to=("staff", ("ae", "principal")),
                                 title="New question from {client}{attach}", many="{n} new questions from {client}",
                                 body="Reply by {reply_by}.", link="/o/inbox/{thread_id}"),
-    "BrokerReplied": dict(kind="broker_reply", to=("client", None), title="Your broker replied",
+    "BrokerReplied": dict(kind="broker_reply", to=("client", None), title="Your broker replied{attach}",
                           many="Your broker replied ({n} new)", body="{author} replied to your question.",
                           link="/c/ask"),
     "RequestNeedsHumanReview": STAFF_REVIEW,

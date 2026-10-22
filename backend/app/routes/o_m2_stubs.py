@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
@@ -162,7 +162,7 @@ async def inbox_thread(thread_id: str, request: Request,
         from app.db.tenant_safe import wrap as _w
         from app.kernel.tenant_ctx import use_tenant as _ut
         async with _ut(session.tenant_id):
-            claim = await _w(request.app.state.mongo_db).claims.find_one({"claim_id": thread_id[6:]}, {"_id": 0, "docs": 1, "claim_id": 1})
+            claim = await _w(request.app.state.mongo_db).claims.find_one({"claim_id": thread_id[6:]}, {"_id": 0, "docs": 1, "claim_id": 1, "stage": 1, "status": 1})
     from app.kernel import claim_threads as _ct
     msgs = [{"who": m["who"], "text": m["text"], "at": m["at"].isoformat(), "author": m.get("author"),
              "attachments": _ct.attachments(claim, m.get("file_ids") or []) if claim else [],
@@ -170,27 +170,72 @@ async def inbox_thread(thread_id: str, request: Request,
             for m in t["messages"]]
     return {**_thread_row(t, now, await _claim_labels(request.app.state.mongo_db, session.tenant_id)), "conversation": msgs,
             "can_reply": session.active_role in inbox_k.REPLY_ROLES,
+            "attachment_limits": ({"max_files": 5, "photo_bytes": 10 * 1024 * 1024, "pdf_bytes": 20 * 1024 * 1024,
+                                   "message_bytes": 250 * 1024 * 1024, "videos_enabled": False, "documents_enabled": True,
+                                   "closed": _ct.is_closed(claim)} if claim else None),
             "advice_approvals": await inbox_k.approvals(request.app.state.mongo_db, session.tenant_id, thread_id),
             "kept": ({"kept_at": t["kept"]["kept_at"].isoformat(), "late": t["kept"]["late"]} if t["kept"] else None)}
 
 
 class ReplyBody(BaseModel):
-    body: str = Field(max_length=inbox_k.MAX_BODY)
+    body: str = Field(default="", max_length=inbox_k.MAX_BODY)
     idempotency_key: str = Field(min_length=8, max_length=200)
     approval_id: str | None = None
+    file_ids: list[str] = Field(default_factory=list, max_length=5)  # R3.6: claim threads only
+    draft_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+    labels: dict[str, str] = Field(default_factory=dict, max_length=5)
 
     @field_validator("body")
     @classmethod
-    def _not_blank(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("reply cannot be empty")
+    def _strip(cls, v: str) -> str:
         return v.strip()
+
+    @model_validator(mode="after")
+    def _not_blank(self):
+        if not self.body and not self.file_ids:
+            raise ValueError("reply cannot be empty")
+        if self.file_ids and not self.draft_id:
+            raise ValueError("draft_id is required with attachments")
+        return self
 
 
 @router.post("/inbox/{thread_id}/reply")
 async def inbox_reply(thread_id: str, body: ReplyBody, request: Request,
                       session: Session = Depends(require_operator_session)) -> dict:
-    return await inbox_k.reply(request.app.state.mongo_db, session, thread_id, body.body, body.idempotency_key, body.approval_id)
+    store = request.app.state.mongo_db
+    if not body.file_ids:
+        return await inbox_k.reply(store, session, thread_id, body.body, body.idempotency_key, body.approval_id)
+    # R3.6: attachments ride on a normal reply (advice guard, GAW, PromiseKept, audit unchanged), then become claim files
+    from app.db.tenant_safe import wrap as _w
+    from app.kernel import claim_threads as _ct, claims as _ck, media as _media
+    from app.kernel.tenant_ctx import use_tenant as _ut
+    if not str(thread_id).startswith(_ct.PREFIX):
+        raise HTTPException(status_code=400, detail={"code": "attachments_claim_only", "detail": "Files can only be attached on claim threads."})
+    if session.active_role not in inbox_k.REPLY_ROLES:
+        raise HTTPException(status_code=403, detail={"code": "AuthorityDenied", "detail": "your role can read threads but not reply"})
+    async with _ut(session.tenant_id):
+        c = await _w(store).claims.find_one({"claim_id": thread_id[len(_ct.PREFIX):]}, {"_id": 0})
+    if not c:
+        raise HTTPException(status_code=404, detail="thread_not_found")
+    if _ct.is_closed(c):
+        raise HTTPException(status_code=409, detail={"code": "claim_closed", "detail": "This claim is closed."})
+    staged = {r["file_id"]: r["doc"] for r in await _ct.staged(store, session.tenant_id, c["claim_id"], body.draft_id, session.user_id)}
+    async with _ut(session.tenant_id):
+        prior = await _w(store).thread_messages.find_one({"idempotency_key": body.idempotency_key})
+    if not prior and (len(set(body.file_ids)) != len(body.file_ids) or any(f not in staged for f in body.file_ids)):
+        raise HTTPException(status_code=400, detail={"code": "attachment_invalid",
+                                                     "detail": "One of the attachments is missing or was removed. Remove it and attach it again."})
+    docs = [{**staged[f], "label": body.labels.get(f) if body.labels.get(f) in _media.LABELS else staged[f].get("label")}
+            for f in body.file_ids if f in staged]
+    r = await inbox_k.reply(store, session, thread_id, body.body, body.idempotency_key, body.approval_id,
+                            file_ids=body.file_ids, attachment_summary=_ct.summary(docs, broker=True))
+    if not r["replayed"]:
+        try:
+            await _ct.attach(store, session.tenant_id, c, file_ids=body.file_ids, msg_id=body.draft_id, user_id=session.user_id,
+                             role=session.active_role, reply_id=r["reply_id"], labels=body.labels)
+        except _ck.Bad as e:
+            raise HTTPException(status_code=400, detail={"code": "attachment_invalid", "detail": str(e)}) from e
+    return r
 
 
 class ApprovalBody(BaseModel):

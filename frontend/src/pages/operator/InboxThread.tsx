@@ -5,10 +5,13 @@ import { fmtDateTime } from "../../lib/format";
 import { API, PageHead, card, getJson, muted } from "./stubKit";
 import { StatusPill, type ThreadRow } from "./Inbox";
 import { ClaimAttachments, type Att } from "../../components/ClaimAttachments";
+import { AttachTray } from "../client/AttachTray";
+import { useAttachments } from "../client/useAttachments";
+import type { Limits } from "../client/attachUpload";
 
 interface Msg { who: "client" | "broker" | "pending"; text: string; at: string; author: string | null; attachments?: Att[]; claim_id?: string | null }
 interface Approval { approval_id: string; body: string; status: "pending" | "approved"; requested_at: string }
-interface Thread extends ThreadRow { conversation: Msg[]; can_reply: boolean; kept: { kept_at: string; late: boolean } | null; advice_approvals: Approval[] }
+interface Thread extends ThreadRow { conversation: Msg[]; can_reply: boolean; kept: { kept_at: string; late: boolean } | null; advice_approvals: Approval[]; attachment_limits?: (Limits & { closed?: boolean }) | null }
 
 const MAX = 4000;
 
@@ -58,38 +61,60 @@ function Approvals({ id, list, onDone }: { id: string; list: Approval[]; onDone:
   );
 }
 
-function ReplyBox({ id, onSent }: { id: string; onSent: () => void }) {
+function ReplyBox({ id, onSent, limits, claimId }: { id: string; onSent: () => void; limits?: (Limits & { closed?: boolean }) | null; claimId?: string | null }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [pAdvice, setPAdvice] = useState<string | null>(null);
   const key = useRef(crypto.randomUUID());
+  const base = `${API}/api/o/claims/${claimId}/thread/attachments`;
+  const att = useAttachments(base, limits || undefined, true);
+  const canAttach = !!claimId && !!limits && !limits.closed;
   async function send() {
     setBusy(true); setErr(null); setPAdvice(null);
-    const r = await post(`/api/o/inbox/${encodeURIComponent(id)}/reply`, { body: text, idempotency_key: key.current });
+    const files = att.fileIds.length ? { file_ids: att.fileIds, draft_id: att.msgId, labels: att.labelMap } : {};
+    const r = await post(`/api/o/inbox/${encodeURIComponent(id)}/reply`, { body: text, idempotency_key: key.current, ...files });
     setBusy(false);
     if (r.status === 409) {
       const j = await r.json().catch(() => ({}));
       if (j.detail?.code === "PersonalAdvice") { setPAdvice(j.detail.detail); return; }
+      if (j.detail?.code === "claim_closed") { setErr("This claim is closed, so files can't be attached."); return; }
     }
-    if (!r.ok) { setErr(r.status === 403 ? "Your role can read this thread but not reply." : "Reply not sent. Check the text and try again."); return; }
-    key.current = crypto.randomUUID(); setText(""); onSent();
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      setErr(r.status === 403 ? "Your role can read this thread but not reply." : j.detail?.detail && typeof j.detail.detail === "string" ? j.detail.detail : "Reply not sent. Check the text and try again.");
+      return;
+    }
+    key.current = crypto.randomUUID(); setText(""); att.reset(); onSent();
   }
   async function askApproval() {
     const r = await post(`/api/o/inbox/${encodeURIComponent(id)}/advice-approval`, { body: text.trim() });
     if (!r.ok) { setErr("Couldn't request approval."); return; }
     setPAdvice(null); setText(""); onSent();
   }
-  const ok = text.trim().length > 0 && text.length <= MAX;
+  const ok = (text.trim().length > 0 || att.fileIds.length > 0) && text.length <= MAX && !att.busy && !att.blocked;
   return (
     <section style={card} data-testid="thread-reply">
       <label htmlFor="reply-body" style={muted}>Reply to the client</label>
       <textarea id="reply-body" value={text} onChange={(e) => setText(e.target.value)} rows={5} maxLength={MAX}
         data-testid="thread-reply-input" style={{ width: "100%", boxSizing: "border-box", marginTop: 6 }} />
+      {canAttach ? (
+        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+          <AttachTray items={att.items} base={base} onRemove={att.remove} onRetry={att.retry} onLabel={att.relabel} testid="thread-attach" />
+          {att.errors.length ? <ul className="cat-errs" role="alert" data-testid="thread-attach-errors">{att.errors.map((x, i) => <li key={i}>{x}</li>)}</ul> : null}
+          <label className="k-btn" style={{ alignSelf: "flex-start", cursor: "pointer" }} data-testid="thread-attach-button">
+            <input type="file" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,application/pdf,.pdf"
+              style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
+              onChange={(e) => { att.add(e.target.files); e.target.value = ""; }} data-testid="thread-attach-input" />
+            Attach photos or PDFs
+          </label>
+          <span style={muted} data-testid="thread-attach-hint">Up to 5 files · photos 10 MB (location removed) · PDFs 20 MB, no scripts or passwords</span>
+        </div>
+      ) : null}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, gap: 8 }}>
         <span style={muted} data-testid="thread-reply-count">{text.length} / {MAX}</span>
         <button className="k-btn k-btn--primary" disabled={!ok || busy} onClick={send} data-testid="thread-reply-send">
-          {busy ? "Sending…" : "Send"}
+          {busy ? "Sending…" : att.busy ? "Uploading…" : "Send"}
         </button>
       </div>
       {err && <p role="alert" style={{ ...muted, marginTop: 8 }} data-testid="thread-reply-error">{err}</p>}
@@ -126,7 +151,8 @@ export function InboxThread() {
         {t.conversation.map((m, i) => <Bubble key={i} m={m} i={i} />)}
       </ol>
       <Approvals id={t.thread_id} list={t.advice_approvals} onDone={() => void load()} />
-      {t.can_reply ? <ReplyBox id={t.thread_id} onSent={() => void load()} />
+      {t.can_reply ? <ReplyBox id={t.thread_id} onSent={() => void load()} limits={t.attachment_limits}
+        claimId={t.thread_id.startsWith("claim-") ? t.thread_id.slice(6) : null} />
         : <p style={muted} data-testid="thread-read-only">Read only. Replies come from the account executive or the Principal.</p>}
     </div>
   );

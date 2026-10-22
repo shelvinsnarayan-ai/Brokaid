@@ -24,7 +24,7 @@ export default function ClaimThread() {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const { refresh, markSeen } = useUnreadStore();
-  const att = useAttachments(claimId || "", data?.attachment_limits);
+  const att = useAttachments(`${API}/api/c/claims/${claimId}/thread/attachments`, data?.attachment_limits);
   const load = () => cget<Thread>(`c/claims/${claimId}/thread`).then(setData).catch((e) => setErr(e.message));
   useEffect(() => { void load(); }, [claimId]);
   useEffect(() => {
@@ -73,7 +73,7 @@ export default function ClaimThread() {
               <label htmlFor="claim-msg" className="sr-only">Message about this claim</label>
               <textarea id="claim-msg" rows={3} maxLength={4000} value={text} onChange={(e) => setText(e.target.value)}
                 placeholder="Write a message, or add photos of the damage" data-testid="mer-claim-thread-input" />
-              <AttachTray items={att.items} claimId={data.claim.claim_id} onRemove={att.remove} onRetry={att.retry} />
+              <AttachTray items={att.items} base={`${API}/api/c/claims/${data.claim.claim_id}/thread/attachments`} onRemove={att.remove} onRetry={att.retry} testid="mer-attach" />
               {att.errors.length ? <ul className="cat-errs" role="alert" data-testid="mer-attach-errors">{att.errors.map((x, i) => <li key={i}>{x}</li>)}</ul> : null}
               <div className="cat-bar">
                 <label className="cat-pick" data-testid="mer-attach-camera">
@@ -91,7 +91,7 @@ export default function ClaimThread() {
               </div>
               <p className="mer-row__s" style={{ margin: 0 }} data-testid="mer-attach-hint">
                 Up to {data.attachment_limits.max_files} files · photos {data.attachment_limits.photo_bytes / 1048576} MB
-                {data.attachment_limits.videos_enabled ? ` · videos ${data.attachment_limits.video_bytes / 1048576} MB` : " · videos are switched off right now"}. Location data is removed.</p>
+                {data.attachment_limits.videos_enabled ? ` · videos ${(data.attachment_limits.video_bytes || 0) / 1048576} MB` : " · videos are switched off right now"}. Location data is removed.</p>
             </form>
           ) : <p className="mer-row__s" data-testid="mer-claim-thread-noauth">Someone with claims authority for your business can message about this claim.</p>}
         {err ? <p className="mer-empty" role="alert" data-testid="mer-claim-thread-send-error">{err}</p> : null}

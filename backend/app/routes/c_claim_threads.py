@@ -135,24 +135,54 @@ async def post_message(claim_id: str, request: Request, body: PostBody = Body(..
                                 msg_id=body.msg_id, file_ids=[d["file_id"] for d in docs], attachment_summary=ct.summary(docs))
 
 
-async def _receive(file: UploadFile, tmp) -> tuple[str, int]:
+_UNSUPPORTED = {"client": "That file type can't be attached. Send a photo (JPEG, PNG, WebP, HEIC) or a video (MP4, MOV).",
+                "staff": "That file type can't be attached. Attach a photo (JPEG, PNG, WebP, HEIC) or a PDF."}
+_TOO_LARGE = {"video": "Videos can be up to 100 MB.", "photo": "Photos can be up to 10 MB.", "document": "PDFs can be up to 20 MB."}
+
+
+async def _receive(file: UploadFile, tmp, allowed: tuple[str, ...], who: str) -> tuple[str, int]:
     """Stream the upload to a temp file; type comes from the first bytes, size is capped as it arrives."""
     ctype, size = None, 0
     while chunk := await file.read(1024 * 1024):
         if ctype is None:
             ctype = filetype.sniff(chunk[:32])
-            if not media.kind_of(ctype):
-                raise _err(415, "unsupported_type", "That file type can't be attached. Send a photo (JPEG, PNG, WebP, HEIC) or a video (MP4, MOV).")
+            if ctype not in allowed:
+                raise _err(415, "unsupported_type", _UNSUPPORTED[who])
             if ctype in media.VIDEO_TYPES and not media.ffmpeg_exe():
                 raise _err(503, "video_unavailable", "Video uploads are switched off right now. Send photos, or try again later.")
         size += len(chunk)
         if size > media.limit_for(ctype):
-            raise _err(413, "too_large", "Videos can be up to 100 MB." if ctype in media.VIDEO_TYPES else "Photos can be up to 10 MB.")
+            raise _err(413, "too_large", _TOO_LARGE[media.kind_of(ctype)])
         tmp.write(chunk)
     if not size:
         raise _err(400, "empty_file", "That file is empty.")
     tmp.flush()
     return ctype, size
+
+
+async def stage_upload(store, session, c: dict, file: UploadFile, msg_id: str, *, sent: bool, allowed: tuple[str, ...],
+                       who: str, label: str | None = None) -> dict:
+    """R3.5/R3.6 shared: limits, streamed receive, strip/check + store + stage; temp file removed on every path."""
+    if sent:
+        raise _err(409, "already_sent", "This message was already sent. Start a new one.")
+    rows = await ct.staged(store, session.tenant_id, c["claim_id"], msg_id, session.user_id)
+    if len(rows) >= media.MAX_FILES:
+        raise _err(400, "too_many_files", "You can attach up to 5 files to one message.")
+    tmp = tempfile.NamedTemporaryFile(prefix="r35-in-", delete=False)
+    try:
+        ctype, size = await _receive(file, tmp, allowed, who)
+        tmp.close()
+        if size + sum(r["doc"]["size"] for r in rows) > media.MAX_MESSAGE:
+            raise _err(413, "too_large", "Attachments on one message can add up to 250 MB.")
+        doc = await ct.stage(store, session.tenant_id, c, src=tmp.name, content_type=ctype, filename=file.filename or "",
+                             user_id=session.user_id, msg_id=msg_id, role="client" if who == "client" else session.active_role,
+                             label=label)
+    except media.Rejected as e:
+        raise _err({"unsupported_type": 415, "video_unavailable": 503}.get(e.code, 422), e.code, str(e)) from e
+    finally:
+        tmp.close()
+        os.unlink(tmp.name)
+    return {"file": ck._doc_out(doc)}
 
 
 @router.post("/claims/{claim_id}/thread/attachments")
@@ -161,25 +191,8 @@ async def upload_attachment(claim_id: str, request: Request, file: UploadFile = 
     """R3.5: one photo/video for a draft claim message (magic bytes checked, metadata stripped, stored privately, staged)."""
     store = _store(request)
     c = await _postable(store, session, claim_id)
-    if await ct.message_sent(store, session.tenant_id, claim_id, msg_id):
-        raise _err(409, "already_sent", "This message was already sent. Start a new one.")
-    rows = await ct.staged(store, session.tenant_id, claim_id, msg_id, session.user_id)
-    if len(rows) >= media.MAX_FILES:
-        raise _err(400, "too_many_files", "You can attach up to 5 files to one message.")
-    tmp = tempfile.NamedTemporaryFile(prefix="r35-in-", delete=False)
-    try:
-        ctype, size = await _receive(file, tmp)
-        tmp.close()
-        if size + sum(r["doc"]["size"] for r in rows) > media.MAX_MESSAGE:
-            raise _err(413, "too_large", "Attachments on one message can add up to 250 MB.")
-        doc = await ct.stage(store, session.tenant_id, c, src=tmp.name, content_type=ctype, filename=file.filename or "",
-                             user_id=session.user_id, msg_id=msg_id)
-    except media.Rejected as e:
-        raise _err({"unsupported_type": 415, "video_unavailable": 503}.get(e.code, 422), e.code, str(e)) from e
-    finally:
-        tmp.close()
-        os.unlink(tmp.name)
-    return {"file": ck._doc_out(doc)}
+    sent = await ct.message_sent(store, session.tenant_id, claim_id, msg_id)
+    return await stage_upload(store, session, c, file, msg_id, sent=sent, allowed=media.CLIENT_TYPES, who="client")
 
 
 @router.delete("/claims/{claim_id}/thread/attachments/{file_id}")

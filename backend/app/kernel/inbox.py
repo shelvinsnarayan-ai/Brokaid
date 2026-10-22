@@ -150,7 +150,8 @@ async def load_threads(store, tenant_id: str, *, client_id: str | None = None,
             m = bodies.get(p["reply_id"]) or {}
             t["messages"].append({"who": "broker", "text": m.get("body", ""), "at": _utc(p["replied_at"]),
                                   "author": m.get("author_name") or "Your broker", "reply_id": p["reply_id"],
-                                  "gaw": m.get("gaw"), "advice_tier": m.get("advice_tier")})
+                                  "gaw": m.get("gaw"), "advice_tier": m.get("advice_tier"),
+                                  "file_ids": p.get("file_ids") or [], "attachment_summary": p.get("attachment_summary")})
             t["answered"] = True
         elif typ == "PromiseMade":
             t["reply_by"] = _utc(p["reply_by"])
@@ -245,7 +246,8 @@ async def approvals(store, tenant_id: str, thread_id: str) -> list[dict]:
             {"thread_id": thread_id, "status": {"$in": ["pending", "approved"]}}, {"_id": 0}).sort("requested_at", -1).limit(10)]
 
 
-async def reply(store, session, thread_id: str, body: str, idempotency_key: str, approval_id: str | None = None) -> dict:
+async def reply(store, session, thread_id: str, body: str, idempotency_key: str, approval_id: str | None = None, *,
+                file_ids: list[str] | None = None, attachment_summary: str | None = None, at: datetime | None = None) -> dict:
     from app.kernel import compliance_docs
     from app.kernel.advice_boundary import classify_reply
     tenant_id = session.tenant_id
@@ -272,13 +274,14 @@ async def reply(store, session, thread_id: str, body: str, idempotency_key: str,
     gaw = (await compliance_docs.settings(store, tenant_id))["gaw_text"] if verdict["tier"] == "G" else None
     async with use_tenant(tenant_id):
         user = await safe.users.find_one({"user_id": session.user_id}) or {}
-        now = datetime.now(timezone.utc)
+        now = at or datetime.now(timezone.utc)  # `at` only for back-dated demo seeds
         reply_id = str(uuid.uuid4())
         await safe.thread_messages.insert_one({
             "reply_id": reply_id, "thread_id": thread_id, "client_id": t["client_id"], "body": body,
             "author_user_id": session.user_id, "author_name": user.get("display_name") or "Your broker",
             "created_at": now, "idempotency_key": idempotency_key, "advice_tier": verdict["tier"], "gaw": gaw,
-            "approval_id": approved and approved["approval_id"]})
+            "approval_id": approved and approved["approval_id"], "file_ids": list(file_ids or []),
+            "attachment_summary": attachment_summary})
         if approved:
             await safe.reply_advice_approvals.update_one({"approval_id": approved["approval_id"]}, {"$set": {"status": "used"}})
     actor = {"kind": "human", "id": session.user_id, "name": session.active_role}
@@ -286,7 +289,8 @@ async def reply(store, session, thread_id: str, body: str, idempotency_key: str,
         "thread_id": thread_id, "client_id": t["client_id"], "reply_id": reply_id,
         "author_user_id": session.user_id, "replied_at": now.isoformat(),
         "body_sha256": hashlib.sha256(body.encode()).hexdigest(), "advice_tier": verdict["tier"],
-        "principal_approval_id": approved and approved["approval_id"]}, f"reply:{idempotency_key}", actor)
+        "principal_approval_id": approved and approved["approval_id"],
+        **({"file_ids": list(file_ids), "attachment_summary": attachment_summary} if file_ids else {})}, f"reply:{idempotency_key}", actor)
     if gaw:
         await _emit(store, tenant_id, "GeneralAdviceWarningGiven", {"thread_id": thread_id, "reply_id": reply_id, "client_id": t["client_id"],
                     "context": "broker_reply", "gaw_sha256": _sha(gaw)}, f"gaw:reply:{reply_id}", actor)
@@ -301,8 +305,9 @@ async def reply(store, session, thread_id: str, body: str, idempotency_key: str,
     async with use_tenant(tenant_id):
         await safe.proj_notifications.insert_one({
             "notification_id": str(uuid.uuid4()), "client_id": t["client_id"], "source_event_id": None,
-            "ts": now, "kind": "broker_reply", "subject": "Your broker replied",
-            "body_text": body[:140], "read_at": None})
+            "ts": now, "kind": "broker_reply",
+            "subject": f"Your broker replied with {attachment_summary}" if attachment_summary else "Your broker replied",
+            "body_text": body[:140] or f"Sent {attachment_summary}", "read_at": None})
     return {"reply_id": reply_id, "thread_id": thread_id, "replayed": False, "late": late, "advice_tier": verdict["tier"], "gaw": gaw}
 
 

@@ -471,7 +471,8 @@ def pack_pdf(c: dict, policy: dict | None) -> bytes:
             line(f"{pt.get('name') or '—'} · rego {pt.get('rego') or '—'} · insurer {pt.get('insurer') or '—'}")
     line("Attachments", True, 12)
     for d in c.get("docs") or []:
-        line(f"{d['kind']}: {d['filename']} ({d['size']} bytes, sha256 {d['sha256'][:16]}…)")
+        what = (d.get("label") or d["kind"]).replace("_", " ")
+        line(f"{what}: {d['filename']} ({d['size']} bytes, sha256 {d['sha256'][:16]}…)")
     if not c.get("docs"):
         line("None")
     line("Prepared by the broker for the insurer. This pack is not a coverage decision.", size=8)

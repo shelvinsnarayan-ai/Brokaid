@@ -320,3 +320,50 @@ async def close(claim_id: str, request: Request, body: ReasonBody = Body(default
 async def withdraw(claim_id: str, body: ReasonBody, request: Request, s: Session = Depends(_staff)) -> dict:
     c = await _get(request, s, claim_id)
     return _view(await _run(ck.withdraw(_store(request), s.tenant_id, c, reason=body.reason, by=s.user_id, role=s.active_role)))
+
+
+# ---- R3.6: broker attachments on claim-thread replies (AE / Principal; same draft pipeline as R3.5) ----
+
+async def _staff_postable(request: Request, s: Session, claim_id: str) -> dict:
+    from app.kernel import claim_threads, inbox
+    if s.active_role not in inbox.REPLY_ROLES:
+        raise HTTPException(status_code=403, detail={"code": "AuthorityDenied", "detail": "your role can read threads but not attach files"})
+    c = await _get(request, s, claim_id)
+    if claim_threads.is_closed(c):
+        raise HTTPException(status_code=409, detail={"code": "claim_closed", "detail": "This claim is closed."})
+    return c
+
+
+@router.post("/{claim_id}/thread/attachments")
+async def staff_upload_attachment(claim_id: str, request: Request, file: UploadFile = File(...),
+                                  msg_id: str = Form(..., pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"),
+                                  label: str | None = Form(None), s: Session = Depends(_staff)) -> dict:
+    """One photo or PDF for a draft broker reply (magic bytes; photo location stripped; PDF script/password check)."""
+    from app.kernel import media
+    from app.routes.c_claim_threads import stage_upload
+    if label is not None and label not in media.LABELS:
+        raise HTTPException(status_code=422, detail={"code": "bad_label", "detail": "Unknown file label."})
+    c = await _staff_postable(request, s, claim_id)
+    async with use_tenant(s.tenant_id):
+        sent = bool(await wrap(_store(request)).claim_uploads.find_one({"msg_id": msg_id, "status": "attached"}))
+    return await stage_upload(_store(request), s, c, file, msg_id, sent=sent, allowed=media.STAFF_TYPES, who="staff", label=label)
+
+
+@router.delete("/{claim_id}/thread/attachments/{file_id}")
+async def staff_discard_attachment(claim_id: str, file_id: str, request: Request, s: Session = Depends(_staff)) -> dict:
+    from app.kernel import claim_threads
+    await _get(request, s, claim_id)
+    if not await claim_threads.discard(_store(request), s.tenant_id, claim_id, file_id, s.user_id):
+        raise HTTPException(status_code=404, detail="file_not_found")
+    return {"ok": True}
+
+
+@router.get("/{claim_id}/thread/attachments/{file_id}/preview")
+async def staff_staged_preview(claim_id: str, file_id: str, request: Request, s: Session = Depends(_staff)) -> Response:
+    await _get(request, s, claim_id)
+    async with use_tenant(s.tenant_id):
+        r = await wrap(_store(request)).claim_uploads.find_one({"file_id": file_id, "claim_id": claim_id, "user_id": s.user_id, "status": "staged"})
+    if not r or not r["doc"].get("preview_path"):
+        raise HTTPException(status_code=404, detail="file_not_found")
+    data, _ = await object_store.get_object(r["doc"]["preview_path"])
+    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=300"})

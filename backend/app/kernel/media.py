@@ -6,15 +6,25 @@ import io
 import os
 import re
 import subprocess
+import zlib
 
 PHOTO_TYPES = ("image/jpeg", "image/png", "image/webp", "image/heic")
 VIDEO_TYPES = ("video/mp4", "video/quicktime")
+PDF_TYPE = "application/pdf"
+CLIENT_TYPES = PHOTO_TYPES + VIDEO_TYPES
+STAFF_TYPES = PHOTO_TYPES + (PDF_TYPE,)  # R3.6: broker replies: photos + PDFs, no video this phase
 MAX_PHOTO = 10 * 1024 * 1024
 MAX_VIDEO = 100 * 1024 * 1024
+MAX_PDF = 20 * 1024 * 1024
+LABELS = {"repair_quote": "Repair quote", "assessor_report": "Assessor report", "insurer_letter": "Insurer letter",
+          "photo": "Photo", "other": "Other"}
+PDF_BLOCKED = "This PDF can't be attached. Please re-save it without scripts or passwords"
+_PDF_BAD = re.compile(rb"/(JavaScript|JS|Launch|EmbeddedFiles?|Encrypt)(?![A-Za-z0-9])")
 MAX_FILES = 5
 MAX_MESSAGE = 250 * 1024 * 1024
 VIDEO_CODECS = ("h264", "hevc")
-EXT = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic", "video/mp4": "mp4", "video/quicktime": "mov"}
+EXT = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic", "video/mp4": "mp4", "video/quicktime": "mov",
+       "application/pdf": "pdf"}
 _GPS_IFD = 0x8825
 _LOCATION = re.compile(r"location|©xyz|\bxyz\b|gps|iso6709", re.I)
 _KEEP_GLOBAL = {"major_brand", "minor_version", "compatible_brands", "encoder"}  # "encoder" is the ffmetadata writer's own tag
@@ -27,11 +37,37 @@ class Rejected(ValueError):
 
 
 def kind_of(content_type: str | None) -> str | None:
-    return "photo" if content_type in PHOTO_TYPES else "video" if content_type in VIDEO_TYPES else None
+    return ("photo" if content_type in PHOTO_TYPES else "video" if content_type in VIDEO_TYPES
+            else "document" if content_type == PDF_TYPE else None)
 
 
 def limit_for(content_type: str) -> int:
-    return MAX_VIDEO if content_type in VIDEO_TYPES else MAX_PHOTO
+    return MAX_VIDEO if content_type in VIDEO_TYPES else MAX_PDF if content_type == PDF_TYPE else MAX_PHOTO
+
+
+def default_label(content_type: str) -> str:
+    return "repair_quote" if content_type == PDF_TYPE else "photo"
+
+
+def check_pdf(data: bytes) -> None:
+    """R3.6: refuse encrypted PDFs and any with scripts, launch actions or embedded files (raw and Flate-decoded streams,
+    #xx name escapes decoded). The file itself is stored exactly as uploaded."""
+    if not data.startswith(b"%PDF-"):
+        raise Rejected("unsupported_type", "That file isn't a real PDF.")
+    chunks, budget = [data], 200 * 1024 * 1024
+    for m in re.finditer(rb"stream\r?\n", data):
+        end = data.find(b"endstream", m.end())
+        if end < 0 or budget <= 0:
+            break
+        try:
+            out = zlib.decompressobj().decompress(data[m.end():end], min(budget, 50 * 1024 * 1024))
+        except zlib.error:
+            continue
+        budget -= len(out)
+        chunks.append(out)
+    for c in chunks:
+        if _PDF_BAD.search(re.sub(rb"#([0-9A-Fa-f]{2})", lambda x: bytes([int(x[1], 16)]), c)):
+            raise Rejected("pdf_blocked", PDF_BLOCKED)
 
 
 def ffmpeg_exe() -> str | None:
