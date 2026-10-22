@@ -4,8 +4,9 @@ import { Link, useParams } from "react-router-dom";
 import { fmtDateTime } from "../../lib/format";
 import { API, PageHead, card, getJson, muted } from "./stubKit";
 import { StatusPill, type ThreadRow } from "./Inbox";
+import { ClaimAttachments, type Att } from "../../components/ClaimAttachments";
 
-interface Msg { who: "client" | "broker" | "pending"; text: string; at: string; author: string | null }
+interface Msg { who: "client" | "broker" | "pending"; text: string; at: string; author: string | null; attachments?: Att[]; claim_id?: string | null }
 interface Approval { approval_id: string; body: string; status: "pending" | "approved"; requested_at: string }
 interface Thread extends ThreadRow { conversation: Msg[]; can_reply: boolean; kept: { kept_at: string; late: boolean } | null; advice_approvals: Approval[] }
 
@@ -18,6 +19,7 @@ function Bubble({ m, i }: { m: Msg; i: number }) {
       border: "1px solid var(--line, #1E2E5A)", padding: "10px 12px", background: mine ? "rgba(255,255,255,0.04)" : "transparent" }}>
       <div style={muted}>{m.who === "client" ? "Client" : m.who === "pending" ? "Pending" : m.author || "Broker"} · {fmtDateTime(m.at)}</div>
       <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", marginTop: 4 }}>{m.text}</div>
+      {m.claim_id ? <ClaimAttachments atts={m.attachments || []} base={`${API}/api/o/claims/${m.claim_id}/files`} testid={`thread-msg-att-${i}`} /> : null}
     </li>
   );
 }

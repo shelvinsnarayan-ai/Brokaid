@@ -112,7 +112,7 @@ async def test_platform_routes_refuse_tenant_roles(app_client):
         assert h in r.headers
     assert "unsafe-inline" not in r.headers["content-security-policy"]
     rd = await http.get("/api/ready")
-    assert set(rd.json()["checks"]) == {"mongo", "object_storage", "job_leader", "llm_key"}
+    assert set(rd.json()["checks"]) == {"mongo", "object_storage", "job_leader", "llm_key", "media_ffmpeg"}
 
 
 @pytest.mark.asyncio

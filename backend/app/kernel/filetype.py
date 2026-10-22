@@ -18,6 +18,10 @@ def sniff(data: bytes) -> str | None:
         return "image/webp"
     if head[4:8] == b"ftyp" and head[8:12] in (b"heic", b"heix", b"mif1", b"msf1", b"heif"):
         return "image/heic"
+    if head[4:8] == b"ftyp" and head[8:12] == b"qt  ":
+        return "video/quicktime"
+    if head[4:8] == b"ftyp" and head[8:12] in (b"isom", b"iso2", b"iso4", b"iso5", b"iso6", b"mp41", b"mp42", b"avc1", b"M4V ", b"MSNV"):
+        return "video/mp4"
     return None
 
 

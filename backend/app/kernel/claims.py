@@ -40,7 +40,7 @@ CLIENT_TEXT = {
 STALE_BD = {"triage": 2, "submitted": 10, "assessing": 10, "decision": 5, "settlement": 10}
 OUTCOMES = {"accepted": "Accepted", "partial": "Partially accepted", "declined": "Declined"}
 PAYEES = ("client", "repairer", "third_party")
-FILE_KINDS = ("photo", "quote", "invoice", "police_report", "decision_letter", "info_response", "other")
+FILE_KINDS = ("photo", "quote", "invoice", "police_report", "decision_letter", "info_response", "other")  # + "video" via claim threads
 MAX_FILE = 10 * 1024 * 1024
 FILE_TYPES = ("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf")
 LATE_DAYS = 30
@@ -374,15 +374,14 @@ async def answer_info(store, tid, c, req_id: str, text: str, *, by, role, now=No
 
 
 def strip_location(data: bytes, content_type: str) -> bytes:
-    """Re-encode images without EXIF (drops GPS). PDFs are returned unchanged."""
-    if not content_type.startswith("image/") or content_type in ("image/heic", "image/heif"):
+    """Re-encode photos (incl. HEIC, R3.5) without EXIF/XMP and verify GPS is gone; PDFs unchanged. Fails closed."""
+    if not content_type.startswith("image/"):
         return data
-    from PIL import Image
-    im = Image.open(io.BytesIO(data))
-    out = io.BytesIO()
-    fmt = {"image/jpeg": "JPEG", "image/png": "PNG", "image/webp": "WEBP"}[content_type]
-    im.save(out, format=fmt, exif=b"", **({"quality": 88} if fmt == "JPEG" else {}))  # no EXIF written (drops GPS)
-    return out.getvalue()
+    from app.kernel import media
+    try:
+        return media.strip_photo(data, "image/heic" if content_type == "image/heif" else content_type)
+    except media.Rejected as e:
+        raise Bad(str(e)) from e
 
 
 async def add_file(store, tid, c, *, kind: str, data: bytes, filename: str, content_type: str, keep_location: bool,
@@ -404,9 +403,14 @@ async def add_file(store, tid, c, *, kind: str, data: bytes, filename: str, cont
     safe_name = re.sub(r"[^\w.-]", "_", filename)[-60:]
     path = f"{object_store.APP_NAME}/claims/{tid}/{c['claim_id']}/{uuid.uuid4()}-{safe_name}"
     await object_store.put_object(path, data, content_type)
+    preview_path = None
+    if content_type in ("image/heic", "image/heif"):  # R3.5: browsers can't show HEIC; keep a stripped JPEG preview
+        from app.kernel import media
+        preview_path = f"{path}.preview.jpg"
+        await object_store.put_object(preview_path, media.jpeg_preview(data), "image/jpeg")
     doc = {"file_id": str(uuid.uuid4()), "kind": kind, "filename": filename[-120:], "content_type": content_type, "size": len(data),
            "sha256": sha, "storage_path": path, "uploaded_by": by, "uploaded_role": role, "uploaded_at": _now(),
-           "location_kept": bool(keep_location), "client_visible": bool(client_visible), "req_id": req_id}
+           "location_kept": bool(keep_location), "client_visible": bool(client_visible), "req_id": req_id, "preview_path": preview_path}
     async with use_tenant(tid):
         await wrap(store).claims.update_one({"claim_id": c["claim_id"]}, {"$push": {"docs": doc}})
     c.setdefault("docs", []).append(doc)
@@ -692,7 +696,7 @@ def row(c: dict, now: datetime) -> dict:
 
 
 def _doc_out(d):
-    return {k: _iso(v) for k, v in d.items() if k != "storage_path"}
+    return {**{k: _iso(v) for k, v in d.items() if k not in ("storage_path", "preview_path")}, "has_preview": bool(d.get("preview_path"))}
 
 
 def staff_view(c: dict, now: datetime) -> dict:
@@ -731,7 +735,7 @@ def client_view(c: dict, settings: dict) -> dict:
             "ack_due": _iso(c["ack_due"]), "incident": c["incident"], "excess": c.get("excess"), "product": c.get("product"),
             "insurer_claim_no": (c.get("insurer_claim") or {}).get("claim_no"),
             "insurer_mocked": bool((c.get("insurer_claim") or {}).get("mocked")),
-            "timeline": timeline, "files": [_doc_out(x) for x in c.get("docs") or [] if x["client_visible"]],
+            "timeline": timeline, "files": [_doc_out(x) for x in c.get("docs") or [] if x["client_visible"] and not x.get("test")],
             "info_requests": [{"req_id": r["req_id"], "items": r["items"], "message": r["message"], "due": r["due"], "status": r["status"]}
                               for r in c.get("info_requests") or []],
             "decision": d and {"outcome": d["outcome"], "label": OUTCOMES[d["outcome"]], "reason": d.get("reason"), "amount": d.get("amount")},

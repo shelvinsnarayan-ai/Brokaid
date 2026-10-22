@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { API, dt, post, useLoad } from "../compliance/api";
+import { ClaimAttachments } from "../../../components/ClaimAttachments";
 import { uploadClaimFile } from "../../claims/upload";
 import { ClaimActions } from "./Actions";
 import "../../../styles/import.css";
@@ -36,7 +37,7 @@ function Files({ c, onDone }: { c: any; onDone: () => void }) {
   return (
     <div className="imp-card" data-testid="claim-files">
       <h2>Documents</h2>
-      {c.files.map((d: any) => <p key={d.file_id}><a href={`${API}/api/o/claims/${c.claim_id}/files/${d.file_id}`} target="_blank" rel="noreferrer" data-testid={`claim-file-${d.file_id}`}>{d.kind.replace("_", " ")}: {d.filename}</a> <span className="imp-muted">{d.uploaded_role} · {dt(d.uploaded_at)}{d.location_kept ? " · location kept" : ""}</span></p>)}
+      {c.files.map((d: any) => <p key={d.file_id}><a href={`${API}/api/o/claims/${c.claim_id}/files/${d.file_id}`} target="_blank" rel="noreferrer" data-testid={`claim-file-${d.file_id}`}>{d.kind.replace("_", " ")}: {d.filename}</a> <span className="imp-muted">{d.uploaded_role} · {dt(d.uploaded_at)}{d.location_kept ? " · location kept" : ""}</span>{d.source === "claim_thread" ? <span className="imp-muted" data-testid={`claim-file-source-${d.file_id}`}> · from Messages</span> : null}{d.has_preview ? <> · <a href={`${API}/api/o/claims/${c.claim_id}/files/${d.file_id}?preview=true`} target="_blank" rel="noreferrer" data-testid={`claim-file-preview-${d.file_id}`}>preview</a></> : null}</p>)}
       {!c.files.length ? <p className="imp-muted">None yet.</p> : null}
       <div className="clm-o-filters">
         <select value={kind} onChange={(e) => setKind(e.target.value)} data-testid="claim-file-kind">
@@ -152,7 +153,8 @@ function ClaimMessages({ claimId }: { claimId: string }) {
       <h2>Messages</h2>
       {!data.exists ? <p className="imp-muted" data-testid="claim-messages-empty">No messages about this claim yet.</p> : (
         data.conversation.map((m: any, k: number) => (
-          <p key={k} data-testid={`claim-message-${k}`}><strong>{m.who === "client" ? "Client" : m.who === "broker" ? (m.author || "Broker") : "Note"}</strong> · {dt(m.at)}<br />{m.text}</p>
+          <div key={k} data-testid={`claim-message-${k}`} style={{ marginBottom: 10 }}><strong>{m.who === "client" ? "Client" : m.who === "broker" ? (m.author || "Broker") : "Note"}</strong> · {dt(m.at)}<br />{m.text}
+            <ClaimAttachments atts={m.attachments || []} base={`${API}/api/o/claims/${claimId}/files`} testid={`claim-message-att-${k}`} /></div>
         ))
       )}
       {data.reply_by_text ? <p className="imp-muted" data-testid="claim-messages-reply-by">Reply by {data.reply_by_text}</p> : null}

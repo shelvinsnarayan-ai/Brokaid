@@ -53,7 +53,7 @@ STAFF_REVIEW = dict(kind="broker_review", to=("staff", ("ae",)), title="A reques
                     link="/o/queue/{envelope_id}")
 RULES: dict[str, dict] = {
     "ClientQuestionAsked": dict(kind="client_question", to=("staff", ("ae", "principal")),
-                                title="New question from {client}", many="{n} new questions from {client}",
+                                title="New question from {client}{attach}", many="{n} new questions from {client}",
                                 body="Reply by {reply_by}.", link="/o/inbox/{thread_id}"),
     "BrokerReplied": dict(kind="broker_reply", to=("client", None), title="Your broker replied",
                           many="Your broker replied ({n} new)", body="{author} replied to your question.",
@@ -233,7 +233,7 @@ async def on_event(store, tenant_id: str, type_: str, payload: dict, event_id: s
             row = await safe.events.find_one({"payload.envelope_id": p["envelope_id"], "payload.policy_id": {"$exists": True}})
         policy_id = ((row or {}).get("payload") or {}).get("policy_id")
     ctx = {"client": (client or {}).get("display_name", "A client"), "author": author or "Your broker",
-           "policy_id": policy_id or "",
+           "policy_id": policy_id or "", "attach": f" with {p['attachment_summary']}" if p.get("attachment_summary") else "",
            "envelope_id": p.get("envelope_id") or "", "thread_id": thread_id or "", "payable_id": p.get("payable_id") or "",
            "reply_by": inbox.fmt_short(inbox.reply_by_for(inbox._utc(received), hstate))}
     ref = thread_id or p.get("envelope_id") or event_id

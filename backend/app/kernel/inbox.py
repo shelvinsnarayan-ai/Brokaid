@@ -135,9 +135,11 @@ async def load_threads(store, tenant_id: str, *, client_id: str | None = None,
             continue
         if typ == "ClientQuestionAsked":
             at = _utc(p.get("received_at") or ts)
-            t["subject"] = t["subject"] or p.get("message")
+            summ = p.get("attachment_summary")
+            t["subject"] = t["subject"] or p.get("message") or (f"Sent {summ}" if summ else None)
             t["test"] = t["test"] or bool(p.get("test"))
-            t["messages"].append({"who": "client", "text": p.get("message"), "at": at})
+            t["messages"].append({"who": "client", "text": p.get("message") or "", "at": at, "msg_id": p.get("msg_id"),
+                                  "file_ids": p.get("file_ids") or [], "attachment_summary": summ})
             t["answered"] = False
         elif typ == "ClientMessageReleased":
             t["messages"].append({"who": "broker", "text": p.get("message"), "at": ts, "author": "Your broker"})
@@ -159,7 +161,10 @@ async def load_threads(store, tenant_id: str, *, client_id: str | None = None,
     for t in out:
         t["messages"].sort(key=lambda m: m["at"])
         t["last_at"] = t["messages"][-1]["at"]
-        t["last_message"] = next((m["text"] for m in reversed(t["messages"]) if m["who"] != "pending"), "")
+        t["last_message"] = next((m["text"] or (f"Sent {m['attachment_summary']}" if m.get("attachment_summary") else "")
+                                  for m in reversed(t["messages"]) if m["who"] != "pending"), "")
+        if str(t["thread_id"]).startswith("claim-"):  # R3.5: answered by time order (a back-dated message stays answered)
+            t["answered"] = next((m["who"] == "broker" for m in reversed(t["messages"]) if m["who"] != "pending"), False)
     return out
 
 

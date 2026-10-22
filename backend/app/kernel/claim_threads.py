@@ -64,7 +64,8 @@ async def thread_for(store, tid: str, client_id: str, claim_id: str, include_tes
 
 
 async def post_client(store, tid: str, *, user_id: str, role: str, claim: dict, message: str, msg_id: str | None = None,
-                      received_at: datetime | None = None) -> dict:
+                      received_at: datetime | None = None, file_ids: list[str] | None = None, attachment_summary: str | None = None,
+                      promise: bool = True) -> dict:
     """Ledgered client message on the claim thread. A reply-by promise starts only when nothing is already awaiting a reply."""
     thread_id = thread_id_for(claim["claim_id"])
     msg_id = msg_id or str(uuid.uuid4())
@@ -72,11 +73,13 @@ async def post_client(store, tid: str, *, user_id: str, role: str, claim: dict, 
     t = await thread_for(store, tid, claim["client_id"], claim["claim_id"], include_tests=True)
     payload = {"envelope_id": thread_id, "client_id": claim["client_id"], "claim_id": claim["claim_id"], "message": message,
                "received_at": inbox._utc(received).isoformat(), "msg_id": msg_id}
+    if file_ids:
+        payload |= {"file_ids": list(file_ids), "attachment_summary": attachment_summary}
     if claim.get("test"):
         payload["test"] = True
     ev = await inbox._emit(store, tid, "ClientQuestionAsked", payload, f"ask:in:{thread_id}:{msg_id}",
                            actor={"kind": "human", "id": user_id, "name": role})
-    if ev is not None and (t is None or t["answered"]):
+    if promise and ev is not None and (t is None or t["answered"]):
         from app.kernel.holidays import state_for
         await inbox._emit(store, tid, "PromiseMade", {
             "thread_id": thread_id, "client_id": claim["client_id"], "claim_id": claim["claim_id"], "received_at": inbox._utc(received).isoformat(),
@@ -84,3 +87,98 @@ async def post_client(store, tid: str, *, user_id: str, role: str, claim: dict, 
             "msg_id": msg_id},
             f"promise:{thread_id}:{msg_id}")
     return {"thread_id": thread_id, "msg_id": msg_id, "replayed": ev is None}
+
+
+# ---- R3.5 attachments: staged per draft message (claim_uploads), attached as ordinary claim files when the message is sent ----
+
+def summary(docs: list[dict]) -> str | None:
+    n_p = sum(1 for d in docs if d.get("kind") == "photo")
+    n_v = sum(1 for d in docs if d.get("kind") == "video")
+    parts = [f"{n} {w}{'s' if n != 1 else ''}" for n, w in ((n_p, "photo"), (n_v, "video")) if n]
+    return " and ".join(parts) or None
+
+
+def attachments(c: dict, file_ids: list[str]) -> list[dict]:
+    docs = {d["file_id"]: d for d in c.get("docs") or []}
+    return [{"file_id": f, "kind": docs[f]["kind"], "content_type": docs[f]["content_type"], "filename": docs[f]["filename"],
+             "size": docs[f]["size"], "duration_s": docs[f].get("duration_s"), "has_preview": bool(docs[f].get("preview_path"))}
+            for f in file_ids if f in docs]
+
+
+async def message_sent(store, tid: str, claim_id: str, msg_id: str) -> bool:
+    async with use_tenant(tid):
+        return bool(await wrap(store).events.find_one({"type": "ClientQuestionAsked", "payload.claim_id": claim_id, "payload.msg_id": msg_id}))
+
+
+async def staged(store, tid: str, claim_id: str, msg_id: str, user_id: str) -> list[dict]:
+    async with use_tenant(tid):
+        return [r async for r in wrap(store).claim_uploads.find({"claim_id": claim_id, "msg_id": msg_id, "user_id": user_id,
+                                                                 "status": "staged"}, {"_id": 0})]
+
+
+async def stage(store, tid: str, c: dict, *, src: str, content_type: str, filename: str, user_id: str, msg_id: str) -> dict:
+    """Strip metadata (fail closed), store the clean file (+ JPEG preview for HEIC / poster for video) and stage it for the draft."""
+    import asyncio
+    import hashlib
+    import os
+    import re
+    import tempfile
+
+    from app.kernel import media, object_store
+    kind, info, preview = media.kind_of(content_type), {}, None
+    with tempfile.TemporaryDirectory(prefix="r35-") as d:
+        if kind == "video":
+            dst, poster = os.path.join(d, f"clean.{media.EXT[content_type]}"), os.path.join(d, "poster.jpg")
+            info = await asyncio.to_thread(media.strip_video, src, dst, poster)
+            with open(dst, "rb") as f:
+                data = f.read()
+            with open(poster, "rb") as f:
+                preview = await asyncio.to_thread(media.jpeg_preview, f.read(), 640)
+        else:
+            with open(src, "rb") as f:
+                data = await asyncio.to_thread(media.strip_photo, f.read(), content_type)
+            if content_type == "image/heic":
+                preview = await asyncio.to_thread(media.jpeg_preview, data)
+    stem = re.sub(r"[^\w.-]", "_", os.path.splitext(filename or kind)[0])[-50:] or kind
+    name = f"{stem}.{media.EXT[content_type]}"
+    path = f"{object_store.APP_NAME}/claims/{tid}/{c['claim_id']}/{uuid.uuid4()}-{name}"
+    await object_store.put_object(path, data, content_type)
+    if preview:
+        await object_store.put_object(f"{path}.preview.jpg", preview, "image/jpeg")
+    now = datetime.now(timezone.utc)
+    doc = {"file_id": str(uuid.uuid4()), "kind": kind, "filename": name, "content_type": content_type, "size": len(data),
+           "sha256": hashlib.sha256(data).hexdigest(), "storage_path": path, "preview_path": f"{path}.preview.jpg" if preview else None,
+           "duration_s": info.get("duration_s"), "uploaded_by": user_id, "uploaded_role": "client", "uploaded_at": now,
+           "location_kept": False, "client_visible": True, "req_id": None, "source": "claim_thread", "msg_id": msg_id}
+    async with use_tenant(tid):
+        await wrap(store).claim_uploads.insert_one({"file_id": doc["file_id"], "claim_id": c["claim_id"], "msg_id": msg_id,
+                                                    "user_id": user_id, "status": "staged", "at": now, "doc": doc})
+    return doc
+
+
+async def discard(store, tid: str, claim_id: str, file_id: str, user_id: str) -> bool:
+    async with use_tenant(tid):
+        r = await wrap(store).claim_uploads.update_one({"file_id": file_id, "claim_id": claim_id, "user_id": user_id, "status": "staged"},
+                                                       {"$set": {"status": "discarded"}})
+    return bool(r.modified_count)
+
+
+async def attach(store, tid: str, c: dict, *, file_ids: list[str], msg_id: str, user_id: str, role: str) -> list[dict]:
+    """Staged uploads become claim files: one ClaimDocumentAdded ledger event per file (source claim_thread, msg_id, sha256)."""
+    from app.kernel import claims as ck, media
+    rows = {r["file_id"]: r["doc"] for r in await staged(store, tid, c["claim_id"], msg_id, user_id)}
+    if len(set(file_ids)) != len(file_ids) or any(f not in rows for f in file_ids):
+        raise ck.Bad("One of the attachments is missing or was removed. Remove it and attach it again.")
+    docs = [rows[f] for f in file_ids]
+    if sum(d["size"] for d in docs) > media.MAX_MESSAGE:
+        raise ck.Bad("Attachments on one message can add up to 250 MB.")
+    for d in docs:
+        async with use_tenant(tid):
+            await wrap(store).claims.update_one({"claim_id": c["claim_id"], "docs.file_id": {"$ne": d["file_id"]}}, {"$push": {"docs": d}})
+            await wrap(store).claim_uploads.update_one({"file_id": d["file_id"]}, {"$set": {"status": "attached"}})
+        c.setdefault("docs", []).append(d)
+        await ck._event(store, tid, "ClaimDocumentAdded", {"claim_id": c["claim_id"], "file_id": d["file_id"], "kind": d["kind"],
+                                                           "sha256": d["sha256"], "size": d["size"], "location_kept": False,
+                                                           "source": "claim_thread", "msg_id": msg_id, "test": bool(c.get("test"))},
+                        f"claim_doc:{d['file_id']}", user_id, role)
+    return docs

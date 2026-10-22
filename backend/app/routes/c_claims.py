@@ -155,14 +155,43 @@ async def upload(claim_id: str, request: Request, file: UploadFile = File(...), 
 
 
 @router.get("/claims/{claim_id}/files/{file_id}")
-async def download(claim_id: str, file_id: str, request: Request, session: Session = Depends(require_session)) -> Response:
+async def download(claim_id: str, file_id: str, request: Request, preview: bool = False, download: bool = False,
+                   session: Session = Depends(require_session)) -> Response:
     store = _store(request)
     c = await _mine(store, session, claim_id)
-    d = next((d for d in c.get("docs") or [] if d["file_id"] == file_id and d["client_visible"]), None)
-    if not d:
+    d = next((d for d in c.get("docs") or [] if d["file_id"] == file_id and d["client_visible"] and not d.get("test")), None)
+    if not d or (preview and not d.get("preview_path")):
         raise HTTPException(status_code=404, detail="file_not_found")
-    data, ct = await object_store.get_object(d["storage_path"])
-    return Response(data, media_type=d["content_type"] or ct, headers={"Content-Disposition": f'inline; filename="{d["filename"]}"'})
+    return await _file_response(d, request, preview=preview, download=download)
+
+
+_CACHE: dict[str, bytes] = {}
+
+
+async def _file_response(d: dict, request: Request, *, preview: bool = False, download: bool = False) -> Response:
+    """R3.5: private claim file (or its JPEG preview) with HTTP Range support so phone browsers can play videos."""
+    import re
+    path = d["preview_path"] if preview else d["storage_path"]
+    data = _CACHE.get(path)
+    if data is None:
+        data, _ = await object_store.get_object(path)
+        if len(data) > 1024 * 1024:  # tiny per-process cache: video players fetch many ranges of the same file
+            while len(_CACHE) >= 3:
+                _CACHE.pop(next(iter(_CACHE)))
+            _CACHE[path] = data
+    ct_ = "image/jpeg" if preview else d["content_type"]
+    name = re.sub(r"[^\w.\- ]", "_", ("preview-" + d["filename"] + ".jpg") if preview else d["filename"])
+    h = {"Content-Disposition": f'{"attachment" if download else "inline"}; filename="{name}"', "Accept-Ranges": "bytes",
+         "Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff"}
+    m = re.fullmatch(r"bytes=(\d*)-(\d*)", request.headers.get("range") or "")
+    if m and (m[1] or m[2]):
+        n = len(data)
+        start, end = (int(m[1]), int(m[2]) if m[2] else n - 1) if m[1] else (max(n - int(m[2]), 0), n - 1)
+        end = min(end, n - 1)
+        if start >= n or start > end:
+            return Response(status_code=416, headers={"Content-Range": f"bytes */{n}"})
+        return Response(data[start:end + 1], status_code=206, media_type=ct_, headers={**h, "Content-Range": f"bytes {start}-{end}/{n}"})
+    return Response(data, media_type=ct_, headers=h)
 
 
 @router.post("/claims/{claim_id}/info/{req_id}")

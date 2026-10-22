@@ -188,6 +188,13 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
             raise StepFailed("File storage returned the wrong content.")
         return "File storage write and read OK."
 
+    async def ffmpeg():
+        from app.kernel import media
+        v = await asyncio.to_thread(media.ffmpeg_version)
+        if not v:
+            raise StepFailed("The bundled ffmpeg (imageio-ffmpeg) is missing, so claim videos can't be cleaned and are refused.")
+        return f"ffmpeg {v} present (video metadata stripping and poster frames)."
+
     async def llm():
         if not os.environ.get("EMERGENT_LLM_KEY"):
             raise StepFailed("The AI key (EMERGENT_LLM_KEY) is missing.")
@@ -229,7 +236,7 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
 
     for key, label, fn in (("build", "Build", build), ("auth", "Sign-in", auth_cfg), ("jobs", "Background work", queue), ("config.email", "Email setting", email_cfg),
                            ("config.push", "Push keys", vapid), ("config.storage", "File storage", storage),
-                           ("config.llm", "AI key", llm), ("ledger", "Ledger chain", ledger)):
+                           ("config.llm", "AI key", llm), ("media.ffmpeg", "Video tools (ffmpeg)", ffmpeg), ("ledger", "Ledger chain", ledger)):
         await r.step(key, label, fn, soft=True)
 
     ids = await ensure_synthetic(store, tenant_id)

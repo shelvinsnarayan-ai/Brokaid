@@ -103,7 +103,8 @@ async def claim_thread(claim_id: str, request: Request, s: Session = Depends(_st
     c = await _get(request, s, claim_id)
     t = await claim_threads.thread_for(_store(request), s.tenant_id, c["client_id"], claim_id, include_tests=True)
     return {"thread_id": claim_threads.thread_id_for(claim_id), "exists": bool(t), "can_reply": s.active_role in inbox.REPLY_ROLES,
-            "conversation": [{"who": m["who"], "text": m["text"], "at": m["at"].isoformat(), "author": m.get("author")}
+            "conversation": [{"who": m["who"], "text": m["text"], "at": m["at"].isoformat(), "author": m.get("author"),
+                              "attachments": claim_threads.attachments(c, m.get("file_ids") or [])}
                              for m in (t or {}).get("messages", [])],
             "reply_by_text": inbox.fmt_short(t["reply_by"]) if t and t["reply_by"] and not t["answered"] else None}
 
@@ -215,13 +216,14 @@ async def upload(claim_id: str, request: Request, file: UploadFile = File(...), 
 
 
 @router.get("/{claim_id}/files/{file_id}")
-async def download(claim_id: str, file_id: str, request: Request, s: Session = Depends(_staff)) -> Response:
+async def download(claim_id: str, file_id: str, request: Request, preview: bool = False, download: bool = False,
+                   s: Session = Depends(_staff)) -> Response:
+    from app.routes.c_claims import _file_response
     c = await _get(request, s, claim_id)
     d = next((d for d in c.get("docs") or [] if d["file_id"] == file_id), None)
-    if not d:
+    if not d or (preview and not d.get("preview_path")):
         raise HTTPException(status_code=404, detail="file_not_found")
-    data, ct = await object_store.get_object(d["storage_path"])
-    return Response(data, media_type=d["content_type"] or ct, headers={"Content-Disposition": f'inline; filename="{d["filename"]}"'})
+    return await _file_response(d, request, preview=preview, download=download)
 
 
 @router.post("/{claim_id}/pack")

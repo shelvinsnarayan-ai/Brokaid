@@ -157,7 +157,16 @@ async def inbox_thread(thread_id: str, request: Request,
                        session: Session = Depends(require_operator_session)) -> dict:
     now = datetime.now(timezone.utc)
     t = await inbox_k.get_thread(request.app.state.mongo_db, session.tenant_id, thread_id)
-    msgs = [{"who": m["who"], "text": m["text"], "at": m["at"].isoformat(), "author": m.get("author")}
+    claim = None
+    if str(thread_id).startswith("claim-"):  # R3.5: attachments resolve against the claim's files
+        from app.db.tenant_safe import wrap as _w
+        from app.kernel.tenant_ctx import use_tenant as _ut
+        async with _ut(session.tenant_id):
+            claim = await _w(request.app.state.mongo_db).claims.find_one({"claim_id": thread_id[6:]}, {"_id": 0, "docs": 1, "claim_id": 1})
+    from app.kernel import claim_threads as _ct
+    msgs = [{"who": m["who"], "text": m["text"], "at": m["at"].isoformat(), "author": m.get("author"),
+             "attachments": _ct.attachments(claim, m.get("file_ids") or []) if claim else [],
+             "claim_id": claim["claim_id"] if claim else None}
             for m in t["messages"]]
     return {**_thread_row(t, now, await _claim_labels(request.app.state.mongo_db, session.tenant_id)), "conversation": msgs,
             "can_reply": session.active_role in inbox_k.REPLY_ROLES,

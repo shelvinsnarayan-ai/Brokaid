@@ -37,4 +37,7 @@ for b in bad.values(): print("js vuln:", *b)
 print(f"yarn audit: {len(bad)} unallowed high/critical finding(s)")
 sys.exit(1 if bad else 0)
 PY
+v=$(cd backend && python3 -c "from app.kernel import media; print(media.ffmpeg_version() or '')" 2>/dev/null)
+if [ -z "$v" ]; then echo "ffmpeg: bundled binary (imageio-ffmpeg) MISSING"; fail=1
+else echo "ffmpeg: bundled $v via imageio-ffmpeg (wheel covered by pip-audit above; binary version recorded for CVE review; used only for stream-copy + one poster frame)"; fi
 exit $fail

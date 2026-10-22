@@ -129,7 +129,10 @@ async def ready(store) -> dict:
     alive = bool(exp and (exp if exp.tzinfo else exp.replace(tzinfo=timezone.utc)) > now())
     checks["job_leader"] = {"ok": alive, "owner": (lead or {}).get("owner")}
     checks["llm_key"] = {"ok": bool(os.environ.get("EMERGENT_LLM_KEY"))}
-    return {"ok": all(c["ok"] for c in checks.values()), "checks": checks}
+    from app.kernel import media
+    ok = all(c["ok"] for c in checks.values())
+    checks["media_ffmpeg"] = {"ok": bool(media.ffmpeg_exe()), "gates": "video uploads only"}  # missing → videos refused, app stays up
+    return {"ok": ok, "checks": checks}
 
 
 # ---- Ops summary ----
