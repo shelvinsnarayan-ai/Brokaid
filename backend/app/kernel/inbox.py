@@ -203,21 +203,31 @@ def _sha(body: str) -> str:
     return hashlib.sha256(body.encode()).hexdigest()
 
 
-async def request_advice_approval(store, session, thread_id: str, body: str) -> dict:
-    """R1.8: a P-tier reply waits for a Principal. The approval is bound to the exact reply text (sha256)."""
-    from app.kernel import notify
+async def request_advice_approval(store, session, thread_id: str, body: str, *, files: list[dict] | None = None,
+                                  draft_id: str | None = None) -> dict:
+    """R1.8: a P-tier reply waits for a Principal. The approval is bound to the exact reply text (sha256) and, from R3.7, to the
+    exact file set (sha256 + label of each file, hashed together)."""
+    from app.kernel import approval_files, notify
     t = await get_thread(store, session.tenant_id, thread_id)
     if session.active_role not in REPLY_ROLES:
         raise HTTPException(status_code=403, detail="your role can read threads but not reply")
     a = {"approval_id": str(uuid.uuid4()), "thread_id": thread_id, "client_id": t["client_id"], "body": body, "body_sha256": _sha(body),
-         "status": "pending", "requested_by": session.user_id, "requested_at": datetime.now(timezone.utc), "decided_by": None}
+         "status": "pending", "requested_by": session.user_id, "requested_role": session.active_role,
+         "requested_at": datetime.now(timezone.utc), "decided_by": None}
+    if files:
+        a |= {"draft_id": draft_id, "files": files, "file_ids": [f["file_id"] for f in files], "files_sha256": approval_files.files_hash(files)}
     safe = wrap(store)
     async with use_tenant(session.tenant_id):
         await safe.reply_advice_approvals.insert_one(dict(a))
         principals = await notify._staff(safe, ("principal",))
-    await _emit(store, session.tenant_id, "PersonalAdviceApprovalRequested", {"approval_id": a["approval_id"], "thread_id": thread_id,
-                "client_id": t["client_id"], "body_sha256": a["body_sha256"]}, f"advice_approval:{a['approval_id']}",
-                {"kind": "human", "id": session.user_id, "name": session.active_role})
+    if files:
+        await approval_files.hold(store, session.tenant_id, a)
+    await _emit(store, session.tenant_id, "PersonalAdviceApprovalRequested", {
+        "approval_id": a["approval_id"], "thread_id": thread_id, "client_id": t["client_id"], "body_sha256": a["body_sha256"],
+        **({"file_ids": a["file_ids"], "files": [{"file_id": f["file_id"], "sha256": f["sha256"], "label": f["label"]} for f in files],
+            "files_sha256": a["files_sha256"]} if files else {})},
+        f"advice_approval:{a['approval_id']}", {"kind": "human", "id": session.user_id, "name": session.active_role})
+    principals = [u for u in principals if u != session.user_id]
     for uid in principals:
         await notify.deliver(store, session.tenant_id, uid, kind="advice_approval", title="Reply needs Principal approval (personal advice)",
                              many="Replies need Principal approval", body=body[:140], link=f"/o/inbox/{thread_id}",
@@ -226,9 +236,38 @@ async def request_advice_approval(store, session, thread_id: str, body: str) -> 
     return a
 
 
-async def approve_advice(store, session, thread_id: str, approval_id: str) -> dict:
-    if session.active_role != "principal":
+async def pending_approval(store, session, thread_id: str, approval_id: str, *, approver: bool = True) -> dict:
+    if approver and session.active_role != "principal":
         raise HTTPException(status_code=403, detail="Only a Principal can approve personal advice.")
+    async with use_tenant(session.tenant_id):
+        a = await wrap(store).reply_advice_approvals.find_one({"approval_id": approval_id, "thread_id": thread_id, "status": "pending"},
+                                                              {"_id": 0})
+    if not a:
+        raise HTTPException(status_code=404, detail="approval_not_found")
+    if approver and a["requested_by"] == session.user_id:
+        raise HTTPException(status_code=403, detail={"code": "SeparationOfDuties",
+                                                     "detail": "A different Principal must approve a reply you wrote."})
+    return a
+
+
+async def decide_advice(store, session, thread_id: str, approval_id: str, status: str) -> dict:
+    """R3.7: Principal rejects, or the author withdraws. Held files go back to being the author's drafts; nothing reaches the client."""
+    from app.kernel import approval_files
+    a = await pending_approval(store, session, thread_id, approval_id, approver=status == "rejected")
+    if status == "withdrawn" and a["requested_by"] != session.user_id:
+        raise HTTPException(status_code=403, detail="Only the author can withdraw this reply.")
+    async with use_tenant(session.tenant_id):
+        await wrap(store).reply_advice_approvals.update_one({"approval_id": approval_id, "status": "pending"}, {"$set": {
+            "status": status, "decided_by": session.user_id, "decided_at": datetime.now(timezone.utc)}})
+    await approval_files.release(store, session.tenant_id, approval_id)
+    await _emit(store, session.tenant_id, "PersonalAdviceRejected" if status == "rejected" else "PersonalAdviceWithdrawn", {
+        "approval_id": approval_id, "thread_id": thread_id, "file_ids": a.get("file_ids") or [], "files_sha256": a.get("files_sha256")},
+        f"advice_{status}:{approval_id}", {"kind": "human", "id": session.user_id, "name": session.active_role})
+    return {"approval_id": approval_id, "status": status}
+
+
+async def approve_advice(store, session, thread_id: str, approval_id: str) -> dict:
+    await pending_approval(store, session, thread_id, approval_id)
     async with use_tenant(session.tenant_id):
         res = await wrap(store).reply_advice_approvals.update_one(
             {"approval_id": approval_id, "thread_id": thread_id, "status": "pending"},
@@ -242,8 +281,11 @@ async def approve_advice(store, session, thread_id: str, approval_id: str) -> di
 
 async def approvals(store, tenant_id: str, thread_id: str) -> list[dict]:
     async with use_tenant(tenant_id):
-        return [{**a, "requested_at": a["requested_at"].isoformat()} async for a in wrap(store).reply_advice_approvals.find(
-            {"thread_id": thread_id, "status": {"$in": ["pending", "approved"]}}, {"_id": 0}).sort("requested_at", -1).limit(10)]
+        return [{**a, "requested_at": a["requested_at"].isoformat(),
+                 "decided_at": a["decided_at"].isoformat() if isinstance(a.get("decided_at"), datetime) else None}
+                async for a in wrap(store).reply_advice_approvals.find(
+            {"thread_id": thread_id, "status": {"$in": ["pending", "approved", "rejected", "withdrawn", "refused"]}},
+            {"_id": 0}).sort("requested_at", -1).limit(10)]
 
 
 async def reply(store, session, thread_id: str, body: str, idempotency_key: str, approval_id: str | None = None, *,
@@ -266,6 +308,9 @@ async def reply(store, session, thread_id: str, body: str, idempotency_key: str,
         if verdict["tier"] == "P":
             approved = approval_id and await safe.reply_advice_approvals.find_one(
                 {"approval_id": approval_id, "thread_id": thread_id, "status": "approved", "body_sha256": _sha(body)})
+            if approved and sorted(approved.get("file_ids") or []) != sorted(file_ids or []):
+                raise HTTPException(status_code=409, detail={
+                    "code": "ApprovalMismatch", "detail": "This approval covers a different set of files. Ask for a fresh approval."})
             if not approved:
                 raise HTTPException(status_code=409, detail={
                     "code": "PersonalAdvice", "tier": "P", "rule_id": verdict["rule_id"], "reason": verdict["reason"],

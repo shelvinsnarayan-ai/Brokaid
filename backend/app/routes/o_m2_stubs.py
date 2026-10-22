@@ -169,7 +169,7 @@ async def inbox_thread(thread_id: str, request: Request,
              "claim_id": claim["claim_id"] if claim else None}
             for m in t["messages"]]
     return {**_thread_row(t, now, await _claim_labels(request.app.state.mongo_db, session.tenant_id)), "conversation": msgs,
-            "can_reply": session.active_role in inbox_k.REPLY_ROLES,
+            "can_reply": session.active_role in inbox_k.REPLY_ROLES, "me": {"user_id": session.user_id, "role": session.active_role},
             "attachment_limits": ({"max_files": 5, "photo_bytes": 10 * 1024 * 1024, "pdf_bytes": 20 * 1024 * 1024,
                                    "message_bytes": 250 * 1024 * 1024, "videos_enabled": False, "documents_enabled": True,
                                    "closed": _ct.is_closed(claim)} if claim else None),
@@ -219,7 +219,8 @@ async def inbox_reply(thread_id: str, body: ReplyBody, request: Request,
         raise HTTPException(status_code=404, detail="thread_not_found")
     if _ct.is_closed(c):
         raise HTTPException(status_code=409, detail={"code": "claim_closed", "detail": "This claim is closed."})
-    staged = {r["file_id"]: r["doc"] for r in await _ct.staged(store, session.tenant_id, c["claim_id"], body.draft_id, session.user_id)}
+    staged = {r["file_id"]: r["doc"] for r in await _ct.staged(store, session.tenant_id, c["claim_id"], body.draft_id, session.user_id)
+              if not r.get("held_by")}  # R3.7: files held by a pending approval only go out through it
     async with _ut(session.tenant_id):
         prior = await _w(store).thread_messages.find_one({"idempotency_key": body.idempotency_key})
     if not prior and (len(set(body.file_ids)) != len(body.file_ids) or any(f not in staged for f in body.file_ids)):
@@ -240,15 +241,63 @@ async def inbox_reply(thread_id: str, body: ReplyBody, request: Request,
 
 class ApprovalBody(BaseModel):
     body: str = Field(min_length=1, max_length=inbox_k.MAX_BODY)
+    file_ids: list[str] = Field(default_factory=list, max_length=5)  # R3.7: files held with the approval (claim threads)
+    draft_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+    labels: dict[str, str] = Field(default_factory=dict, max_length=5)
 
 
 @router.post("/inbox/{thread_id}/advice-approval")
 async def advice_approval(thread_id: str, body: ApprovalBody, request: Request,
                           session: Session = Depends(require_operator_session)) -> dict:
-    return await inbox_k.request_advice_approval(request.app.state.mongo_db, session, thread_id, body.body.strip())
+    store = request.app.state.mongo_db
+    if not body.file_ids:
+        return await inbox_k.request_advice_approval(store, session, thread_id, body.body.strip())
+    from app.kernel import approval_files as _af, claim_threads as _ct
+    if not str(thread_id).startswith(_ct.PREFIX) or not body.draft_id:
+        raise HTTPException(status_code=400, detail={"code": "attachments_claim_only", "detail": "Files can only be attached on claim threads."})
+    if session.active_role not in inbox_k.REPLY_ROLES:
+        raise HTTPException(status_code=403, detail={"code": "AuthorityDenied", "detail": "your role can read threads but not reply"})
+    c = await _af.claim_for(store, session.tenant_id, thread_id)
+    if _ct.is_closed(c):
+        raise HTTPException(status_code=409, detail={"code": "claim_closed", "detail": "This claim is closed."})
+    files = await _af.bind(store, session, c, draft_id=body.draft_id, file_ids=body.file_ids, labels=body.labels)
+    a = await inbox_k.request_advice_approval(store, session, thread_id, body.body.strip(), files=files, draft_id=body.draft_id)
+    return {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in a.items()}
 
 
 @router.post("/inbox/{thread_id}/advice-approval/{approval_id}/approve")
 async def advice_approve(thread_id: str, approval_id: str, request: Request,
                          session: Session = Depends(require_operator_session)) -> dict:
-    return await inbox_k.approve_advice(request.app.state.mongo_db, session, thread_id, approval_id)
+    """Text-only approvals: approve, then the author sends. With files (R3.7): approve sends the one reply with every file."""
+    store = request.app.state.mongo_db
+    a = await inbox_k.pending_approval(store, session, thread_id, approval_id)
+    if a.get("files"):
+        from app.kernel import approval_files as _af
+        return await _af.approve_and_send(store, session, thread_id, a)
+    return await inbox_k.approve_advice(store, session, thread_id, approval_id)
+
+
+@router.post("/inbox/{thread_id}/advice-approval/{approval_id}/reject")
+async def advice_reject(thread_id: str, approval_id: str, request: Request, session: Session = Depends(require_operator_session)) -> dict:
+    return await inbox_k.decide_advice(request.app.state.mongo_db, session, thread_id, approval_id, "rejected")
+
+
+@router.post("/inbox/{thread_id}/advice-approval/{approval_id}/withdraw")
+async def advice_withdraw(thread_id: str, approval_id: str, request: Request, session: Session = Depends(require_operator_session)) -> dict:
+    return await inbox_k.decide_advice(request.app.state.mongo_db, session, thread_id, approval_id, "withdrawn")
+
+
+@router.get("/inbox/{thread_id}/advice-approval/{approval_id}/files/{file_id}")
+async def advice_file(thread_id: str, approval_id: str, file_id: str, request: Request, preview: bool = False, download: bool = False,
+                      session: Session = Depends(require_operator_session)):
+    """Staff-only view of a file held with an approval (the Principal reviews before anything reaches the client)."""
+    from app.db.tenant_safe import wrap as _w
+    from app.kernel import approval_files as _af
+    from app.kernel.tenant_ctx import use_tenant as _ut
+    from app.routes.c_claims import _file_response
+    async with _ut(session.tenant_id):
+        a = await _w(request.app.state.mongo_db).reply_advice_approvals.find_one({"approval_id": approval_id, "thread_id": thread_id})
+    d = a and await _af.staged_doc(request.app.state.mongo_db, session.tenant_id, a, file_id)
+    if not d or (preview and not d.get("preview_path")):
+        raise HTTPException(status_code=404, detail="file_not_found")
+    return await _file_response(d, request, preview=preview, download=download)

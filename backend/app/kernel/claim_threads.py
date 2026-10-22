@@ -175,23 +175,29 @@ async def stage(store, tid: str, c: dict, *, src: str, content_type: str, filena
 
 async def discard(store, tid: str, claim_id: str, file_id: str, user_id: str) -> bool:
     async with use_tenant(tid):
-        r = await wrap(store).claim_uploads.update_one({"file_id": file_id, "claim_id": claim_id, "user_id": user_id, "status": "staged"},
+        r = await wrap(store).claim_uploads.update_one({"file_id": file_id, "claim_id": claim_id, "user_id": user_id, "status": "staged",
+                                                        "held_by": None},
                                                        {"$set": {"status": "discarded"}})
     return bool(r.modified_count)
 
 
 async def attach(store, tid: str, c: dict, *, file_ids: list[str], msg_id: str, user_id: str, role: str,
-                 reply_id: str | None = None, labels: dict | None = None) -> list[dict]:
-    """Staged uploads become claim files: one ClaimDocumentAdded ledger event per file (source claim_thread, msg_id, sha256)."""
+                 reply_id: str | None = None, labels: dict | None = None, approval_id: str | None = None,
+                 approved_by: str | None = None) -> list[dict]:
+    """Staged uploads become claim files: one ClaimDocumentAdded ledger event per file (source claim_thread, msg_id, sha256).
+    Files held by a pending approval (R3.7) only attach through that approval."""
     from app.kernel import claims as ck, media
-    rows = {r["file_id"]: r["doc"] for r in await staged(store, tid, c["claim_id"], msg_id, user_id)}
+    rows = {r["file_id"]: r["doc"] for r in await staged(store, tid, c["claim_id"], msg_id, user_id)
+            if r.get("held_by") in (None, approval_id)}
     if len(set(file_ids)) != len(file_ids) or any(f not in rows for f in file_ids):
         raise ck.Bad("One of the attachments is missing or was removed. Remove it and attach it again.")
     docs = [rows[f] for f in file_ids]
     for d in docs:
         if reply_id:
             d["reply_id"] = reply_id
-        if d.get("label") and (labels or {}).get(d["file_id"]) in media.LABELS:
+        if approved_by:
+            d |= {"approval_id": approval_id, "approved_by": approved_by}
+        if not approval_id and d.get("label") and (labels or {}).get(d["file_id"]) in media.LABELS:
             d["label"] = labels[d["file_id"]]
     if sum(d["size"] for d in docs) > media.MAX_MESSAGE:
         raise ck.Bad("Attachments on one message can add up to 250 MB.")
@@ -203,6 +209,7 @@ async def attach(store, tid: str, c: dict, *, file_ids: list[str], msg_id: str, 
         await ck._event(store, tid, "ClaimDocumentAdded", {"claim_id": c["claim_id"], "file_id": d["file_id"], "kind": d["kind"],
                                                            "sha256": d["sha256"], "size": d["size"], "location_kept": False,
                                                            "source": "claim_thread", "msg_id": msg_id, "uploaded_role": d["uploaded_role"],
-                                                           "reply_id": reply_id, "label": d.get("label"), "test": bool(c.get("test"))},
+                                                           "reply_id": reply_id, "label": d.get("label"), "approved_by": approved_by,
+                                                           "approval_id": approval_id, "test": bool(c.get("test"))},
                         f"claim_doc:{d['file_id']}", user_id, role)
     return docs

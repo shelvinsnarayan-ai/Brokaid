@@ -50,9 +50,17 @@ export function useAttachments(base: string, limits: Limits | undefined, labels 
 
   const reset = () => { ref.current.forEach((x) => URL.revokeObjectURL(x.url)); set(() => []); setErrors([]); setMsgId(newId()); };
 
+  /** R3.7: put back drafts already on the server (e.g. after a rejected approval) under their original draft id. */
+  const load = (draftId: string, files: { file_id: string; filename: string; kind: Item["kind"]; label?: string | null; has_preview: boolean; content_type: string; url: string }[]) => {
+    reset();
+    setMsgId(draftId);
+    set(() => files.map((f) => ({ key: newId(), file: new File([], f.filename, { type: f.content_type }), kind: f.kind, url: f.url, status: "done" as const,
+      progress: 100, tries: 1, file_id: f.file_id, has_preview: f.has_preview, label: f.label || undefined })));
+  };
+
   const busy = items.some((x) => x.status === "uploading");
   const blocked = items.some((x) => x.status === "error");
   const fileIds = items.filter((x) => x.status === "done").map((x) => x.file_id!);
   const labelMap = Object.fromEntries(items.filter((x) => x.file_id && x.label).map((x) => [x.file_id!, x.label!]));
-  return { items, errors, msgId, add, remove, retry, relabel, reset, busy, blocked, fileIds, labelMap };
+  return { items, errors, msgId, add, remove, retry, relabel, reset, load, busy, blocked, fileIds, labelMap };
 }
