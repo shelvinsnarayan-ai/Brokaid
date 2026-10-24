@@ -24,17 +24,28 @@ export async function currentSubscription(): Promise<PushSubscription | null> {
   return reg ? reg.pushManager.getSubscription() : null;
 }
 
+export const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+
+/** R3.9: does this browser subscription use the server's current VAPID public key? */
+export function keyMatches(sub: PushSubscription, key: string | null | undefined): boolean {
+  const k = sub.options?.applicationServerKey;
+  if (!k || !key) return true;  // browser doesn't expose it: trust the server-side check
+  const a = new Uint8Array(k), b = keyBytes(key);
+  return a.length === b.length && a.every((x, i) => x === b[i]);
+}
+
 export async function turnOnPush(): Promise<"on" | "blocked" | "error"> {
   const perm = await Notification.requestPermission();
   if (perm !== "granted") return "blocked";
   try {
     const { key } = await (await fetch(`${API}/api/notifications/push-public-key`, { credentials: "include" })).json();
     const reg = await navigator.serviceWorker.ready;
-    const sub = (await reg.pushManager.getSubscription())
-      || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) as BufferSource }));
+    let sub = await reg.pushManager.getSubscription();
+    if (sub && !keyMatches(sub, key)) { await sub.unsubscribe(); sub = null; }  // stale key → fresh subscription
+    sub = sub || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) as BufferSource }));
     const r = await fetch(`${API}/api/notifications/push-subscriptions`, {
       method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...sub.toJSON(), user_agent: navigator.userAgent }),
+      body: JSON.stringify({ ...sub.toJSON(), user_agent: navigator.userAgent, standalone: isStandalone() }),
     });
     return r.ok ? "on" : "error";
   } catch {

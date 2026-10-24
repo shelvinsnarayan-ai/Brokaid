@@ -191,6 +191,7 @@ class PushSub(BaseModel):
     endpoint: str
     keys: PushKeys
     user_agent: str | None = None
+    standalone: bool = False  # R3.9: installed (Home Screen) app, for the device label
 
 
 class PushUnsub(BaseModel):
@@ -207,12 +208,17 @@ async def push_public_key(session: Session = Depends(require_session)) -> dict:
 async def add_push_subscription(body: PushSub, request: Request, session: Session = Depends(require_session)) -> dict:
     if not body.endpoint.startswith("https://"):
         raise HTTPException(status_code=422, detail="endpoint_must_be_https")
+    import os
+    import uuid
+    from app.kernel import push_test
     safe, now = _safe(request), datetime.now(timezone.utc)
+    ua = (body.user_agent or request.headers.get("user-agent", ""))[:200]
     async with use_tenant(session.tenant_id):
         await safe.push_subscriptions.update_one(
             {"user_id": session.user_id, "endpoint": body.endpoint},
-            {"$set": {"keys": body.keys.model_dump(), "user_agent": (body.user_agent or request.headers.get("user-agent", ""))[:200],
-                      "updated_at": now}, "$setOnInsert": {"created_at": now, "last_ok_at": None}}, upsert=True)
+            {"$set": {"keys": body.keys.model_dump(), "user_agent": ua, "updated_at": now, "vapid_key": os.environ.get("VAPID_PUBLIC_KEY")},
+             "$setOnInsert": {"created_at": now, "last_ok_at": None, "device_id": str(uuid.uuid4()),
+                              "label": push_test.label_from_ua(ua, body.standalone)}}, upsert=True)
         await safe.notification_prefs.update_one({"user_id": session.user_id}, {"$set": {"push": True}}, upsert=True)
         n = await safe.push_subscriptions.count_documents({"user_id": session.user_id})
     return {"subscribed": True, "devices": n}

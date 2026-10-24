@@ -180,6 +180,21 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
     async def vapid():
         return ("pass", "Push keys present.") if push_channel.configured() else ("warn", "Push keys (VAPID) are missing; push alerts won't send.")
 
+    async def push_test_endpoint():
+        """R3.9: the staff push-test API answers (401 when signed out) and push keys are set. No real send."""
+        import os as _os
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://release-check.internal") as h:
+            code = (await h.get("/api/me/push/status")).status_code
+        if code != 401:
+            raise StepFailed(f"Push test API returned {code} signed out, not 401.")
+        if _os.environ.get("PUSH_DISABLED") == "1":
+            return "warn", "Push test API reachable; phone alerts are switched off on purpose (PUSH_DISABLED=1)."
+        if not push_channel.configured():
+            if env == "production":
+                return "warn", "Push test API reachable, but push keys (VAPID) are missing; phone alerts won't send."
+            raise StepFailed("Push keys (VAPID) are missing, so the push test can't send.")
+        return "Push test API reachable and push keys configured (no alert sent)."
+
     async def storage():
         path = f"{object_store.APP_NAME}/release-check/ping.txt"
         await object_store.put_object(path, run_id.encode(), "text/plain")
@@ -243,7 +258,7 @@ async def execute(app, store, tenant_id: str, slug: str, run_id: str, inject: st
 
     for key, label, fn in (("build", "Build", build), ("auth", "Sign-in", auth_cfg), ("jobs", "Background work", queue), ("config.email", "Email setting", email_cfg),
                            ("config.push", "Push keys", vapid), ("config.storage", "File storage", storage),
-                           ("config.llm", "AI key", llm), ("media.ffmpeg", "Video tools (ffmpeg)", ffmpeg), ("pwa.service_worker", "Web push service worker", service_worker), ("ledger", "Ledger chain", ledger)):
+                           ("config.llm", "AI key", llm), ("media.ffmpeg", "Video tools (ffmpeg)", ffmpeg), ("pwa.service_worker", "Web push service worker", service_worker), ("push.test_endpoint", "Push test endpoint", push_test_endpoint), ("ledger", "Ledger chain", ledger)):
         await r.step(key, label, fn, soft=True)
 
     ids = await ensure_synthetic(store, tenant_id)

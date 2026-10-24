@@ -220,6 +220,7 @@ def create_app(
     from app.routes.o_jobs import router as o_jobs_router
     from app.routes.o_m2_stubs import router as o_m2_stubs_router
     from app.routes.notifications import router as notifications_router
+    from app.routes.me_push import router as me_push_router
     from app.routes.c_things import router as c_things_router
     from app.routes.o_placement import router as o_placement_router
     from app.routes.o_shadow_mode import router as o_shadow_mode_router
@@ -237,7 +238,7 @@ def create_app(
         client_360_router, client_preferences_router,
         compliance_router, daily_brief_router, jurisdictions_router,
         kpi_router, matters_router,
-        o_change_packet_router, o_claims_router, acceptance_c_router, acceptance_o_router, o_governance_router, o_branding_router, o_release_check_router, o_jobs_router, o_m2_stubs_router, notifications_router, c_things_router, o_placement_router, o_shadow_mode_router,
+        o_change_packet_router, o_claims_router, acceptance_c_router, acceptance_o_router, o_governance_router, o_branding_router, o_release_check_router, o_jobs_router, o_m2_stubs_router, notifications_router, me_push_router, c_things_router, o_placement_router, o_shadow_mode_router,
         policies_router, queue_router, trail_router, verifier_router,
     ):
         api_router.include_router(r)

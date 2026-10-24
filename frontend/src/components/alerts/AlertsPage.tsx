@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useAlertsStore } from "../../state/alertsStore";
 import { AlertsList } from "./AlertsList";
 import { PushControl } from "./PushControl";
+import { PushTestCard } from "./PushTestCard";
 
 const API = (import.meta as any).env.VITE_API_BASE || "";
 
@@ -75,6 +76,7 @@ export function AlertsPage({ surface }: { surface: "client" | "operator" }) {
       </header>
       <AlertsList items={items} testid="alerts-list" />
       <PrefsCard surface={surface} />
+      {surface === "operator" ? <PushTestCard /> : null}
     </section>
   );
 }
