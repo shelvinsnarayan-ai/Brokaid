@@ -3,7 +3,7 @@
 # Fails on HIGH/CRITICAL (yarn) or any fixable Python vuln, except ids listed with a reason in ci/audit_allowlist.txt.
 set -uo pipefail
 cd "$(dirname "$0")/.."
-ALLOW=$(grep -vE '^\s*(#|$)' ci/audit_allowlist.txt 2>/dev/null | awk '{print $1}' | tr '\n' ' ')
+ALLOW=$(python3 ci/audit_allowlist.py)  # only entries with a reason and a review date that hasn't passed
 fail=0
 ( cd backend && timeout 240 pip-audit --local --format json >/tmp/pipaudit.json 2>/tmp/pipaudit.err ) || true
 python3 - "$ALLOW" <<'PY' || fail=1
@@ -40,4 +40,5 @@ PY
 v=$(cd backend && python3 -c "from app.kernel import media; print(media.ffmpeg_version() or '')" 2>/dev/null)
 if [ -z "$v" ]; then echo "ffmpeg: bundled binary (imageio-ffmpeg) MISSING"; fail=1
 else echo "ffmpeg: bundled $v via imageio-ffmpeg (wheel covered by pip-audit above; binary version recorded for CVE review; used only for stream-copy + one poster frame)"; fi
+timeout 20 python3 ci/audit_allowlist.py watch || true  # informational: "upgrade available" when a pinned dep can move
 exit $fail

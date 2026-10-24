@@ -184,6 +184,7 @@ class ReplyBody(BaseModel):
     file_ids: list[str] = Field(default_factory=list, max_length=5)  # R3.6: claim threads only
     draft_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
     labels: dict[str, str] = Field(default_factory=dict, max_length=5)
+    quotes: dict[str, dict] = Field(default_factory=dict, max_length=5)  # R3.8: repair-quote summary per file
 
     @field_validator("body")
     @classmethod
@@ -228,12 +229,13 @@ async def inbox_reply(thread_id: str, body: ReplyBody, request: Request,
                                                      "detail": "One of the attachments is missing or was removed. Remove it and attach it again."})
     docs = [{**staged[f], "label": body.labels.get(f) if body.labels.get(f) in _media.LABELS else staged[f].get("label")}
             for f in body.file_ids if f in staged]
+    quotes = _quotes(body.file_ids, body.labels, body.quotes, staged) if not prior else {}
     r = await inbox_k.reply(store, session, thread_id, body.body, body.idempotency_key, body.approval_id,
                             file_ids=body.file_ids, attachment_summary=_ct.summary(docs, broker=True))
     if not r["replayed"]:
         try:
             await _ct.attach(store, session.tenant_id, c, file_ids=body.file_ids, msg_id=body.draft_id, user_id=session.user_id,
-                             role=session.active_role, reply_id=r["reply_id"], labels=body.labels)
+                             role=session.active_role, reply_id=r["reply_id"], labels=body.labels, quotes=quotes)
         except _ck.Bad as e:
             raise HTTPException(status_code=400, detail={"code": "attachment_invalid", "detail": str(e)}) from e
     return r
@@ -244,6 +246,23 @@ class ApprovalBody(BaseModel):
     file_ids: list[str] = Field(default_factory=list, max_length=5)  # R3.7: files held with the approval (claim threads)
     draft_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
     labels: dict[str, str] = Field(default_factory=dict, max_length=5)
+    quotes: dict[str, dict] = Field(default_factory=dict, max_length=5)
+
+
+def _quotes(file_ids: list[str], labels: dict, quotes: dict, staged: dict) -> dict:
+    """R3.8: validate repair-quote summaries for files labelled repair_quote (blank → no card)."""
+    from app.kernel import repair_quote as _rq
+    out = {}
+    for f in file_ids:
+        d = staged.get(f) or {}
+        if (labels.get(f) or d.get("label")) == "repair_quote":
+            try:
+                q = _rq.clean(quotes.get(f), d.get("quote_suggested"))
+            except ValueError as e:
+                raise HTTPException(status_code=422, detail={"code": "quote_invalid", "detail": str(e)}) from e
+            if q:
+                out[f] = q
+    return out
 
 
 @router.post("/inbox/{thread_id}/advice-approval")
@@ -260,7 +279,9 @@ async def advice_approval(thread_id: str, body: ApprovalBody, request: Request,
     c = await _af.claim_for(store, session.tenant_id, thread_id)
     if _ct.is_closed(c):
         raise HTTPException(status_code=409, detail={"code": "claim_closed", "detail": "This claim is closed."})
-    files = await _af.bind(store, session, c, draft_id=body.draft_id, file_ids=body.file_ids, labels=body.labels)
+    staged = {r["file_id"]: r["doc"] for r in await _ct.staged(store, session.tenant_id, c["claim_id"], body.draft_id, session.user_id)}
+    files = await _af.bind(store, session, c, draft_id=body.draft_id, file_ids=body.file_ids, labels=body.labels,
+                           quotes=_quotes(body.file_ids, body.labels, body.quotes, staged))
     a = await inbox_k.request_advice_approval(store, session, thread_id, body.body.strip(), files=files, draft_id=body.draft_id)
     return {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in a.items()}
 

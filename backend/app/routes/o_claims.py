@@ -367,3 +367,34 @@ async def staff_staged_preview(claim_id: str, file_id: str, request: Request, s:
         raise HTTPException(status_code=404, detail="file_not_found")
     data, _ = await object_store.get_object(r["doc"]["preview_path"])
     return Response(data, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=300"})
+
+
+class QuoteBody(BaseModel):
+    repairer: str = Field(default="", max_length=200)
+    total: str = Field(default="", max_length=20)
+    quote_no: str | None = Field(default=None, max_length=60)
+    quote_date: str | None = Field(default=None, max_length=20)
+
+
+@router.patch("/{claim_id}/files/{file_id}/quote")
+async def update_quote_summary(claim_id: str, file_id: str, body: QuoteBody, request: Request, s: Session = Depends(_staff)) -> dict:
+    """R3.8: correct a repair-quote summary (AE / Principal; ledgered with old and new values). Blank repairer + total clears the card."""
+    from app.kernel import inbox, repair_quote
+    if s.active_role not in inbox.REPLY_ROLES:
+        raise HTTPException(status_code=403, detail={"code": "AuthorityDenied", "detail": "Only an AE or Principal can change a quote summary."})
+    c = await _get(request, s, claim_id)
+    d = next((d for d in c.get("docs") or [] if d["file_id"] == file_id), None)
+    if not d or d.get("label") != "repair_quote":
+        raise HTTPException(status_code=404, detail="quote_not_found")
+    try:
+        new = repair_quote.clean(body.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail={"code": "quote_invalid", "detail": str(e)}) from e
+    if new:
+        new["source"] = {k: "typed" for k in new["source"]} | {"corrected_by": s.user_id}
+    old = d.get("quote")
+    async with use_tenant(s.tenant_id):
+        await wrap(_store(request)).claims.update_one({"claim_id": claim_id, "docs.file_id": file_id}, {"$set": {"docs.$.quote": new}})
+    await ck._event(_store(request), s.tenant_id, "RepairQuoteSummaryUpdated", {"claim_id": claim_id, "file_id": file_id, "old": old, "new": new,
+                    "by": s.user_id, "role": s.active_role}, f"quote_fix:{file_id}:{uuid.uuid4()}", s.user_id, s.active_role)
+    return {"file_id": file_id, "quote": new}

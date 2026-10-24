@@ -3,6 +3,7 @@ export interface Limits { max_files: number; photo_bytes: number; video_bytes?: 
 export interface Item {
   key: string; file: File; kind: "photo" | "video" | "document"; url: string; label?: string; status: "uploading" | "done" | "error"; progress: number;
   error?: string; file_id?: string; has_preview?: boolean; tries: number; xhr?: XMLHttpRequest; retryable?: boolean;
+  suggested?: Record<string, string>;
 }
 
 const PHOTO = /\.(jpe?g|png|webp|heic|heif)$/i;

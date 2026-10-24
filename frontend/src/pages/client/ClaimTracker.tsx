@@ -1,13 +1,14 @@
 import { Link, useParams } from "react-router-dom";
 import { useC } from "./api";
 import { useUnreadStore } from "../../state/unreadStore";
+import { QuoteCard, type QuoteSummary } from "./QuoteCard";
 
 const STEPS: [string, string[]][] = [
   ["Lodged", ["lodged"]], ["Broker reviewing", ["triage", "info_requested"]], ["Sent to insurer", ["submitted"]],
   ["Assessment", ["assessing"]], ["Decision", ["decision"]], ["Settled", ["settlement", "closed"]],
 ];
 
-interface Claim { stage: string; claim_reference: string; status_text: string; info_requests?: { req_id: string; status: string; message?: string; due?: string }[] }
+interface Claim { stage: string; claim_reference: string; status_text: string; info_requests?: { req_id: string; status: string; message?: string; due?: string }[]; quote_summary?: QuoteSummary | null }
 
 export function ClaimTracker() {
   const { claim_id } = useParams();
@@ -25,6 +26,7 @@ export function ClaimTracker() {
         <h1 className="mer-h" style={{ margin: "8px 0 0", fontSize: 20 }}>Claim {c.claim_reference}</h1>
         <p style={{ margin: "4px 0 0", fontSize: 13 }}>{c.status_text}</p>
       </div>
+      <QuoteCard s={c.quote_summary} claimId={claim_id!} />
       {open.length ? (
         <div className="mer-need" data-testid="mer-claim-need">
           <p style={{ margin: 0, fontWeight: 700 }}>What we need from you</p>

@@ -137,8 +137,13 @@ async def list_claims(request: Request, session: Session = Depends(require_sessi
 async def get_claim(claim_id: str, request: Request, session: Session = Depends(require_session)) -> dict[str, Any]:
     store = _store(request)
     c = await _mine(store, session, claim_id)
+    from app.kernel import repair_quote
+    reply_ids = [d["reply_id"] for d in c.get("docs") or [] if d.get("reply_id")]
+    async with use_tenant(session.tenant_id):
+        hidden = {f["ref"] async for f in _wrap_safe(store).test_flags.find({"kind": "reply", "ref": {"$in": reply_ids}})} if reply_ids else set()
     return {"claim": {**ck.client_view(c, await compliance_docs.settings(store, session.tenant_id)),
-                      "policy_status": await ck.policy_status(store, session.tenant_id, c.get("policy_id"))}}
+                      "policy_status": await ck.policy_status(store, session.tenant_id, c.get("policy_id")),
+                      "quote_summary": repair_quote.summary(c, hidden)}}
 
 
 @router.post("/claims/{claim_id}/files")

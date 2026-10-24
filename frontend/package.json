@@ -12,7 +12,7 @@
     "@brokaid/brand-tokens": "file:../packages/brand-tokens",
     "@brokaid/mocks": "file:../packages/mocks",
     "@types/dompurify": "^3.2.0",
-    "dompurify": "^3.4.15",
+    "dompurify": "^3.4.17",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",

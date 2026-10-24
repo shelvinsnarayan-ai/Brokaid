@@ -1,1 +1,6 @@
-# id  reason (one per line). Every entry needs a reason and an owner review date.
+# Format: <id> review=YYYY-MM-DD [watch=<package>:<dep>>=<major>] <reason>
+# Every entry needs a reason and a review date. After the review date the entry stops counting and the audit fails again.
+# watch= asks dep_audit to check PyPI for a release of <package> that allows <dep> >= <major>, and print "upgrade available".
+CVE-2026-112940 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4
+CVE-2026-112913 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4
+CVE-2026-112907 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4

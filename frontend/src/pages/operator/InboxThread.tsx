@@ -8,13 +8,14 @@ import { ClaimAttachments, type Att } from "../../components/ClaimAttachments";
 import { AttachTray } from "../client/AttachTray";
 import { useAttachments } from "../client/useAttachments";
 import type { Limits } from "../client/attachUpload";
+import { QuoteFields, quoteLine, useQuotes, type Quote } from "./QuoteFields";
 
 interface Msg { who: "client" | "broker" | "pending"; text: string; at: string; author: string | null; attachments?: Att[]; claim_id?: string | null }
 interface Approval {
   approval_id: string; body: string; status: "pending" | "approved" | "rejected" | "withdrawn" | "refused"; requested_at: string;
-  requested_by: string; decided_by?: string | null; reason?: string | null; draft_id?: string; files?: Att[];
+  requested_by: string; decided_by?: string | null; reason?: string | null; draft_id?: string; files?: (Att & { quote?: Quote | null })[];
 }
-export interface Prefill { text: string; draft_id?: string; files?: Att[]; approval_id: string }
+export interface Prefill { text: string; draft_id?: string; files?: (Att & { quote?: Quote | null })[]; approval_id: string }
 const STATUS: Record<Approval["status"], string> = { pending: "Awaiting Principal approval", approved: "Approved", rejected: "Rejected by a Principal. Files kept as drafts",
   withdrawn: "Withdrawn. Files kept as drafts", refused: "Not sent" };
 interface Thread extends ThreadRow { conversation: Msg[]; can_reply: boolean; kept: { kept_at: string; late: boolean } | null; advice_approvals: Approval[]; me?: { user_id: string; role: string }; attachment_limits?: (Limits & { closed?: boolean }) | null }
@@ -70,6 +71,7 @@ function Approvals({ id, list, me, onDone, onEdit }: { id: string; list: Approva
             <div data-testid={`advice-approval-files-${a.approval_id}`} style={{ marginTop: 6 }}>
               <span style={muted}>{a.files.length} file{a.files.length === 1 ? "" : "s"} {a.status === "pending" ? "held with this reply (not visible to the client)" : ""}</span>
               <ClaimAttachments atts={a.files} base={`${API}/api/o/inbox/${encodeURIComponent(id)}/advice-approval/${a.approval_id}/files`} testid={`advice-approval-att-${a.approval_id}`} />
+              {a.files.filter((f) => f.quote).map((f) => <p key={f.file_id} style={{ ...muted, margin: "4px 0 0" }} data-testid={`advice-approval-quote-${f.file_id}`}>Quote summary for the client: {quoteLine(f.quote!)}</p>)}
             </div>
           ) : null}
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
@@ -101,17 +103,19 @@ function ReplyBox({ id, onSent, limits, claimId, prefill }: { id: string; onSent
   const base = `${API}/api/o/claims/${claimId}/thread/attachments`;
   const att = useAttachments(base, limits || undefined, true);
   const canAttach = !!claimId && !!limits && !limits.closed;
+  const q = useQuotes(att.items);
   useEffect(() => {
     if (!prefill) return;
     setText(prefill.text); setPAdvice(null); key.current = crypto.randomUUID();
     if (prefill.draft_id && prefill.files?.length) {
       const fbase = `${API}/api/o/inbox/${encodeURIComponent(id)}/advice-approval/${prefill.approval_id}/files`;
       att.load(prefill.draft_id, prefill.files.map((f) => ({ ...f, url: `${fbase}/${f.file_id}${f.has_preview ? "?preview=true" : ""}` })));
+      q.seed(Object.fromEntries(prefill.files.filter((f) => f.quote).map((f) => [f.file_id, f.quote!])));
     }
   }, [prefill]);
   async function send() {
     setBusy(true); setErr(null); setPAdvice(null);
-    const files = att.fileIds.length ? { file_ids: att.fileIds, draft_id: att.msgId, labels: att.labelMap } : {};
+    const files = att.fileIds.length ? { file_ids: att.fileIds, draft_id: att.msgId, labels: att.labelMap, quotes: q.payload } : {};
     const r = await post(`/api/o/inbox/${encodeURIComponent(id)}/reply`, { body: text, idempotency_key: key.current, ...files });
     setBusy(false);
     if (r.status === 409) {
@@ -124,13 +128,13 @@ function ReplyBox({ id, onSent, limits, claimId, prefill }: { id: string; onSent
       setErr(r.status === 403 ? "Your role can read this thread but not reply." : j.detail?.detail && typeof j.detail.detail === "string" ? j.detail.detail : "Reply not sent. Check the text and try again.");
       return;
     }
-    key.current = crypto.randomUUID(); setText(""); att.reset(); onSent();
+    key.current = crypto.randomUUID(); setText(""); att.reset(); q.reset(); onSent();
   }
   async function askApproval() {
-    const files = att.fileIds.length ? { file_ids: att.fileIds, draft_id: att.msgId, labels: att.labelMap } : {};
+    const files = att.fileIds.length ? { file_ids: att.fileIds, draft_id: att.msgId, labels: att.labelMap, quotes: q.payload } : {};
     const r = await post(`/api/o/inbox/${encodeURIComponent(id)}/advice-approval`, { body: text.trim(), ...files });
     if (!r.ok) { const j = await r.json().catch(() => ({})); setErr(typeof j.detail?.detail === "string" ? j.detail.detail : "Couldn't request approval."); return; }
-    setPAdvice(null); setText(""); att.reset(); onSent();
+    setPAdvice(null); setText(""); att.reset(); q.reset(); onSent();
   }
   const ok = (text.trim().length > 0 || att.fileIds.length > 0) && text.length <= MAX && !att.busy && !att.blocked;
   return (
@@ -141,6 +145,7 @@ function ReplyBox({ id, onSent, limits, claimId, prefill }: { id: string; onSent
       {canAttach ? (
         <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
           <AttachTray items={att.items} base={base} onRemove={att.remove} onRetry={att.retry} onLabel={att.relabel} testid="thread-attach" />
+          <QuoteFields q={q} />
           {att.errors.length ? <ul className="cat-errs" role="alert" data-testid="thread-attach-errors">{att.errors.map((x, i) => <li key={i}>{x}</li>)}</ul> : null}
           <label className="k-btn" style={{ alignSelf: "flex-start", cursor: "pointer" }} data-testid="thread-attach-button">
             <input type="file" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,application/pdf,.pdf"

@@ -149,6 +149,9 @@ async def stage(store, tid: str, c: dict, *, src: str, content_type: str, filena
             with open(src, "rb") as f:
                 data = f.read()
             await asyncio.to_thread(media.check_pdf, data)
+            if role != "client":
+                from app.kernel import repair_quote
+                info["quote_suggested"] = await asyncio.to_thread(repair_quote.suggest, data)
         else:
             with open(src, "rb") as f:
                 data = await asyncio.to_thread(media.strip_photo, f.read(), content_type)
@@ -167,6 +170,8 @@ async def stage(store, tid: str, c: dict, *, src: str, content_type: str, filena
            "location_kept": False, "client_visible": True, "req_id": None, "source": "claim_thread", "msg_id": msg_id}
     if role != "client":
         doc["label"] = label or media.default_label(content_type)
+        if info.get("quote_suggested"):
+            doc["quote_suggested"] = info["quote_suggested"]
     async with use_tenant(tid):
         await wrap(store).claim_uploads.insert_one({"file_id": doc["file_id"], "claim_id": c["claim_id"], "msg_id": msg_id,
                                                     "user_id": user_id, "status": "staged", "at": now, "doc": doc})
@@ -183,7 +188,7 @@ async def discard(store, tid: str, claim_id: str, file_id: str, user_id: str) ->
 
 async def attach(store, tid: str, c: dict, *, file_ids: list[str], msg_id: str, user_id: str, role: str,
                  reply_id: str | None = None, labels: dict | None = None, approval_id: str | None = None,
-                 approved_by: str | None = None) -> list[dict]:
+                 approved_by: str | None = None, quotes: dict | None = None) -> list[dict]:
     """Staged uploads become claim files: one ClaimDocumentAdded ledger event per file (source claim_thread, msg_id, sha256).
     Files held by a pending approval (R3.7) only attach through that approval."""
     from app.kernel import claims as ck, media
@@ -197,6 +202,8 @@ async def attach(store, tid: str, c: dict, *, file_ids: list[str], msg_id: str, 
             d["reply_id"] = reply_id
         if approved_by:
             d |= {"approval_id": approval_id, "approved_by": approved_by}
+        if (quotes or {}).get(d["file_id"]):
+            d["quote"] = quotes[d["file_id"]]  # R3.8: validated by the caller, only for files labelled repair_quote
         if not approval_id and d.get("label") and (labels or {}).get(d["file_id"]) in media.LABELS:
             d["label"] = labels[d["file_id"]]
     if sum(d["size"] for d in docs) > media.MAX_MESSAGE:

@@ -17,7 +17,7 @@ export function useAttachments(base: string, limits: Limits | undefined, labels 
   const start = (it: Item) => {
     const { xhr, done } = upload(base, it.file, msgId, (p) => patch(it.key, { progress: p }), it.label);
     patch(it.key, { status: "uploading", progress: 0, xhr, tries: it.tries + 1, error: undefined });
-    done.then((f) => patch(it.key, { status: "done", progress: 100, file_id: f.file_id, has_preview: f.has_preview }))
+    done.then((f) => patch(it.key, { status: "done", progress: 100, file_id: f.file_id, has_preview: f.has_preview, suggested: f.quote_suggested || undefined }))
       .catch((e) => { if (e.status !== -1) patch(it.key, { status: "error", error: e.message, retryable: e.status === 0 || e.status >= 500 }); });
   };
 

@@ -1,5 +1,6 @@
 /** R1.8 — /o/claims/:id: timeline, checklist, flags, AI summary, documents, notes and stage actions. */
 import { useState } from "react";
+import { QuoteEdit } from "./QuoteEdit";
 import { Link, useParams } from "react-router-dom";
 import { API, dt, post, useLoad } from "../compliance/api";
 import { ClaimAttachments } from "../../../components/ClaimAttachments";
@@ -37,7 +38,7 @@ function Files({ c, onDone }: { c: any; onDone: () => void }) {
   return (
     <div className="imp-card" data-testid="claim-files">
       <h2>Documents</h2>
-      {c.files.map((d: any) => <p key={d.file_id}><a href={`${API}/api/o/claims/${c.claim_id}/files/${d.file_id}`} target="_blank" rel="noreferrer" data-testid={`claim-file-${d.file_id}`}>{d.kind.replace("_", " ")}: {d.filename}</a> <span className="imp-muted">{d.uploaded_role} · {dt(d.uploaded_at)}{d.location_kept ? " · location kept" : ""}</span>{d.source === "claim_thread" ? <span className="imp-muted" data-testid={`claim-file-source-${d.file_id}`}>{d.label ? ` · ${({ repair_quote: "Repair quote", assessor_report: "Assessor report", insurer_letter: "Insurer letter", photo: "Photo", other: "Other" } as Record<string, string>)[d.label] || d.label}` : ""} · from Messages{d.uploaded_role === "client" ? "" : " · Broker"}</span> : null}{d.has_preview ? <> · <a href={`${API}/api/o/claims/${c.claim_id}/files/${d.file_id}?preview=true`} target="_blank" rel="noreferrer" data-testid={`claim-file-preview-${d.file_id}`}>preview</a></> : null}</p>)}
+      {c.files.map((d: any) => <p key={d.file_id}><a href={`${API}/api/o/claims/${c.claim_id}/files/${d.file_id}`} target="_blank" rel="noreferrer" data-testid={`claim-file-${d.file_id}`}>{d.kind.replace("_", " ")}: {d.filename}</a> <span className="imp-muted">{d.uploaded_role} · {dt(d.uploaded_at)}{d.location_kept ? " · location kept" : ""}</span>{d.source === "claim_thread" ? <span className="imp-muted" data-testid={`claim-file-source-${d.file_id}`}>{d.label ? ` · ${({ repair_quote: "Repair quote", assessor_report: "Assessor report", insurer_letter: "Insurer letter", photo: "Photo", other: "Other" } as Record<string, string>)[d.label] || d.label}` : ""} · from Messages{d.uploaded_role === "client" ? "" : " · Broker"}</span> : null}{d.has_preview ? <> · <a href={`${API}/api/o/claims/${c.claim_id}/files/${d.file_id}?preview=true`} target="_blank" rel="noreferrer" data-testid={`claim-file-preview-${d.file_id}`}>preview</a></> : null}{d.label === "repair_quote" ? <QuoteEdit claimId={c.claim_id} d={d} onDone={onDone} /> : null}</p>)}
       {!c.files.length ? <p className="imp-muted">None yet.</p> : null}
       <div className="clm-o-filters">
         <select value={kind} onChange={(e) => setKind(e.target.value)} data-testid="claim-file-kind">

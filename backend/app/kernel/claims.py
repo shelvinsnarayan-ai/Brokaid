@@ -738,7 +738,7 @@ def client_view(c: dict, settings: dict) -> dict:
             "ack_due": _iso(c["ack_due"]), "incident": c["incident"], "excess": c.get("excess"), "product": c.get("product"),
             "insurer_claim_no": (c.get("insurer_claim") or {}).get("claim_no"),
             "insurer_mocked": bool((c.get("insurer_claim") or {}).get("mocked")),
-            "timeline": timeline, "files": [_doc_out(x) for x in c.get("docs") or [] if x["client_visible"] and not x.get("test")],
+            "timeline": timeline, "files": [{k: v for k, v in _doc_out(x).items() if k != "quote_suggested"} for x in c.get("docs") or [] if x["client_visible"] and not x.get("test")],
             "info_requests": [{"req_id": r["req_id"], "items": r["items"], "message": r["message"], "due": r["due"], "status": r["status"]}
                               for r in c.get("info_requests") or []],
             "decision": d and {"outcome": d["outcome"], "label": OUTCOMES[d["outcome"]], "reason": d.get("reason"), "amount": d.get("amount")},

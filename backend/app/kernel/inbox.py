@@ -224,7 +224,7 @@ async def request_advice_approval(store, session, thread_id: str, body: str, *, 
         await approval_files.hold(store, session.tenant_id, a)
     await _emit(store, session.tenant_id, "PersonalAdviceApprovalRequested", {
         "approval_id": a["approval_id"], "thread_id": thread_id, "client_id": t["client_id"], "body_sha256": a["body_sha256"],
-        **({"file_ids": a["file_ids"], "files": [{"file_id": f["file_id"], "sha256": f["sha256"], "label": f["label"]} for f in files],
+        **({"file_ids": a["file_ids"], "files": [{"file_id": f["file_id"], "sha256": f["sha256"], "label": f["label"], "quote": f.get("quote")} for f in files],
             "files_sha256": a["files_sha256"]} if files else {})},
         f"advice_approval:{a['approval_id']}", {"kind": "human", "id": session.user_id, "name": session.active_role})
     principals = [u for u in principals if u != session.user_id]

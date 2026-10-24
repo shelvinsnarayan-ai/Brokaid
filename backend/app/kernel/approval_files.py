@@ -18,7 +18,10 @@ CHANGED = "The attached files changed after approval was requested, so nothing w
 
 
 def files_hash(files: list[dict]) -> str:
-    return hashlib.sha256("\n".join(sorted(f"{f['sha256']}:{f.get('label') or ''}" for f in files)).encode()).hexdigest()
+    """sha256 + label (+ R3.8 repair-quote summary) of every file, order-independent."""
+    import json
+    return hashlib.sha256("\n".join(sorted(f"{f['sha256']}:{f.get('label') or ''}:{json.dumps(f.get('quote'), sort_keys=True) if f.get('quote') else ''}"
+                                            for f in files)).encode()).hexdigest()
 
 
 def _err(status: int, code: str, detail: str) -> HTTPException:
@@ -33,7 +36,7 @@ async def claim_for(store, tid: str, thread_id: str) -> dict:
     return c
 
 
-async def bind(store, session, c: dict, *, draft_id: str, file_ids: list[str], labels: dict) -> list[dict]:
+async def bind(store, session, c: dict, *, draft_id: str, file_ids: list[str], labels: dict, quotes: dict | None = None) -> list[dict]:
     """The author's own staged, not-yet-held drafts → the file refs the approval covers (label fixed now)."""
     rows = {r["file_id"]: r["doc"] for r in await ct.staged(store, session.tenant_id, c["claim_id"], draft_id, session.user_id)
             if not r.get("held_by")}
@@ -45,6 +48,8 @@ async def bind(store, session, c: dict, *, draft_id: str, file_ids: list[str], l
         out.append({"file_id": f, "sha256": d["sha256"], "label": labels.get(f) if labels.get(f) in media.LABELS else d.get("label"),
                     "size": d["size"], "kind": d["kind"], "filename": d["filename"], "content_type": d["content_type"],
                     "has_preview": bool(d.get("preview_path"))})
+        if out[-1]["label"] == "repair_quote" and (quotes or {}).get(f):
+            out[-1]["quote"] = quotes[f]  # validated by the route; part of the approval hash
     return out
 
 
@@ -124,5 +129,6 @@ async def approve_and_send(store, session, thread_id: str, a: dict) -> dict:
     r = await inbox.reply(store, author, thread_id, a["body"], f"approved-{a['approval_id']}", a["approval_id"],
                           file_ids=a["file_ids"], attachment_summary=ct.summary(a["files"], broker=True))
     await ct.attach(store, session.tenant_id, c, file_ids=a["file_ids"], msg_id=a["draft_id"], user_id=a["requested_by"],
-                    role=author.active_role, reply_id=r["reply_id"], approval_id=a["approval_id"], approved_by=session.user_id)
+                    role=author.active_role, reply_id=r["reply_id"], approval_id=a["approval_id"], approved_by=session.user_id,
+                    quotes={f["file_id"]: f["quote"] for f in a["files"] if f.get("quote")})
     return {"approval_id": a["approval_id"], "status": "used", "reply_id": r["reply_id"]}
