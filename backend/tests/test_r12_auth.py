@@ -6,7 +6,6 @@ from datetime import timedelta
 
 import httpx
 import pyotp
-import pytest
 
 from app.kernel.routes_util import all_routes
 
@@ -272,9 +271,10 @@ def test_production_has_no_dev_or_legacy_sign_in():
 
 def test_production_refuses_dev_mode():
     from app.settings import _assert_safe_to_start
+    from app.kernel import devmode
     os.environ.update(ENVIRONMENT="production", AUTH_DEV_MODE="true")
     try:
-        with pytest.raises(RuntimeError):
-            _assert_safe_to_start()
+        _assert_safe_to_start()  # R3.10: no raise; dev mode simply off
+        assert not devmode.dev_mode() and devmode.config_warnings()
     finally:
         os.environ.update(ENVIRONMENT="development", AUTH_DEV_MODE="true")

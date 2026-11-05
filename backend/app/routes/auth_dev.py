@@ -150,6 +150,15 @@ async def impersonate(
             active_role=first.role, mfa_verified=True,
         )
 
+    try:  # R3.10: mark impersonation sessions for the exposure report
+        from app.db.tenant_safe import wrap as _wrap
+        from app.kernel.tenant_ctx import use_tenant as _use_tenant
+        async with _use_tenant(session.tenant_id):
+            await _wrap(store).sessions.update_one({"session_id": session.session_id}, {"$set": {
+                "via": "dev_impersonate", "persona_email": body.email.strip().lower(), "ip": (request.headers.get("x-forwarded-for") or
+                (request.client.host if request.client else "")).split(",")[0].strip()[:64], "served_host": devmode.served_host(request)}})
+    except Exception:  # noqa: BLE001
+        pass
     secure = "https" in (request.url.scheme, request.headers.get("x-forwarded-proto"))  # __Host- needs Secure in browsers
     response.set_cookie(key=sess.COOKIE_NAME, value=session.session_id, httponly=True, samesite="lax",
                         secure=secure, path="/", max_age=12 * 3600)

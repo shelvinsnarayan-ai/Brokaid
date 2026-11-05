@@ -23,8 +23,7 @@ def test_personas_route_absent_in_production(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("AUTH_DEV_MODE", "true")  # even if someone leaves the flag on
     monkeypatch.setenv("CORS_ORIGINS", "https://app.brokaid.example")
-    with pytest.raises(RuntimeError):
-        create_app(seed_dev_users=False)
+    assert not any(p.startswith("/api/auth/dev") for p in _paths(create_app(seed_dev_users=False)))  # R3.10: boots, dev routes off
     monkeypatch.setenv("AUTH_DEV_MODE", "false")
     paths = _paths(create_app(seed_dev_users=False))
     assert not any(p.startswith("/api/auth/dev") for p in paths)

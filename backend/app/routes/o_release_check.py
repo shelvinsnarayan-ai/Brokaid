@@ -75,6 +75,8 @@ async def start(request: Request, body: StartBody = Body(default_factory=StartBo
         await wrap(store).release_check_runs.insert_one({
             "run_id": run_id, "status": "running", "started_at": datetime.now(timezone.utc), "actor": session.user_id,
             "env": rc.environment(), "inject": body.inject, "result": None, "checks": []})
+    from app.kernel import devmode
+    rc.SERVED_HOST.set(devmode.served_host(request))  # R3.10: copied into the task's context
     task = asyncio.create_task(_finish(request.app, store, session.tenant_id, t["slug"], run_id, session, body.inject))
     _TASKS.add(task)
     task.add_done_callback(_TASKS.discard)

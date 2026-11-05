@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from app.kernel import devmode
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 router = APIRouter()
 log = logging.getLogger("brokaid.build_info")
@@ -101,11 +101,19 @@ from app.kernel import email_channel  # noqa: E402
 
 
 @router.get("/api/build-info")
-async def build_info() -> dict[str, Any]:
+async def build_info(request: Request = None) -> dict[str, Any]:  # type: ignore[assignment]
     identity = _BAKED_IDENTITY or _resolve_identity()
+    host = devmode.served_host(request) if request is not None else devmode.base_host()
+    on_preview = devmode.preview_request(request) if request is not None else devmode.is_preview_host(host)
     return {
         **identity,
         "auth_dev_mode": devmode.dev_mode(),
+        "effective_mode": devmode.effective_mode(),  # R3.10
+        "dev_mode_active": devmode.dev_mode(),
+        "served_host": host,
+        "served_hosts": devmode.served_hosts(request) if request is not None else [host],
+        "demo_on_public_host": devmode.dev_mode() and not on_preview,
+        "config_warnings": devmode.config_warnings(),
         "llm_key_present": bool(os.environ.get("EMERGENT_LLM_KEY")),
         "email_enabled": email_channel.email_enabled(),
     }

@@ -38,10 +38,11 @@ def test_unknown_environment_is_production(monkeypatch, env, expect):
 def test_dev_mode_needs_explicit_env_and_flag(monkeypatch):
     from app.settings import _assert_safe_to_start
     monkeypatch.setenv("AUTH_DEV_MODE", "true")
+    monkeypatch.setenv("APP_BASE_URL", "https://x.preview.emergentagent.com")
     monkeypatch.delenv("ENVIRONMENT", raising=False)
     assert not devmode.dev_mode()
-    with pytest.raises(RuntimeError, match="treated as production"):
-        _assert_safe_to_start()
+    _assert_safe_to_start()  # R3.10: never raises; logs CRITICAL and runs as production
+    assert any("AUTH_DEV_MODE=true is ignored" in w for w in devmode.config_warnings())
     monkeypatch.setenv("ENVIRONMENT", "preview")
     assert devmode.dev_mode()
     monkeypatch.setenv("AUTH_DEV_MODE", "false")
@@ -108,15 +109,21 @@ async def test_require_dev_tenant(mongo_db, monkeypatch):
 async def test_boot_guard_refuses_dev_mode_beside_real_data(mongo_db, monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("AUTH_DEV_MODE", "true")
+    monkeypatch.setenv("APP_BASE_URL", "https://x.preview.emergentagent.com")
+    monkeypatch.setattr(devmode, "_forced_off", None)
     await devmode.boot_guard(mongo_db)  # only demo/test tenants so far
+    assert devmode.dev_mode()
     live = await _tenant(mongo_db, f"live-{uuid.uuid4().hex[:4]}", kind="brokerage", status="live")
-    with pytest.raises(RuntimeError, match="REFUSING TO START"):
-        await devmode.boot_guard(mongo_db)
+    await devmode.boot_guard(mongo_db)  # R3.10: no crash-loop — dev mode is switched off instead
+    assert not devmode.dev_mode() and "real tenant data" in devmode._forced_off
     await mongo_db.tenants.update_one({"tenant_id": live}, {"$set": {"status": "setup"}})  # tenant-safe: system-only
     await devmode.boot_guard(mongo_db)
+    assert devmode.dev_mode()
     await mongo_db.import_runs.insert_one({"tenant_id": live, "run_id": "r"})  # tenant-safe: system-only
-    with pytest.raises(RuntimeError, match="imported data"):
-        await devmode.boot_guard(mongo_db)
+    await devmode.boot_guard(mongo_db)
+    assert not devmode.dev_mode() and "imported data" in devmode._forced_off
+    await mongo_db.import_runs.delete_many({"tenant_id": live})  # tenant-safe: system-only
+    await mongo_db.tenants.delete_one({"tenant_id": live})  # tenant-safe: system-only
     monkeypatch.setenv("AUTH_DEV_MODE", "false")
     await devmode.boot_guard(mongo_db)  # dev mode off → production data is allowed
 
@@ -149,6 +156,11 @@ def test_dev_routes_absent_in_production_app(monkeypatch):
     monkeypatch.delenv("ENVIRONMENT")  # unset = production: still nothing mounted
     monkeypatch.setenv("AUTH_DEV_MODE", "false")
     assert exposed_dev_routes(create_app(seed_dev_users=False)) == []
+    # R3.10: dev env + flag but a public APP_BASE_URL → nothing mounted
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AUTH_DEV_MODE", "true")
+    monkeypatch.setenv("APP_BASE_URL", "https://www.brokaid.com")
+    assert exposed_dev_routes(create_app(seed_dev_users=False)) == []
 
 
 # ---- CORS ------------------------------------------------------------------
@@ -159,8 +171,11 @@ def test_cors_never_wildcard_and_production_refuses_it(monkeypatch):
     assert cors_origins() == ["https://admin.brokaid.example", "https://app.brokaid.example"]
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("AUTH_DEV_MODE", "false")
-    with pytest.raises(RuntimeError, match="CORS_ORIGINS"):
-        _assert_safe_to_start()
+    _assert_safe_to_start()  # R3.10: wildcard ignored with a warning, never a crash
+    assert any("CORS_ORIGINS='*' is ignored" in w for w in devmode.config_warnings())
+    monkeypatch.setenv("EXTRA_ALLOWED_ORIGINS", "https://ops.brokaid.example")
+    from app.middleware.security import allowed_origins
+    assert {"https://app.brokaid.example", "https://admin.brokaid.example", "https://ops.brokaid.example"} <= set(allowed_origins())
 
 
 # ---- SEC-002: CSV formula injection ------------------------------------------

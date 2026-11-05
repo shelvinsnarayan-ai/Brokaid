@@ -5,6 +5,9 @@ const API = import.meta.env.VITE_API_BASE || "";
 type Persona = { slug: string; name: string; seat: string; email: string; route: string };
 export const SANDBOX_CONFIRM = "This clears the made-up business details and puts all 5 drafts back to blank. Continue?";
 
+// R3.10: same list as backend devmode.PREVIEW_HOSTS / PREVIEW_SUFFIXES.
+export const isPreviewHost = (h: string) => ["localhost", "127.0.0.1"].includes(h) || h.endsWith(".preview.emergentagent.com");
+
 // Preview-only: compiled out unless ENVIRONMENT is development/preview/test, and hidden unless the backend lists personas.
 export function DemoSignIn() {
   const [list, setList] = useState<Persona[] | null>(null);
@@ -12,14 +15,16 @@ export function DemoSignIn() {
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
+  const previewHost = isPreviewHost(window.location.hostname);
   useEffect(() => {
+    if (!previewHost) return;  // R3.10: never on a public host, whatever the env says
     fetch(`${API}/api/auth/dev/personas`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setList(d?.personas ?? null))
       .catch(() => setList(null));
   }, []);
 
-  if (!list?.length) return null;
+  if (!previewHost || !list?.length) return null;
 
   const go = async (p: Persona, to?: string) => {
     setBusy(p.slug);

@@ -32,6 +32,7 @@ def _origin(u: str) -> str:
 def allowed_origins() -> set[str]:
     out = {_origin(os.environ.get("APP_BASE_URL") or "")}
     out |= {_origin(o.strip()) for o in (os.environ.get("CORS_ORIGINS") or "").split(",") if o.strip() and o.strip() != "*"}
+    out |= {_origin(o.strip()) for o in (os.environ.get("EXTRA_ALLOWED_ORIGINS") or "").split(",") if o.strip() and o.strip() != "*"}
     return {o for o in out if o}
 
 

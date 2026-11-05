@@ -47,6 +47,11 @@ def exposed_dev_routes(app) -> list[str]:
     return sorted(p for p in (app.openapi().get("paths") or {}) if p.startswith(DEV_ROUTE_PREFIXES))
 
 
+import contextvars  # noqa: E402
+
+SERVED_HOST: contextvars.ContextVar[str | None] = contextvars.ContextVar("release_check_served_host", default=None)  # R3.10
+
+
 class StepFailed(Exception):
     pass
 
@@ -663,25 +668,63 @@ async def ops_steps(r, http, store, tenant_id, app) -> None:
             raise StepFailed("Missing headers: " + ", ".join(missing))
         return "CSP, HSTS, X-Frame-Options, Referrer-Policy and Permissions-Policy present."
 
+    async def _probe(host: str) -> list[str]:
+        """Dev/legacy/demo routes that answer (not 404) when asked with this Host header."""
+        out = []
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=f"http://{host or 'unknown.invalid'}") as h:
+            for method, path in (("GET", "/api/auth/dev/personas"), ("POST", "/api/auth/dev/impersonate"), ("POST", "/api/auth/dev/demo/kai-reset"),
+                                 ("POST", "/api/auth/operator/login"), ("POST", "/api/auth/client/request")):
+                code = (await h.request(method, path, json={}, headers={"host": host or "unknown.invalid"})).status_code
+                if code != 404:
+                    out.append(f"{method} {path} → {code}")
+        return out
+
+    from app.kernel import devmode as _dm
+    host = SERVED_HOST.get() or _dm.base_host()
+    public = not _dm.is_preview_host(host)
+
     async def dev_routes():
+        """R3.10: 'public' is decided by the served host, not ENVIRONMENT."""
         paths = exposed_dev_routes(app)
-        if paths and environment() == "production":
-            raise StepFailed("Dev/legacy sign-in routes are exposed in production: " + ", ".join(sorted(paths)[:6]))
+        if public:
+            hits = await _probe(host)
+            if hits:
+                raise StepFailed(f"Dev/legacy sign-in routes answer on public host {host}: " + "; ".join(hits))
+            return (f"Served from {host}: no dev or legacy sign-in route answers." +
+                    (f" ({len(paths)} still mounted but blocked; check config_warnings.)" if paths else ""))
         if paths:
-            return "info", f"{len(paths)} dev/legacy sign-in route(s) mounted (dev mode on {environment()}; refused for real tenants)."
+            return "info", f"{len(paths)} dev/legacy sign-in route(s) mounted on preview host {host} (refused for real tenants)."
         return "No dev or legacy sign-in routes in the API."
 
     async def demo_host():
-        problem, host = demo_host_problem()
-        if problem:
-            raise StepFailed(problem)
-        from app.kernel import devmode
-        if devmode.dev_mode():
+        if public and _dm.dev_mode():
+            raise StepFailed(f"Dev mode is active but this is served from public host {host}. Set ENVIRONMENT=production and AUTH_DEV_MODE=false.")
+        if public and (await _probe(host))[:1]:
+            raise StepFailed(f"The demo sign-in panel would show on public host {host}.")
+        if _dm.dev_mode():
             return "info", f"Demo mode on a preview host ({host})."
         return f"Production mode on {host or 'this host'}; demo sign-in is off."
 
+    async def demo_tenants():
+        """R3.10: a tenant flagged test/demo whose slug or kind looks real. Known-real (burmac, platform) flagged → FAIL."""
+        bad, review, odd = [], [], []
+        async for t in store.tenants.find({"$or": [{"test": True}, {"demo": True}]}, {"_id": 0, "slug": 1, "kind": 1}):  # tenant-safe: system-only
+            slug = t.get("slug") or ""
+            if t.get("kind") == "platform" or slug in _dm.REAL_SLUGS:
+                bad.append(slug)
+            elif t.get("kind") == "brokerage":
+                review.append(slug)  # dev shortcuts already treat kind=brokerage as real; flag is cosmetic
+            elif slug not in _dm.DEMO_SLUGS and not slug.startswith(("ci-", "burmac-sandbox")):
+                odd.append(slug)
+        if bad:
+            raise StepFailed("Real tenant(s) flagged demo/test: " + ", ".join(bad))
+        notes = ([f"kind=brokerage but flagged test/demo (dev sign-in still treats them as real; confirm they're QA): {', '.join(review)}"] if review else []) + \
+                ([f"flagged test/demo with unfamiliar slugs: {', '.join(odd)}"] if odd else [])
+        return ("warn", "; ".join(notes)) if notes else "No real tenant is flagged demo/test."
+
     await r.step("security.dev_routes", "No dev sign-in routes in production", dev_routes)
     await r.step("security.demo_host", "Demo mode only on a preview host", demo_host)
+    await r.step("security.demo_tenants", "No real tenant flagged demo", demo_tenants)
     await r.step("ops.ready", "/api/ready", ready)
     await r.step("ops.backup_age", "Backup under 26h old", backup_age)
     await r.step("ops.restore_drill", "Last restore drill", drill)

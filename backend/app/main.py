@@ -40,6 +40,7 @@ def create_app(
     mongo_db_override=None,
     seed_dev_users: bool | None = None,
 ) -> FastAPI:
+    from app.kernel import devmode as _devmode_mod
     settings = get_settings()
     settings.assert_safe_to_start()
     do_seed = (
@@ -65,7 +66,13 @@ def create_app(
 
         from app.kernel import devmode as _devmode
         await _devmode.boot_guard(app.state.mongo_db)  # SEC-001c: dev mode never runs beside real tenant data
-        if do_seed:
+        if not _devmode.dev_mode():
+            try:
+                from app.kernel import demo_credentials
+                await demo_credentials.disable_all(app.state.mongo_db)  # R3.10: demo passwords never work outside dev mode
+            except Exception as e:  # noqa: BLE001
+                logger.critical("demo credential disable failed: %r", e)
+        if do_seed and _devmode.dev_mode():
             try:
                 from app.seeds.seed_all_mongo import seed_all_mongo
                 await seed_all_mongo(app.state.mongo_db)
@@ -244,13 +251,16 @@ def create_app(
         api_router.include_router(r)
 
     # R1.2a: legacy sign-in routes (magic link, operator-only login) never ship to production.
+    # R3.10: mounted only in dev mode (dev ENVIRONMENT + AUTH_DEV_MODE + preview APP_BASE_URL); every request is also host-checked.
+    from fastapi import Depends as _Depends
+    _preview_only = [_Depends(_devmode_mod.require_preview_request)]
     if settings.auth_dev_mode:  # SEC-001a: explicit dev ENVIRONMENT + AUTH_DEV_MODE only
-        api_router.include_router(auth_client_router)
-        api_router.include_router(auth_operator_router)
+        api_router.include_router(auth_client_router, dependencies=_preview_only)
+        api_router.include_router(auth_operator_router, dependencies=_preview_only)
 
     if settings.auth_dev_mode:
         from app.routes.auth_dev import router as auth_dev_router
-        api_router.include_router(auth_dev_router)
+        api_router.include_router(auth_dev_router, dependencies=_preview_only)
     app.include_router(api_router)
     return app
 

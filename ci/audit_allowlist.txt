@@ -4,3 +4,12 @@
 CVE-2026-112940 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4
 CVE-2026-112913 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4
 CVE-2026-112907 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4
+CVE-2026-112908 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4
+CVE-2026-112909 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4
+CVE-2026-112910 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4
+CVE-2026-112911 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4
+CVE-2026-112915 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4
+CVE-2026-112935 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4
+CVE-2026-112936 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4
+CVE-2026-112938 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4
+CVE-2026-112939 review=2026-11-21 watch=litellm:filelock>=4 filelock pinned <4 by litellm (emergentintegrations); used only for local cache locking, not in request paths; upgrade when litellm allows filelock>=4

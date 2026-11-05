@@ -134,7 +134,8 @@ async def ready(store) -> dict:
     checks["media_ffmpeg"] = {"ok": bool(media.ffmpeg_exe()), "gates": "video uploads only"}  # missing → videos refused, app stays up
     sw = await pwa.cached()  # informational like ffmpeg: a broken SW stops web push, not the app
     checks["pwa_service_worker"] = {"ok": sw["ok"], "mode": sw.get("mode"), "gates": "web push only"}
-    return {"ok": ok, "checks": checks}
+    from app.kernel import devmode
+    return {"ok": ok, "checks": checks, "effective_mode": devmode.effective_mode(), "config_warnings": devmode.config_warnings()}
 
 
 # ---- Ops summary ----

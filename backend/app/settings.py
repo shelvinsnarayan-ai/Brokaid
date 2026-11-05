@@ -15,15 +15,10 @@ def cors_origins() -> list[str]:
 
 
 def _assert_safe_to_start() -> None:
-    """Fail closed: dev login needs an explicit dev ENVIRONMENT; production never boots with a CORS wildcard."""
-    if (os.environ.get("AUTH_DEV_MODE") or "").strip().lower() == "true" and devmode.is_production():
-        raise RuntimeError(
-            "AUTH_DEV_MODE=true is forbidden unless ENVIRONMENT is development, preview or test "
-            f"(ENVIRONMENT={os.environ.get('ENVIRONMENT')!r} is treated as production)",
-        )
-    raw = [o.strip() for o in (os.environ.get("CORS_ORIGINS") or "").split(",")]
-    if devmode.is_production() and "*" in raw:
-        raise RuntimeError("CORS_ORIGINS='*' with credentials is forbidden in production; list the app origin(s).")
+    """R3.10: config problems are neutralised and logged, never raised (no crash-loops). See devmode.config_warnings()."""
+    import logging
+    for w in devmode.config_warnings():
+        logging.getLogger("brokaid.settings").critical("CONFIG: %s", w)
 
 
 class Settings(BaseModel):

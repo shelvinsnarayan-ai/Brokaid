@@ -7,7 +7,8 @@ from pydantic import BaseModel
 from app.auth import passwords, totp as totp_mod
 from app.auth.sessions import COOKIE_NAME
 from app.db.tenant_safe import wrap
-from app.kernel import auth_flows as af
+from app.kernel import auth_flows as af, devmode
+from app.seeds.seed_users import DEV_PASSWORD
 from app.kernel.tenant_ctx import use_tenant
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -87,6 +88,8 @@ async def login(body: LoginBody, request: Request, response: Response) -> dict:
     await af.check_locked(store, [f"acct:{email}", f"ip:{ip}"])
     user, tid = await af.credentialed(store, email)
     ok = bool(user and user.get("password_hash") and passwords.verify_password(user["password_hash"], body.password))
+    if ok and (user.get("password_disabled") or (body.password == DEV_PASSWORD and not devmode.dev_mode())):
+        ok = False  # R3.10: demo credentials never sign in outside dev mode (same generic error)
     if ok and not await af.tenant_options(store, email):
         ok = False
     if not ok:

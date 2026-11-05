@@ -173,3 +173,16 @@ async def list_drills(request: Request, session: Session = Depends(require_opera
                    | {"operator": names.get(p.get("operator_id"), "Operator"),
                       "recorded_at": e["ts"].isoformat() if hasattr(e["ts"], "isoformat") else str(e["ts"])})
     return {"drills": out}
+
+
+@router.get("/exposure-report")
+async def exposure_report(request: Request, since: str | None = None, session: Session = Depends(require_operator_role)) -> dict:
+    """R3.10: read-only. Dev impersonation sessions, demo resets/renewals, MFA enrolments and demo logins since `since` (ISO; default 30 days)."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.kernel import exposure
+    try:
+        t = datetime.fromisoformat(since.replace("Z", "+00:00")) if since else datetime.now(timezone.utc) - timedelta(days=30)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail="since must be an ISO date/time") from e
+    return await exposure.build(request.app.state.mongo_db, t if t.tzinfo else t.replace(tzinfo=timezone.utc))
