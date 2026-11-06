@@ -1,5 +1,6 @@
 /** R1.7 — client: documents provided, complaints, My data (APP access / correction / privacy complaint). */
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { authCall } from "../lib/authApi";
 
 const API = import.meta.env.VITE_API_BASE || "";
@@ -22,20 +23,56 @@ function Head({ eyebrow, title, lede }: { eyebrow: string; title: string; lede: 
 }
 
 export function ClientDocuments() {
-  const { d, err } = useGet("c/documents");
+  const { d, err } = useGet("c/documents/library");
+  const [open, setOpen] = useState<string | null>(null);
+  useEffect(() => { if (d?.policies?.length && open === null) setOpen(d.policies[0].policy_id); }, [d, open]);
   return (
     <section className="brokaid-tab rn-c-page" data-testid="client-documents">
-      <Head eyebrow="You" title="Documents provided to you" lede="Every disclosure document we've given you, with the version and date." />
+      <Head eyebrow="You" title="Documents" lede="Your schedules, PDS and wording, certificates and receipts, grouped by policy." />
       {err ? <p className="brokaid-form__err" role="alert">{err}</p> : null}
-      {d && !d.documents.length ? <p data-testid="client-documents-empty">Nothing yet.</p> : null}
-      {(d?.documents || []).map((x: any) => (
-        <a key={x.delivery_id} className="rn-c-card" href={`${API}/api/c/documents/download?d=${x.delivery_id}`} data-testid={`client-doc-${x.delivery_id}`}>
-          <span className="rn-c-card__eyebrow">{x.kind === "FSG" ? "Financial Services Guide" : x.kind === "PDS" ? "Product Disclosure Statement" : x.kind === "TMD" ? "Target Market Determination" : "Policy wording"}</span>
-          <span>{x.insurer ? `${x.insurer} · ` : ""}version {x.version} · provided {day(x.at)}</span>
-          <span className="brokaid-next-action__cta">Download →</span>
-        </a>
+      {d && !d.policies.length ? <p data-testid="client-documents-empty">Nothing yet.</p> : null}
+      {(d?.policies || []).map((p: any) => (
+        <div key={p.policy_id} className="mer-card" style={{ marginBottom: 12 }} data-testid={`client-documents-policy-${p.policy_id}`}>
+          <button type="button" className="mer-row" aria-expanded={open === p.policy_id} onClick={() => setOpen(open === p.policy_id ? "" : p.policy_id)}
+            style={{ width: "100%", border: 0, background: "none", textAlign: "left", cursor: "pointer", font: "inherit" }} data-testid={`client-documents-toggle-${p.policy_id}`}>
+            <span className="mer-row__main"><p className="mer-row__t">{p.title}</p><p className="mer-row__s">{p.insurer}</p></span>{open === p.policy_id ? "–" : "+"}
+          </button>
+          {open === p.policy_id ? p.groups.filter((g: any) => g.items.length || g.key === "schedule" || g.key === "pds").map((g: any) => (
+            <div key={g.key} data-testid={`client-documents-${p.policy_id}-${g.key}`}>
+              <p className="mer-doc-g">{g.label}</p>
+              {g.items.map((x: any) => x.download ? (
+                <a key={x.id} className="mer-row" href={`${API}${x.href}`} target="_blank" rel="noreferrer" data-testid={`client-doc-${x.id}`}>
+                  <span className="mer-row__main"><p className="mer-row__t">{x.title}{x.sample ? <span className="mer-sample">SAMPLE</span> : null}</p>
+                    <p className="mer-row__s">{x.subtitle}</p></span>›</a>
+              ) : (
+                <Link key={x.id} className="mer-row" to={x.href} data-testid={`client-doc-${x.id}`}>
+                  <span className="mer-row__main"><p className="mer-row__t">{x.title}</p><p className="mer-row__s">{x.subtitle}</p></span>›</Link>
+              ))}
+              {!g.items.length && g.key === "schedule" && p.ask_schedule ? <AskCopy to={p.ask_schedule} id={`${p.policy_id}-schedule`} what="schedule" /> : null}
+              {!g.items.length && g.key === "pds" && p.ask_pds ? <AskCopy to={p.ask_pds} id={`${p.policy_id}-pds`} what="PDS and wording" /> : null}
+            </div>
+          )) : null}
+        </div>
       ))}
+      {d?.general?.length ? (
+        <div className="mer-card" data-testid="client-documents-general">
+          <p className="mer-doc-g">About your broker</p>
+          {d.general.map((x: any) => (
+            <a key={x.id} className="mer-row" href={`${API}${x.href}`} data-testid={`client-doc-${x.id}`}>
+              <span className="mer-row__main"><p className="mer-row__t">{x.title}</p><p className="mer-row__s">{x.subtitle}</p></span>›</a>
+          ))}
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+function AskCopy({ to, id, what }: { to: string; id: string; what: string }) {
+  return (
+    <div className="mer-row" data-testid={`client-documents-missing-${id}`}>
+      <span className="mer-row__main"><p className="mer-row__s">We don't have a copy of the {what} here yet.</p></span>
+      <Link className="mer-btn mer-btn--ghost" to={to} data-testid={`client-documents-ask-${id}`}>Ask your broker for a copy</Link>
+    </div>
   );
 }
 

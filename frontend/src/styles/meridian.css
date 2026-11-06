@@ -128,3 +128,37 @@
 .mer-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* R3.5: claim photos/videos (thread gallery, pre-send tray). Shared by staff views via plain class names. */
+
+/* R3.12: explainers (popover on desktop, bottom sheet on mobile), next-steps panel, renewal section, documents, people */
+.mer-ex { position: relative; display: inline-block; vertical-align: middle; }
+.mer-ex__btn { width: 22px; height: 22px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--navy);
+  font: 700 12px Inter, sans-serif; cursor: pointer; margin-left: 6px; padding: 0; min-width: 0; min-height: 0; line-height: 20px;
+  transition: background-color .15s, transform .15s; }
+.mer-ex__btn:hover { background: var(--saffron); transform: scale(1.06); }
+.mer-ex__scrim { position: fixed; inset: 0; background: rgba(15,31,61,.35); z-index: 1000; }
+.mer-ex__pop { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1001; background: #fff; color: var(--ink); border-radius: 18px 18px 0 0;
+  padding: 18px 18px 26px; display: flex; flex-direction: column; gap: 10px; font: 400 14px/1.5 Inter, sans-serif; text-align: left;
+  box-shadow: 0 -8px 30px rgba(15,31,61,.18); animation: mer-sheet .2s ease-out; }
+.mer-ex__pop strong { font: 600 16px Sora, Inter, sans-serif; }
+.mer-ex__foot { font-size: 12px; color: var(--muted); }
+.mer-ex__close { background: none; border: 0; color: var(--muted); font: 500 13px Inter, sans-serif; cursor: pointer; padding: 6px; }
+@keyframes mer-sheet { from { transform: translateY(24px); } to { transform: none; } }
+@media (min-width: 768px) {
+  .mer-ex__scrim { background: rgba(15,31,61,.12); }
+  .mer-ex__pop { left: 50%; right: auto; bottom: auto; top: 50%; transform: translate(-50%, -50%); width: 360px; border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(15,31,61,.18); animation: none; }
+}
+.mer-next { background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--saffron); border-radius: 14px; padding: 12px 16px; margin: 12px 0; }
+.mer-next__t { font: 600 14px Sora, Inter, sans-serif; margin: 0 0 6px; }
+.mer-next ol { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.5; }
+.mer-renew { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.mer-renew__t { margin: 0; font-weight: 600; font-size: 15px; }
+.mer-renew__s { margin: 0; font-size: 13px; color: var(--muted); }
+.mer-kv { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 14px; }
+.mer-kv:first-child { border-top: 0; }
+.mer-kv b { font-weight: 600; white-space: nowrap; }
+.mer-doc-g { padding: 10px 14px 4px; font: 600 12px Inter, sans-serif; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 0; }
+.mer-sample { display: inline-block; font: 700 10px Inter, sans-serif; color: var(--bad); border: 1px solid var(--bad); border-radius: 6px; padding: 1px 5px; margin-left: 6px; }
+.mer-form { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+.mer-form input, .mer-form select { font: 400 15px Inter, sans-serif; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.mer-form label { font-size: 14px; display: flex; gap: 8px; align-items: center; }

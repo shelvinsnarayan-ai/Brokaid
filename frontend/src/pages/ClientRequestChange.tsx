@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { EmptyState } from "../components/EmptyState";
+import { NextSteps } from "./client/Explain";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -94,6 +95,7 @@ export function ClientRequestChange() {
           the wording, the market, and the paperwork.
         </p>
       </header>
+      <NextSteps flow="change" />
 
       {state === "error" && (
         <EmptyState

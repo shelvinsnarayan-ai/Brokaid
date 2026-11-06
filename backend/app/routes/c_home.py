@@ -14,7 +14,7 @@ from app.middleware.client_guard import member_clients
 from app.middleware.session import require_session
 
 router = APIRouter(prefix="/api/c", tags=["client-home"])
-FILTERS = ("all", "payments", "claims", "changes", "documents")
+FILTERS = ("all", "payments", "claims", "changes", "renewals", "documents")
 
 
 def _store(request: Request):
@@ -60,7 +60,7 @@ async def home(request: Request, s: Session = Depends(require_session)) -> dict:
     rem = ch.reminders(ctx, now.astimezone(holidays.SYD).date(), await _can_pay(store, s))
     reminded = set(ch.reminded_ids(ctx, now.astimezone(holidays.SYD).date())) if rem else set()  # the reminder replaces its attention card
     return {"greeting": greeting, "client_name": ctx["client"].get("display_name"), "broker": await _broker(store, s.tenant_id),
-            "reminder": rem, "attention": [a for a in ch.attention(ctx, unread, cert) if a.get("payable_id") not in reminded],
+            "reminder": rem, "attention": [a for a in ch.attention(ctx, unread, cert, datetime.now(timezone.utc)) if a.get("payable_id") not in reminded],
             "cover": ch.cover_rows(current, ch._latest_renewals(ctx["renewals"]), now)}
 
 
@@ -89,8 +89,9 @@ async def activity(request: Request, f: str = "all", cursor: int = 0, s: Session
 
 @router.get("/policy/{policy_id}")
 async def policy(policy_id: str, request: Request, s: Session = Depends(require_session)) -> dict:
-    _, ctx = await _ctx(request, s)
-    page = ch.policy_page(ctx, policy_id, datetime.now(timezone.utc)) if ctx else None
+    store, ctx = await _ctx(request, s)
+    lead = (await holidays.tenant_settings(store, s.tenant_id))["renewal_lead_days"]
+    page = ch.policy_page(ctx, policy_id, datetime.now(timezone.utc), lead) if ctx else None
     if not page:
         raise HTTPException(status_code=404, detail="not_found")
     return page

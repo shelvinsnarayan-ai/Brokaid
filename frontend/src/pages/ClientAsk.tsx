@@ -40,7 +40,7 @@ type AskResponse = {
 
 export function ClientAsk() {
   const [thread, setThread] = useState<ThreadItem[]>([]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(() => new URLSearchParams(window.location.search).get("draft")?.slice(0, 2000) || "");
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const listRef = useRef<HTMLOListElement | null>(null);

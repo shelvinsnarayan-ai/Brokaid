@@ -5,7 +5,7 @@ test data. Every query is tenant-scoped and limited to the session's client.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from app.db.tenant_safe import wrap
 from app.kernel import holidays, payments
@@ -169,7 +169,62 @@ def _latest_renewals(rens):
     return out
 
 
-def attention(ctx, unread: int, cert: dict | None) -> list[dict]:
+RENEW_SOON = 60
+
+
+def _ask_href(text: str) -> str:
+    from urllib.parse import quote
+    return f"/c/messages/broker?draft={quote(text)}"
+
+
+def renewal_section(p: dict, rens: list[dict], now, lead: int) -> dict | None:
+    """R3.12 J5: always-visible renewal state + the one button that fits it."""
+    if p.get("status") not in ("managed", "in_force") or not p.get("expiry"):
+        return None
+    mine = [r for r in rens if r["policy_id"] == p["policy_id"]]
+    r = _latest_renewals(mine).get(p["policy_id"])
+    stage = rn.cur(r) if r else None
+    review = {"label": "Review my renewal", "href": f"/c/renewal/{r['renewal_id']}"} if r else None
+    tell = {"label": "Tell us about changes before renewal",
+            "href": _ask_href(f"Before my {p.get('product') or 'policy'} renews, here's what has changed: ")}
+    if stage == "bound":
+        return {"state": "renewed", "text": "Renewed", "renews_on": _long(p.get("expiry")),
+                "action": {"label": "See the new policy", "href": f"/c/policy/{r['new_policy_id']}"} if r.get("new_policy_id") else None}
+    days = _days(p["expiry"], now)
+    if stage == "info_requested":
+        n = len(r.get("checklist") or [])
+        return {"state": "in_progress", "text": f"Renewal in progress: we need {n} thing{'s' if n != 1 else ''} from you",
+                "renews_on": _long(p["expiry"]), "days": days, "action": review}
+    if stage == "client_decision":
+        return {"state": "options", "text": "Options ready to review", "renews_on": _long(p["expiry"]), "days": days, "action": review}
+    if stage and stage not in rn.TERMINAL and stage != "upcoming":
+        return {"state": "in_progress", "text": f"Renewal in progress: {rn.CLIENT_TEXT[stage]}", "renews_on": _long(p["expiry"]),
+                "days": days, "action": review}
+    start = utc(p["expiry"]) - timedelta(days=lead)
+    when = f"We'll start your renewal around {_short(start)}" if start > now else "We're getting ready for your renewal"
+    return {"state": "not_started", "text": f"Renews {_long(p['expiry'])} · {when}", "renews_on": _long(p["expiry"]), "days": days,
+            "action": tell}
+
+
+def _renewal_cards(ctx, now, out: list[dict]) -> None:
+    latest = _latest_renewals(ctx["renewals"])
+    for p in ctx["policies"]:
+        if p.get("status") not in ("managed", "in_force") or not p.get("expiry"):
+            continue
+        r, days = latest.get(p["policy_id"]), _days(p["expiry"], now)
+        stage = rn.cur(r) if r else None
+        if stage in ("client_decision", "paid") or (r and stage in rn.TERMINAL and stage != "lapsed"):
+            continue
+        inflight = stage and stage not in rn.TERMINAL and stage != "upcoming"
+        if not inflight and not 0 <= days <= RENEW_SOON:
+            continue
+        cls = (p.get("product") or "policy").split(" —")[0]
+        out.append({"kind": "renewal_due", "title": f"Your {cls} renews in {days} day{'s' if days != 1 else ''}",
+                    "subtitle": "Review renewal", "policy_id": p["policy_id"],
+                    "href": f"/c/renewal/{r['renewal_id']}" if inflight else f"/c/policy/{p['policy_id']}#renewal"})
+
+
+def attention(ctx, unread: int, cert: dict | None, now=None) -> list[dict]:
     pols = {p["policy_id"]: p for p in ctx["policies"]}
     out = []
     for r in _latest_renewals(ctx["renewals"]).values():
@@ -179,6 +234,7 @@ def attention(ctx, unread: int, cert: dict | None) -> list[dict]:
         elif stage == "paid":
             out.append({"kind": "acceptance_needed", "title": "Acceptance needed", "subtitle": f"{cls} renewal",
                         "href": f"/c/renewal/{r['renewal_id']}"})
+    _renewal_cards(ctx, now or datetime.now(timezone.utc), out)
     for p in ctx["payables"]:
         if payments.state_of(p) in ("owed", "partial"):
             due = _short(p.get("due_date"))
@@ -215,8 +271,8 @@ def activity_items(ctx, policy_id: str | None = None) -> list[dict]:
                           "policy_id": c.get("policy_id"), "href": f"/c/claims/{c['claim_id']}"})
     for r in ctx["renewals"]:
         stage = rn.cur(r)
-        if stage in ("client_decision", "paid", "signed", "bound", "lapsed", "declined"):
-            items.append({"type": "changes", "at": utc(r.get("updated_at") or r.get("created_at")), "title": "Renewal",
+        if stage != "upcoming":
+            items.append({"type": "renewals", "at": utc(r.get("updated_at") or r.get("created_at")), "title": "Renewal",
                           "subtitle": f"{name(r['policy_id'])} — {rn.CLIENT_TEXT[stage]}", "policy_id": r["policy_id"],
                           "href": f"/c/renewal/{r['renewal_id']}"})
     for a in ctx["acceptances"]:
@@ -334,7 +390,29 @@ def panel(ctx, now) -> dict:
     }
 
 
-def policy_page(ctx, policy_id, now) -> dict | None:
+def _key_numbers(p: dict, ex) -> list[dict]:
+    s = p.get("schedule") or {}
+    out = []
+    for c in s.get("cover_types") or []:
+        if c.get("limit_any_one"):
+            out.append({"label": f"{c.get('type') or 'Cover'} limit", "value": money(c["limit_any_one"]), "explain": "limit_of_liability"})
+        elif c.get("sum_insured"):
+            out.append({"label": f"{c.get('type') or 'Cover'} sum insured", "value": money(c["sum_insured"]), "explain": "sum_insured"})
+    for v in s.get("vehicles") or []:
+        for k, key in (("agreed_value", "agreed_value"), ("market_value", "market_value")):
+            if v.get(k):
+                out.append({"label": f"{v.get('rego')} {k.replace('_', ' ')}", "value": money(v[k]), "explain": key})
+    if ex is not None:
+        out.append({"label": "Excess", "value": money(ex), "explain": "excess"})
+    if p.get("premium_amount"):
+        out.append({"label": "Premium (incl. GST and stamp duty)", "value": money(p["premium_amount"]), "explain": "premium"})
+        out.append({"label": "GST and stamp duty", "value": "Included in the premium", "explain": "gst_stamp_duty"})
+    if p.get("expiry"):
+        out.append({"label": "Renewal date", "value": _long(p["expiry"]), "explain": "renewal_date"})
+    return out
+
+
+def policy_page(ctx, policy_id, now, lead: int = 60) -> dict | None:
     pols = {p["policy_id"]: p for p in ctx["policies"]}
     p = pols.get(policy_id)
     if not p or p.get("status") == "archived":
@@ -360,4 +438,5 @@ def policy_page(ctx, policy_id, now) -> dict | None:
             "insurer": p.get("insurer_display"), "status_text": status, "current": p.get("status") in CURRENT,
             "covered": bullets, "excess": money(ex) if ex is not None else None, "summary": s.get("summary"),
             "vehicles": vehicles, "renewal": {"renewal_id": inflight["renewal_id"], "text": rn.CLIENT_TEXT[rn.cur(inflight)]} if inflight else None,
-            "activity": activity_items(ctx, policy_id)[:30], "previous": prev}
+            "activity": activity_items(ctx, policy_id)[:30], "previous": prev,
+            "renewal_section": renewal_section(p, ctx["renewals"], now, lead), "key_numbers": _key_numbers(p, ex)}

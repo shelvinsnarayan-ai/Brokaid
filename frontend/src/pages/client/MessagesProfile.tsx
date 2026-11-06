@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useUnreadStore } from "../../state/unreadStore";
 import { Ico, useC } from "./api";
 import { ClientProfile } from "../ClientProfile";
+import { People } from "./People";
 
 const API = (import.meta as any).env.VITE_API_BASE || "";
 
@@ -81,7 +82,8 @@ export function Profile() {
             onClick={signOut} data-testid="mer-profile-signout"><span className="mer-row__main"><p className="mer-row__t" style={{ color: "#B42318" }}>Sign out</p></span></button>
         </div>
       </section>
-      <section className="mer-sec"><h2 className="mer-sec__title">Business details and people</h2></section>
+      <People />
+      <section className="mer-sec"><h2 className="mer-sec__title">Business details</h2></section>
       <div className="mer-legacy"><ClientProfile /></div>
     </div>
   );

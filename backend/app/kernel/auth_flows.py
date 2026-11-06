@@ -328,7 +328,8 @@ async def use_token(store, row: dict) -> bool:
 
 
 async def create_invite(store, *, tenant_id: str, email: str, name: str, role: str,
-                        client_id: str | None, created_by: str, bootstrap: bool = False) -> tuple[str, dict]:
+                        client_id: str | None, created_by: str, bootstrap: bool = False,
+                        authority: dict | None = None) -> tuple[str, dict]:
     email = email.strip().lower()
     if role not in LOGIN_ROLES and role not in CLIENT_ROLES:
         raise HTTPException(status_code=422, detail="Pick a valid role.")
@@ -348,7 +349,8 @@ async def create_invite(store, *, tenant_id: str, email: str, name: str, role: s
     return await issue_token(store, kind="invite", tenant_id=tenant_id, email=email, ttl=INVITE_TTL,
                              name=(name or "").strip() or (other or {}).get("display_name") or email.split("@")[0],
                              role=role, client_id=client_id if role in CLIENT_ROLES else None,
-                             created_by=created_by, bootstrap=bootstrap)
+                             created_by=created_by, bootstrap=bootstrap,
+                             **({"authority": authority} if authority and role in CLIENT_ROLES else {}))
 
 
 async def apply_invite(store, inv: dict, password: str, existing: dict | None = None) -> dict:
@@ -378,7 +380,7 @@ async def apply_invite(store, inv: dict, password: str, existing: dict | None = 
             if not await safe.memberships.find_one({"user_id": uid, "client_id": cid, "role": role, "revoked_at": None}):
                 await safe.memberships.update_one(
                     {"user_id": uid, "client_id": cid, "role": role},
-                    {"$set": {"authority": ROLE_AUTHORITY[role], "revoked_at": None, "revoked_by": None},
+                    {"$set": {"authority": {**ROLE_AUTHORITY[role], **(inv.get("authority") or {})}, "revoked_at": None, "revoked_by": None},
                      "$setOnInsert": {"membership_id": str(uuid.uuid4()), "user_id": uid, "client_id": cid, "role": role,
                                       "created_at": now(), "created_by": inv.get("created_by")}},
                     upsert=True)

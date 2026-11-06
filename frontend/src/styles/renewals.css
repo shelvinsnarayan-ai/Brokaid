@@ -31,3 +31,5 @@
 .rn-c-q input, .rn-c-q textarea { padding: 8px; border-radius: 8px; border: 1px solid var(--line, rgba(0, 0, 0, 0.2)); font: inherit; }
 .rn-c-warn { font-size: 0.8rem; opacity: 0.8; font-style: italic; }
 .rn-c-download { justify-self: start; display: inline-flex; align-items: center; min-height: 40px; text-decoration: none; margin-bottom: 4px; }
+.rn-c-value { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 6px 0; border-bottom: 1px solid #E4E7EE; }
+.rn-c-value input[inputmode] { flex-basis: 100%; }

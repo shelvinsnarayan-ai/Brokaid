@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authCall } from "../../lib/authApi";
 import { uploadClaimFile } from "./upload";
+import { NextSteps } from "../client/Explain";
 
 const SUBTYPES: Record<string, string[]> = { motor: ["accident", "theft", "glass", "hail"], property: ["damage"], liability: ["third_party"], other: ["other"] };
 const CLASS_LABEL: Record<string, string> = { motor: "Motor", property: "Property damage", liability: "Liability", other: "Other" };
@@ -63,6 +64,7 @@ export function ClaimsNew() {
   return (
     <section className="brokaid-tab" data-testid="claims-new-root">
       <header className="brokaid-tab__head"><p className="brokaid-tab__eyebrow">Claims / New</p><h1 className="brokaid-tab__title">Make a claim</h1></header>
+      <NextSteps flow="claim" />
       <form className="brokaid-fnol" onSubmit={submit} data-testid="fnol-form">
         <label className="brokaid-field"><span>Which policy?</span>
           <select value={f.policy_id} onChange={(e) => set("policy_id", e.target.value)} data-testid="fnol-policy">

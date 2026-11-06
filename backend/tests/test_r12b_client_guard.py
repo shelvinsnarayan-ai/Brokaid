@@ -12,7 +12,7 @@ from app.kernel.tenant_ctx import use_tenant
 from tests.test_r12_auth import run
 from tests.test_r12b import CLIENT, _client_session
 
-ID_PARAMS = {"policy_id", "envelope_id", "certificate_id", "claim_id", "membership_id", "renewal_id"}
+ID_PARAMS = {"policy_id", "envelope_id", "certificate_id", "claim_id", "membership_id", "renewal_id", "doc_id", "invite_id"}
 NESTED = {"file_id", "req_id"}  # R1.8: only ever under a guarded claim_id
 
 
@@ -39,6 +39,10 @@ async def _foreign(db, tid):
                                            "role": "bookkeeper", "authority": {}, "revoked_at": None})
         renewal = str(uuid.uuid4())
         await safe.renewals.insert_one({"renewal_id": renewal, "client_id": foreign_cid, "policy_id": p["policy_id"], "stage": "info_requested"})
+        doc, invite = str(uuid.uuid4()), str(uuid.uuid4())
+        await safe.policy_documents.insert_one({"doc_id": doc, "client_id": foreign_cid, "policy_id": p["policy_id"], "kind": "schedule"})
+        await safe.system("auth_tokens").insert_one({"token_id": invite, "kind": "invite", "tenant_id": tid, "client_id": foreign_cid,
+                                                     "used_at": None, "revoked_at": None})
     env, cert, thread = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
     sys = {"kind": "system", "id": "test", "name": "test"}
     await af.ledger(db, tid, "EnvelopeOpened", sys, {"envelope_id": env, "policy_id": p["policy_id"]})
@@ -46,7 +50,7 @@ async def _foreign(db, tid):
     await af.ledger(db, tid, "ClientQuestionAsked", sys, {"envelope_id": thread, "client_id": foreign_cid, "message": "x"})
     return {"policy_id": p["policy_id"], "envelope_id": env, "certificate_id": cert, "claim_id": claim,
             "membership_id": mem, "thread_id": thread, "renewal_id": renewal, "file_id": str(uuid.uuid4()),
-            "req_id": str(uuid.uuid4())}, own["policy_id"]
+            "req_id": str(uuid.uuid4()), "doc_id": doc, "invite_id": invite}, own["policy_id"]
 
 
 def test_every_c_route_with_an_object_id_hides_foreign_client_objects():

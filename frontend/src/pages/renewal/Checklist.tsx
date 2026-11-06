@@ -32,6 +32,24 @@ export function RenewalChecklist({ items, busy, onSubmit }: { items: Item[]; bus
               {a.address.confirmed === false ? <input placeholder="New address" onChange={(e) => set("address", { new_address: e.target.value })} data-testid="checklist-address-new" /> : null}
             </>
           ) : null}
+          {it.kind === "values" ? (
+            <>
+              {it.current.map((v: any) => {
+                const cur = a.values?.items?.[v.id] || { confirmed: true };
+                const put = (x: any) => set("values", { items: { ...(a.values?.items || {}), [v.id]: { ...cur, ...x } } });
+                return (
+                  <span key={v.id} className="rn-c-value" data-testid={`checklist-value-${v.id}`}>
+                    <span>{v.label}: <b>${Number(v.current).toLocaleString("en-AU")}</b></span>
+                    <label><input type="radio" checked={cur.confirmed} onChange={() => put({ confirmed: true })} data-testid={`checklist-value-${v.id}-ok`} /> Still right</label>
+                    <label><input type="radio" checked={!cur.confirmed} onChange={() => put({ confirmed: false })} data-testid={`checklist-value-${v.id}-change`} /> Change it</label>
+                    {!cur.confirmed ? <input inputMode="numeric" placeholder="New amount (A$)" onChange={(e) => put({ requested: e.target.value })}
+                      data-testid={`checklist-value-${v.id}-amount`} /> : null}
+                  </span>
+                );
+              })}
+              <span className="rn-c-warn">Changes are requests: your broker checks them with the insurer before anything changes.</span>
+            </>
+          ) : null}
           {it.kind === "money" ? <input inputMode="numeric" placeholder="e.g. 1,200,000" onChange={(e) => set("turnover", { value: e.target.value })} data-testid="checklist-turnover" /> : null}
           {it.kind === "claims" ? (
             <>

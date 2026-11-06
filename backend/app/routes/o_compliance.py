@@ -403,8 +403,26 @@ async def _mine(request, s) -> set:
 
 @c_router.get("/documents")
 async def my_documents(request: Request, s=Depends(_client)) -> dict:
+    from app.kernel.client_library import client_visible
     rows = await cd.deliveries_for(_store(request), s.tenant_id, await _mine(request, s))
-    return {"documents": rows}
+    return {"documents": [{k: v for k, v in r.items() if k != "sha256"} for r in rows if client_visible(r)]}
+
+
+@c_router.get("/documents/library")
+async def my_library(request: Request, s=Depends(_client)) -> dict:
+    from app.kernel.client_library import library
+    cid = await _pick(request, s, s.client_id)
+    return await library(_store(request), s.tenant_id, cid)
+
+
+@c_router.get("/documents/file/{doc_id}")
+async def my_file(doc_id: str, request: Request, s=Depends(_client)) -> Response:
+    from app.kernel.client_library import file_for
+    f = await file_for(_store(request), s.tenant_id, await _mine(request, s), doc_id)
+    if not f:
+        raise HTTPException(status_code=404, detail="not_found")
+    data, _ = await object_store.get_object(f["storage_path"])
+    return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{f["filename"]}"'})
 
 
 async def _download(path: str, filename: str, ctype: str) -> Response:
@@ -418,7 +436,8 @@ async def download_doc(d: str, request: Request, s=Depends(_client)) -> Response
     async with use_tenant(s.tenant_id):
         row = await wrap(store).doc_deliveries.find_one({"delivery_id": d})
         doc = row and await wrap(store).disclosure_docs.find_one({"doc_id": row["doc_id"]})
-    if not row or row["client_id"] not in await _mine(request, s) or not doc:
+    from app.kernel.client_library import client_visible
+    if not row or row["client_id"] not in await _mine(request, s) or not doc or not client_visible(row):
         raise HTTPException(status_code=404, detail="not_found")
     return await _download(doc["storage_path"], doc["filename"], doc.get("content_type") or "application/pdf")
 

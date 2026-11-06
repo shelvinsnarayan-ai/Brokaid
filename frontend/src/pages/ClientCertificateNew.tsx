@@ -16,6 +16,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { fmtDate } from "../lib/format";
+import { NextSteps } from "./client/Explain";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -199,6 +200,7 @@ export function ClientCertificateNew() {
           panel or contract partner. Ready in under two minutes.
         </p>
       </header>
+      <NextSteps flow="certificate" />
 
       <nav className="brokaid-cert-steps" aria-label="Progress">
         {stepPill(1, "Holder")}

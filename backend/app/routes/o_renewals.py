@@ -340,8 +340,12 @@ async def _client_load(request, s, renewal_id):
 
 async def _client_detail(store, tid, r):
     pay = await rn.payable(store, tid, r)
-    return _client_view(r, pay, await payments.get_settings(store, tid), rn.comparison(r, await rn._policy(store, tid, r["policy_id"])),
-                        await holidays.quoting_mode(store, tid))
+    policy = await rn._policy(store, tid, r["policy_id"])
+    out = _client_view(r, pay, await payments.get_settings(store, tid), rn.comparison(r, policy), await holidays.quoting_mode(store, tid))
+    if out["checklist"] is not None and not any(i["key"] == "values" for i in out["checklist"]) and (vals := rn.key_values(policy)):
+        out["checklist"] = [*out["checklist"][:-3], {"key": "values", "kind": "values", "current": vals,
+                            "question": "Are these sums insured and key values still right?"}, *out["checklist"][-3:]]
+    return out
 
 
 @c_router.get("/renewal/{renewal_id}/comparison.pdf")

@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { MockedBadge } from "@brokaid/mocks";
 import { fmtAud, fmtDate } from "../lib/format";
+import { NextSteps } from "./client/Explain";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -78,6 +79,7 @@ export function ClientPay() {
           you've paid. Your broker confirms receipt separately.
         </p>
       </header>
+      <NextSteps flow="pay" />
 
       <article className="brokaid-quote-card brokaid-pay-card" data-testid="pay-card">
         <div className="brokaid-quote-card__head">

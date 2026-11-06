@@ -9,7 +9,7 @@ interface Side {
   total_due: string | null; last_received: { amount: string; date: string; policy: string } | null;
   next_renewal: { date: string; policy: string; href: string } | null; open_claims: { count: number; href: string };
 }
-const CHIPS = [["all", "All"], ["payments", "Payments"], ["claims", "Claims"], ["changes", "Changes"], ["documents", "Documents"]];
+const CHIPS = [["all", "All"], ["payments", "Payments"], ["claims", "Claims"], ["changes", "Changes"], ["renewals", "Renewals"], ["documents", "Documents"]];
 
 export function Feed({ items, testid }: { items: Item[]; testid: string }) {
   const days: [string, Item[]][] = [];

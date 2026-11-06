@@ -52,6 +52,8 @@ STAFF_REVIEW = dict(kind="broker_review", to=("staff", ("ae",)), title="A reques
                     many="{n} requests need a broker", body="{client} has a request waiting for broker review.",
                     link="/o/queue/{envelope_id}")
 RULES: dict[str, dict] = {
+    "ClientMemberInvited": dict(kind="broker_review", to=("staff", ("ae",)), title="{client} invited someone to their account",
+                                many="{n} people invited by {client}", body="FYI only — no approval needed.", link="/o/clients"),
     "ClientQuestionAsked": dict(kind="client_question", to=("staff", ("ae", "principal")),
                                 title="New question from {client}{attach}", many="{n} new questions from {client}",
                                 body="Reply by {reply_by}.", link="/o/inbox/{thread_id}"),

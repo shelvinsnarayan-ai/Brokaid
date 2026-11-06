@@ -145,6 +145,49 @@ async def _move(store, tid, r, to, *, by="system", role="renewals", now=None, no
 
 
 # ---- start ----
+def key_values(policy: dict) -> list[dict]:
+    """R3.12 J5: values the client confirms at renewal; ids are schedule paths that policy_field_guard checks."""
+    s = policy.get("schedule") or {}
+    out = []
+    for c in s.get("cover_types") or []:
+        amt, kind = (c.get("limit_any_one"), "Limit") if c.get("limit_any_one") else (c.get("sum_insured"), "Sum insured")
+        if amt and c.get("type"):
+            out.append({"id": f"limits.{c['type'].strip().lower().replace(' ', '_')}", "label": f"{c['type']} · {kind.lower()}",
+                        "current": amt})
+    for v in s.get("vehicles") or []:
+        for k in ("agreed_value", "market_value"):
+            if v.get(k) and v.get("rego"):
+                out.append({"id": f"vehicles[{v['rego']}].{k}", "label": f"{v['rego']} · {k.replace('_', ' ')}", "current": v[k]})
+    return out
+
+
+def assess_values(policy: dict, ans: dict) -> tuple[list[dict], list[str], dict]:
+    held = {v["id"]: v for v in key_values(policy)}
+    changes, issues, counts = [], [], {"confirmed": 0, "requested": 0}
+    for vid, a in ((ans or {}).get("items") or {}).items():
+        v = held.get(vid)
+        if v is None:
+            issues.append(f"Doesn't match the policy: unknown value ({str(vid)[:60]}).")
+            continue
+        if (a or {}).get("confirmed", True):
+            counts["confirmed"] += 1
+            continue
+        m = _money((a or {}).get("requested"))
+        if m is None:
+            issues.append(f"The client asked to change {v['label']} but didn't give an amount we can use.")
+            continue
+        ch = {"field_path": f"schedule.{vid}", "operation": "set", "from_value": v["current"], "to_value": str(m), "request": True}
+        try:
+            validate_requested_changes(policy, [ch])
+        except UnmatchedPolicyField as e:
+            issues.append(f"Doesn't match the policy: {e.reason} ({e.attempted}).")
+            continue
+        counts["requested"] += 1
+        changes.append(ch)
+        issues.append(f"Client asked to change {v['label']} from A${v['current']:,} to A${m:,} — broker to review.")
+    return changes, issues, counts
+
+
 def checklist(policy: dict) -> list[dict]:
     s = policy.get("schedule") or {}
     items = []
@@ -155,6 +198,8 @@ def checklist(policy: dict) -> list[dict]:
     if s.get("addresses"):
         items.append({"key": "address", "kind": "address", "question": "Is this still your business address?",
                       "current": s["addresses"][0] if isinstance(s["addresses"][0], str) else s["addresses"][0].get("address")})
+    if (vals := key_values(policy)):
+        items.append({"key": "values", "kind": "values", "question": "Are these sums insured and key values still right?", "current": vals})
     items += [{"key": "turnover", "kind": "money", "question": "Expected turnover for the next 12 months (A$)",
                "current": s.get("turnover")},
               {"key": "claims", "kind": "claims", "question": "Any claims or incidents since last year?"},
@@ -232,6 +277,10 @@ def assess_answers(policy: dict, answers: dict) -> tuple[list[dict], list[str], 
             ok.append(ch)
         except UnmatchedPolicyField as e:
             issues.append(f"Doesn't match the policy: {e.reason} ({e.attempted}).")
+    if a.get("values"):
+        vch, viss, facts["values"] = assess_values(policy, a["values"])
+        ok += vch
+        issues += viss
     t = (a.get("turnover") or {}).get("value")
     if t not in (None, ""):
         if (m := _money(t)) is None:
@@ -261,6 +310,10 @@ async def submit_info(store, tid, r, answers: dict, *, by, role, now=None) -> di
                                                       "policy_id": r["policy_id"], "answers_sha256": sha, "changes": len(ok),
                                                       "issues": len(issues), "test": bool(r.get("test"))},
                  f"renewal_info:{r['renewal_id']}:{sha[:16]}", by, role)
+    if facts.get("values"):
+        await _event(store, tid, "RenewalValuesReviewed", {"renewal_id": r["renewal_id"], "policy_id": r["policy_id"],
+                                                           **facts["values"], "test": bool(r.get("test"))},
+                     f"renewal_values:{r['renewal_id']}:{sha[:16]}", by, role)
     return await _move(store, tid, r, "info_received", by=by, role=role, now=now,
                        note="needs broker review" if issues else None)
 
