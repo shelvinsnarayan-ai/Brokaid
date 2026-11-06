@@ -1,0 +1,526 @@
+{
+ "model": "Gemini 3.1 Pro",
+ "provider": "gemini",
+ "model_id": "gemini-3.1-pro-preview",
+ "output": {
+  "heuristics": {
+   "visibility": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-HOME-390",
+      "C-TRACKER-390",
+      "C-ACTIVITY-390"
+     ],
+     "reasoning": "System status is highly visible via attention cards on Home, claim tracker stages, and activity timelines.",
+     "fix": "None required; visibility meets standards."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-390",
+      "B-ALERTS-390",
+      "B-RENEWALS-1280"
+     ],
+     "reasoning": "Queue clearly shows overdue status and what is needed, while alerts provide unread counts.",
+     "fix": "None required; visibility meets standards."
+    }
+   },
+   "real_world": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-EXPLAIN-390",
+      "C-CHANGE-390",
+      "C-CERT-390"
+     ],
+     "reasoning": "Uses plain language ('What happens next') and provides explainer tooltips for insurance jargon.",
+     "fix": "None required; language matches user expectations."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-390",
+      "B-CLIENT-390",
+      "B-CLAIM-390"
+     ],
+     "reasoning": "Uses appropriate industry terminology (Endorsement, Structure the risk) suited for professional brokers.",
+     "fix": "None required; terminology is accurate for the domain."
+    }
+   },
+   "control": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-CERT-390",
+      "C-CLAIM-NEW-390",
+      "C-PROFILE-390"
+     ],
+     "reasoning": "Users can easily cancel requests and manage/remove invited users from their account.",
+     "fix": "None required; user control is sufficient."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-PR-APPROVAL-390",
+      "B-CLAIM-MSG-390"
+     ],
+     "reasoning": "Brokers can review, approve, reject, or edit and resend drafts.",
+     "fix": "None required; workflow controls are robust."
+    }
+   },
+   "consistency": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-HOME-390",
+      "C-POLICY-390",
+      "C-ACTIVITY-390"
+     ],
+     "reasoning": "Consistent bottom bar navigation, card layouts, and typography across all screens.",
+     "fix": "None required; design system is consistently applied."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-CLAIMS-1280",
+      "B-RENEWALS-1280"
+     ],
+     "reasoning": "Consistent table layouts, filtering mechanisms, and dark mode application across the portal.",
+     "fix": "None required; interface is highly consistent."
+    }
+   },
+   "error_prevention": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-CHANGE-390",
+      "C-EXPLAIN-390",
+      "C-RENEWAL-390"
+     ],
+     "reasoning": "'What happens next' panels and explainers prevent misunderstandings before submission.",
+     "fix": "None required; proactive guidance prevents errors."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-PR-APPROVAL-390",
+      "B-OP-GOV-390"
+     ],
+     "reasoning": "Principal approval workflows for advice and operator release checks prevent compliance and system errors.",
+     "fix": "None required; strong governance mechanisms in place."
+    }
+   },
+   "recognition": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-HOME-390",
+      "C-DOCUMENTS-390"
+     ],
+     "reasoning": "Cover cards on Home and logically grouped documents by policy minimize memory load.",
+     "fix": "None required; information architecture supports recognition."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-CLIENT-390",
+      "B-AE-QUEUE-390"
+     ],
+     "reasoning": "Client 360 view and contextual queue rows provide all necessary information without requiring recall.",
+     "fix": "None required; contextual information is readily available."
+    }
+   },
+   "flexibility": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-PLUS-390",
+      "C-HOME-390"
+     ],
+     "reasoning": "The quick action '+' button and direct attention cards provide efficient shortcuts for common tasks.",
+     "fix": "None required; efficient pathways exist for key actions."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-CLAIMS-1280"
+     ],
+     "reasoning": "Keyboard shortcuts and comprehensive filtering options accelerate workflows for expert users.",
+     "fix": "None required; highly efficient for power users."
+    }
+   },
+   "aesthetic": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-HOME-390",
+      "C-POLICY-390"
+     ],
+     "reasoning": "Clean, minimalist design with excellent use of whitespace and clear visual hierarchy.",
+     "fix": "None required; visually pleasing and uncluttered."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-CLIENT-1280"
+     ],
+     "reasoning": "Information-dense yet organized layout with a dark theme suitable for prolonged professional use.",
+     "fix": "None required; balances density with readability."
+    }
+   },
+   "recovery": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-DOCUMENTS-390"
+     ],
+     "reasoning": "Provides clear fallback actions like 'Ask your broker for a copy' when documents are missing.",
+     "fix": "None required; graceful degradation is present."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-PR-APPROVAL-390"
+     ],
+     "reasoning": "Allows editing and resending of withdrawn or rejected drafts.",
+     "fix": "None required; clear recovery paths for rejected items."
+    }
+   },
+   "help": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-EXPLAIN-390",
+      "C-PROFILE-390"
+     ],
+     "reasoning": "In-context explainers and easy access to contact the broker provide sufficient help.",
+     "fix": "None required; help is contextual and accessible."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-CLAIM-390"
+     ],
+     "reasoning": "Staff help tooltips and 'How this works' playbooks guide complex processes.",
+     "fix": "None required; documentation is integrated into the workflow."
+    }
+   },
+   "am_i_covered": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-POLICY-390",
+      "C-HOME-390"
+     ],
+     "reasoning": "Policy details explicitly list 'What you're covered for', limits, and excess at a glance.",
+     "fix": "None required; coverage details are highly transparent."
+    },
+    "broker": {
+     "score": "n/a",
+     "evidence": [],
+     "reasoning": "Not applicable for broker surface.",
+     "fix": "n/a"
+    }
+   },
+   "who_by_when": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-TRACKER-390",
+      "C-CHANGE-390"
+     ],
+     "reasoning": "Claim tracker shows the handler, and 'What happens next' panels set clear SLA expectations (e.g., 1 business day).",
+     "fix": "None required; accountability and timelines are clear."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-390",
+      "B-RENEWALS-1280"
+     ],
+     "reasoning": "Queues explicitly show 'Due by' times and assigned Account Executives.",
+     "fix": "None required; task ownership and deadlines are prominent."
+    }
+   },
+   "no_engine": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-TRACKER-390",
+      "C-ACTIVITY-390"
+     ],
+     "reasoning": "No raw JSON or system UUIDs are exposed in the UI text; formatted IDs (e.g., CLM-...) are used appropriately.",
+     "fix": "None required; engine details are properly abstracted."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-CLAIM-390",
+      "B-CLIENT-390"
+     ],
+     "reasoning": "Timelines use plain sentences rather than raw system logs or JSON.",
+     "fix": "None required; backend complexity is hidden from staff."
+    }
+   },
+   "regulatory": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-RENEWAL-390",
+      "C-MESSAGES-390",
+      "C-DOCUMENTS-390"
+     ],
+     "reasoning": "General advice warnings are correctly placed on recommendations and messages; FSG is available in Documents.",
+     "fix": "None required; regulatory requirements appear satisfied."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-PR-APPROVAL-390",
+      "B-OP-GOV-390"
+     ],
+     "reasoning": "Principal approval enforces compliance for advice, and Operator Governance provides oversight.",
+     "fix": "None required; compliance workflows are enforced."
+    }
+   }
+  },
+  "tasks": {
+   "J1": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Cover cards on Home provide immediate visibility; tapping one gives full details."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Cover cards on Home provide immediate visibility; tapping one gives full details."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Cover cards on Home provide immediate visibility; tapping one gives full details."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Cover cards on Home provide immediate visibility; tapping one gives full details."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Cover cards on Home provide immediate visibility; tapping one gives full details."
+    },
+    "professional": {
+     "success": "n/a",
+     "measured_taps": null,
+     "friction": "n/a"
+    }
+   },
+   "J2": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Clear step-by-step wizard accessible via the '+' menu."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Clear step-by-step wizard accessible via the '+' menu."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Clear step-by-step wizard accessible via the '+' menu."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Clear step-by-step wizard accessible via the '+' menu."
+    },
+    "household": {
+     "success": "n/a",
+     "measured_taps": null,
+     "friction": "n/a"
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Clear step-by-step wizard accessible via the '+' menu."
+    }
+   },
+   "J3": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Simple form with clear expectations and easy photo upload."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Simple form with clear expectations and easy photo upload."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Simple form with clear expectations and easy photo upload."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Simple form with clear expectations and easy photo upload."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Simple form with clear expectations and easy photo upload."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Simple form with clear expectations and easy photo upload."
+    }
+   },
+   "J4": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Attention card on Home links directly to payment details."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Attention card on Home links directly to payment details."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Attention card on Home links directly to payment details."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Attention card on Home links directly to payment details."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Attention card on Home links directly to payment details."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Attention card on Home links directly to payment details."
+    }
+   },
+   "J5": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Renewal card on Home leads straight to the review checklist."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Renewal card on Home leads straight to the review checklist."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Renewal card on Home leads straight to the review checklist."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Renewal card on Home leads straight to the review checklist."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Renewal card on Home leads straight to the review checklist."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Renewal card on Home leads straight to the review checklist."
+    }
+   },
+   "J6": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Profile section makes inviting and managing roles straightforward."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Profile section makes inviting and managing roles straightforward."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Profile section makes inviting and managing roles straightforward."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Profile section makes inviting and managing roles straightforward."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Profile section makes inviting and managing roles straightforward."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Profile section makes inviting and managing roles straightforward."
+    }
+   },
+   "J7": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Documents library is logically grouped by policy and term."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Documents library is logically grouped by policy and term."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Documents library is logically grouped by policy and term."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Documents library is logically grouped by policy and term."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Documents library is logically grouped by policy and term."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Documents library is logically grouped by policy and term."
+    }
+   }
+  }
+ },
+ "raw": "{\n  \"heuristics\": {\n    \"visibility\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-TRACKER-390\",\n          \"C-ACTIVITY-390\"\n        ],\n        \"reasoning\": \"System status is highly visible via attention cards on Home, claim tracker stages, and activity timelines.\",\n        \"fix\": \"None required; visibility meets standards.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-QUEUE-390\",\n          \"B-ALERTS-390\",\n          \"B-RENEWALS-1280\"\n        ],\n        \"reasoning\": \"Queue clearly shows overdue status and what is needed, while alerts provide unread counts.\",\n        \"fix\": \"None required; visibility meets standards.\"\n      }\n    },\n    \"real_world\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-EXPLAIN-390\",\n          \"C-CHANGE-390\",\n          \"C-CERT-390\"\n        ],\n        \"reasoning\": \"Uses plain language ('What happens next') and provides explainer tooltips for insurance jargon.\",\n        \"fix\": \"None required; language matches user expectations.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-QUEUE-390\",\n          \"B-CLIENT-390\",\n          \"B-CLAIM-390\"\n        ],\n        \"reasoning\": \"Uses appropriate industry terminology (Endorsement, Structure the risk) suited for professional brokers.\",\n        \"fix\": \"None required; terminology is accurate for the domain.\"\n      }\n    },\n    \"control\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-CERT-390\",\n          \"C-CLAIM-NEW-390\",\n          \"C-PROFILE-390\"\n        ],\n        \"reasoning\": \"Users can easily cancel requests and manage/remove invited users from their account.\",\n        \"fix\": \"None required; user control is sufficient.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-PR-APPROVAL-390\",\n          \"B-CLAIM-MSG-390\"\n        ],\n        \"reasoning\": \"Brokers can review, approve, reject, or edit and resend drafts.\",\n        \"fix\": \"None required; workflow controls are robust.\"\n      }\n    },\n    \"consistency\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-POLICY-390\",\n          \"C-ACTIVITY-390\"\n        ],\n        \"reasoning\": \"Consistent bottom bar navigation, card layouts, and typography across all screens.\",\n        \"fix\": \"None required; design system is consistently applied.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-QUEUE-1280\",\n          \"B-CLAIMS-1280\",\n          \"B-RENEWALS-1280\"\n        ],\n        \"reasoning\": \"Consistent table layouts, filtering mechanisms, and dark mode application across the portal.\",\n        \"fix\": \"None required; interface is highly consistent.\"\n      }\n    },\n    \"error_prevention\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-CHANGE-390\",\n          \"C-EXPLAIN-390\",\n          \"C-RENEWAL-390\"\n        ],\n        \"reasoning\": \"'What happens next' panels and explainers prevent misunderstandings before submission.\",\n        \"fix\": \"None required; proactive guidance prevents errors.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-PR-APPROVAL-390\",\n          \"B-OP-GOV-390\"\n        ],\n        \"reasoning\": \"Principal approval workflows for advice and operator release checks prevent compliance and system errors.\",\n        \"fix\": \"None required; strong governance mechanisms in place.\"\n      }\n    },\n    \"recognition\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-DOCUMENTS-390\"\n        ],\n        \"reasoning\": \"Cover cards on Home and logically grouped documents by policy minimize memory load.\",\n        \"fix\": \"None required; information architecture supports recognition.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-CLIENT-390\",\n          \"B-AE-QUEUE-390\"\n        ],\n        \"reasoning\": \"Client 360 view and contextual queue rows provide all necessary information without requiring recall.\",\n        \"fix\": \"None required; contextual information is readily available.\"\n      }\n    },\n    \"flexibility\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-PLUS-390\",\n          \"C-HOME-390\"\n        ],\n        \"reasoning\": \"The quick action '+' button and direct attention cards provide efficient shortcuts for common tasks.\",\n        \"fix\": \"None required; efficient pathways exist for key actions.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-QUEUE-1280\",\n          \"B-CLAIMS-1280\"\n        ],\n        \"reasoning\": \"Keyboard shortcuts and comprehensive filtering options accelerate workflows for expert users.\",\n        \"fix\": \"None required; highly efficient for power users.\"\n      }\n    },\n    \"aesthetic\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-POLICY-390\"\n        ],\n        \"reasoning\": \"Clean, minimalist design with excellent use of whitespace and clear visual hierarchy.\",\n        \"fix\": \"None required; visually pleasing and uncluttered.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-QUEUE-1280\",\n          \"B-CLIENT-1280\"\n        ],\n        \"reasoning\": \"Information-dense yet organized layout with a dark theme suitable for prolonged professional use.\",\n        \"fix\": \"None required; balances density with readability.\"\n      }\n    },\n    \"recovery\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-DOCUMENTS-390\"\n        ],\n        \"reasoning\": \"Provides clear fallback actions like 'Ask your broker for a copy' when documents are missing.\",\n        \"fix\": \"None required; graceful degradation is present.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-PR-APPROVAL-390\"\n        ],\n        \"reasoning\": \"Allows editing and resending of withdrawn or rejected drafts.\",\n        \"fix\": \"None required; clear recovery paths for rejected items.\"\n      }\n    },\n    \"help\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-EXPLAIN-390\",\n          \"C-PROFILE-390\"\n        ],\n        \"reasoning\": \"In-context explainers and easy access to contact the broker provide sufficient help.\",\n        \"fix\": \"None required; help is contextual and accessible.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-CLAIM-390\"\n        ],\n        \"reasoning\": \"Staff help tooltips and 'How this works' playbooks guide complex processes.\",\n        \"fix\": \"None required; documentation is integrated into the workflow.\"\n      }\n    },\n    \"am_i_covered\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-POLICY-390\",\n          \"C-HOME-390\"\n        ],\n        \"reasoning\": \"Policy details explicitly list 'What you're covered for', limits, and excess at a glance.\",\n        \"fix\": \"None required; coverage details are highly transparent.\"\n      },\n      \"broker\": {\n        \"score\": \"n/a\",\n        \"evidence\": [],\n        \"reasoning\": \"Not applicable for broker surface.\",\n        \"fix\": \"n/a\"\n      }\n    },\n    \"who_by_when\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-TRACKER-390\",\n          \"C-CHANGE-390\"\n        ],\n        \"reasoning\": \"Claim tracker shows the handler, and 'What happens next' panels set clear SLA expectations (e.g., 1 business day).\",\n        \"fix\": \"None required; accountability and timelines are clear.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-QUEUE-390\",\n          \"B-RENEWALS-1280\"\n        ],\n        \"reasoning\": \"Queues explicitly show 'Due by' times and assigned Account Executives.\",\n        \"fix\": \"None required; task ownership and deadlines are prominent.\"\n      }\n    },\n    \"no_engine\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-TRACKER-390\",\n          \"C-ACTIVITY-390\"\n        ],\n        \"reasoning\": \"No raw JSON or system UUIDs are exposed in the UI text; formatted IDs (e.g., CLM-...) are used appropriately.\",\n        \"fix\": \"None required; engine details are properly abstracted.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-CLAIM-390\",\n          \"B-CLIENT-390\"\n        ],\n        \"reasoning\": \"Timelines use plain sentences rather than raw system logs or JSON.\",\n        \"fix\": \"None required; backend complexity is hidden from staff.\"\n      }\n    },\n    \"regulatory\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-RENEWAL-390\",\n          \"C-MESSAGES-390\",\n          \"C-DOCUMENTS-390\"\n        ],\n        \"reasoning\": \"General advice warnings are correctly placed on recommendations and messages; FSG is available in Documents.\",\n        \"fix\": \"None required; regulatory requirements appear satisfied.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-PR-APPROVAL-390\",\n          \"B-OP-GOV-390\"\n        ],\n        \"reasoning\": \"Principal approval enforces compliance for advice, and Operator Governance provides oversight.\",\n        \"fix\": \"None required; compliance workflows are enforced.\"\n      }\n    }\n  },\n  \"tasks\": {\n    \"J1\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Cover cards on Home provide immediate visibility; tapping one gives full details.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Cover cards on Home provide immediate visibility; tapping one gives full details.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Cover cards on Home provide immediate visibility; tapping one gives full details.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Cover cards on Home provide immediate visibility; tapping one gives full details.\"\n      },\n      \"household\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Cover cards on Home provide immediate visibility; tapping one gives full details.\"\n      },\n      \"professional\": {\n        \"success\": \"n/a\",\n        \"measured_taps\": null,\n        \"friction\": \"n/a\"\n      }\n    },\n    \"J2\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Clear step-by-step wizard accessible via the '+' menu.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Clear step-by-step wizard accessible via the '+' menu.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Clear step-by-step wizard accessible via the '+' menu.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Clear step-by-step wizard accessible via the '+' menu.\"\n      },\n      \"household\": {\n        \"success\": \"n/a\",\n        \"measured_taps\": null,\n        \"friction\": \"n/a\"\n      },\n      \"professional\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Clear step-by-step wizard accessible via the '+' menu.\"\n      }\n    },\n    \"J3\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Simple form with clear expectations and easy photo upload.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Simple form with clear expectations and easy photo upload.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Simple form with clear expectations and easy photo upload.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Simple form with clear expectations and easy photo upload.\"\n      },\n      \"household\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Simple form with clear expectations and easy photo upload.\"\n      },\n      \"professional\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Simple form with clear expectations and easy photo upload.\"\n      }\n    },\n    \"J4\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Attention card on Home links directly to payment details.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Attention card on Home links directly to payment details.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Attention card on Home links directly to payment details.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Attention card on Home links directly to payment details.\"\n      },\n      \"household\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Attention card on Home links directly to payment details.\"\n      },\n      \"professional\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Attention card on Home links directly to payment details.\"\n      }\n    },\n    \"J5\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Renewal card on Home leads straight to the review checklist.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Renewal card on Home leads straight to the review checklist.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Renewal card on Home leads straight to the review checklist.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Renewal card on Home leads straight to the review checklist.\"\n      },\n      \"household\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Renewal card on Home leads straight to the review checklist.\"\n      },\n      \"professional\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Renewal card on Home leads straight to the review checklist.\"\n      }\n    },\n    \"J6\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Profile section makes inviting and managing roles straightforward.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Profile section makes inviting and managing roles straightforward.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Profile section makes inviting and managing roles straightforward.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Profile section makes inviting and managing roles straightforward.\"\n      },\n      \"household\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Profile section makes inviting and managing roles straightforward.\"\n      },\n      \"professional\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Profile section makes inviting and managing roles straightforward.\"\n      }\n    },\n    \"J7\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Documents library is logically grouped by policy and term.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Documents library is logically grouped by policy and term.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Documents library is logically grouped by policy and term.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Documents library is logically grouped by policy and term.\"\n      },\n      \"household\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Documents library is logically grouped by policy and term.\"\n      },\n      \"professional\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Documents library is logically grouped by policy and term.\"\n      }\n    }\n  }\n}",
+ "attempts": [
+  {
+   "attempt": 1,
+   "errors": [],
+   "temperature": 0.2
+  }
+ ]
+}

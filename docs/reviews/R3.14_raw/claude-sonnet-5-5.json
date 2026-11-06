@@ -1,0 +1,564 @@
+{
+ "model": "Claude Sonnet 5.5",
+ "provider": "anthropic",
+ "model_id": "claude-sonnet-5-5",
+ "output": {
+  "heuristics": {
+   "visibility": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-TRACKER-390",
+      "C-POLICY-RENEWAL-390",
+      "C-ACTIVITY-390",
+      "C-HOME-390"
+     ],
+     "reasoning": "The tracker shows stages, Home and policy pages show renewal state, and Activity shows payment status; the tracker's progress ticks and its \"declined\" headline sit awkwardly together.",
+     "fix": "Add a one-line \"where this is now and who holds it\" status banner at the top of every claim and renewal page."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-AE-INBOX-390",
+      "B-AE-QUEUE-1280",
+      "B-RENEWALS-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "Overdue, Answered and stage chips are clear and Release Check shows pass or fail, but the push test result is hard to read on the long page.",
+     "fix": "Add a persistent summary strip (counts overdue, awaiting approval) on every staff page."
+    }
+   },
+   "real_world": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-PLUS-390",
+      "C-DOCUMENTS-390",
+      "C-EXPLAIN-390",
+      "C-CHANGE-390"
+     ],
+     "reasoning": "Plain-language actions and \"?\" explainers help, but some wording is odd: \"Triage\", \"Decision\", a \"Renewal\" page saying \"Your cover has ended\", and \"I've paid this\".",
+     "fix": "Replace internal stage names (Triage, Decision) with client-facing wording."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-AE-QUEUE-390",
+      "B-CLIENT-390",
+      "B-ALERTS-390"
+     ],
+     "reasoning": "Plain-sentence timelines and \"What's needed\" are good, but labels like \"Structure the risk\", \"Class/Confidence/Route\" and \"REGISTRY\" chips remain jargon.",
+     "fix": "Replace the Class/Confidence/Route labels and REGISTRY chips with plain terms."
+    }
+   },
+   "control": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-CERT-390",
+      "C-CHANGE-390",
+      "C-RENEWAL-390",
+      "C-PEOPLE-INVITE-390"
+     ],
+     "reasoning": "Cancel, Back and Close are present, the renewal changes are framed as requests, and accept isn't forced; claim lodge has no visible draft or cancel.",
+     "fix": "Add Cancel and save-draft to the claim form and a confirm-and-undo on invite removal."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-PR-ADVICE-390",
+      "B-PR-APPROVAL-1280",
+      "B-AE-MENU-390"
+     ],
+     "reasoning": "Principals can Approve or Reject, withdrawn drafts can be edited and resent, and the menu can be closed; there is no visible undo for queue actions.",
+     "fix": "Add a short undo window after Approve and Reject."
+    }
+   },
+   "consistency": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "C-POLICY-390",
+      "C-CERT-390",
+      "C-CLAIM-NEW-390"
+     ],
+     "reasoning": "The shell, bottom bar, \"What happens next\" panels and card style are consistent; the claim form uses native selects and chips unlike other forms, and Security uses a different layout.",
+     "fix": "Restyle native selects and the Security page to match the app's components."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-AE-INBOX-1280",
+      "B-CLAIMS-1280",
+      "B-RENEWALS-1280"
+     ],
+     "reasoning": "Shared dark shell with consistent nav and keyboard hints, but action patterns vary (Review/More vs Open vs Start early) and the 390px layouts differ between pages.",
+     "fix": "Standardise row actions and the chip/filter patterns across lists."
+    }
+   },
+   "error_prevention": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-CERT-390",
+      "C-RENEWAL-390",
+      "C-PEOPLE-INVITE-390",
+      "C-CHANGE-390"
+     ],
+     "reasoning": "Continue is disabled until the holder is entered, renewal changes are framed as broker-checked requests, and the invite uses presets; pre-submit review isn't visible on the claim or change forms.",
+     "fix": "Add a review-before-send step on the claim and change forms."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-PR-ADVICE-1280",
+      "B-ALERTS-390",
+      "B-AE-SCHEDULES-1280"
+     ],
+     "reasoning": "Principal approval shows the exact files held, the upload is PDF-only and safety-checked, and attachment limits are stated; destructive actions such as Withdraw aren't confirmed in view.",
+     "fix": "Add a confirm dialog on Withdraw and Reject that restates the files affected."
+    }
+   },
+   "recognition": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "C-PLUS-390",
+      "C-POLICY-390",
+      "C-DOCUMENTS-390"
+     ],
+     "reasoning": "Labelled bottom bar, a quick-action row on the policy page, and the + sheet keep options visible; Documents groups by policy and some sections are collapsed.",
+     "fix": "Show the Certificate and Make a claim shortcuts on each Home cover card."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-CLIENT-1280",
+      "B-AE-MENU-390"
+     ],
+     "reasoning": "Rows show client, what's needed and due by, and shortcuts are shown; the \"Schedules and PDS\" sections are collapsed and the queue has no context preview.",
+     "fix": "Show a one-line context summary of the matter under each queue row."
+    }
+   },
+   "flexibility": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-POLICY-390",
+      "C-PLUS-390",
+      "C-ACTIVITY-390",
+      "C-DOCUMENTS-390"
+     ],
+     "reasoning": "Shortcuts exist from policy, the + sheet and Home attention cards, plus activity filters; no search and no repeat-holder shortcuts.",
+     "fix": "Remember recent certificate holders and offer them as one-tap choices."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-AE-INBOX-1280",
+      "B-AE-MENU-390"
+     ],
+     "reasoning": "Keyboard map (j/k, g-prefix, ⌘K), filters and the More toggle give strong expert efficiency.",
+     "fix": "Add bulk approve for low-risk queue items."
+    }
+   },
+   "aesthetic": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "C-POLICY-390",
+      "C-THREAD-390",
+      "C-NOTIFS-390"
+     ],
+     "reasoning": "Clean, focused mobile screens; the Notifications page is a long repetitive list with test replies, and the claim tracker page is dense.",
+     "fix": "Group and collapse Notifications and move claim detail sections into tabs."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-AE-QUEUE-390",
+      "B-CLAIM-1280",
+      "B-OP-GOV-1280",
+      "B-ALERTS-1280"
+     ],
+     "reasoning": "Queue and inbox are tidy, but Governance, Alerts and claim detail are very long and dense.",
+     "fix": "Collapse the lower-priority sections of Governance, Alerts and claim detail by default."
+    }
+   },
+   "recovery": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-SECURITY-390",
+      "C-CERT-390",
+      "C-ACTIVITY-390"
+     ],
+     "reasoning": "No error states are shown; the screens show only a disabled Continue, a \"Your cover has ended\" message, and a \"was due\" nudge with the \"tell your broker\" option.",
+     "fix": "Add inline field-level error messages with a fix hint on every form."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-AE-USERS-390",
+      "B-ALERTS-390",
+      "B-OP-GOV-390"
+     ],
+     "reasoning": "A dead-end \"Only the Operator or Principal can manage people\" page gives no next step; the Release Check warning is shown, but recovery guidance for failures is not visible.",
+     "fix": "Give permission-denied pages a next step (who to ask, back link) and give failures an actionable message."
+    }
+   },
+   "help": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-EXPLAIN-390",
+      "C-CHANGE-390",
+      "C-CLAIM-NEW-390",
+      "C-PROFILE-390"
+     ],
+     "reasoning": "\"?\" explainers, \"What happens next\" and \"Help — contact my broker\" are good; there is no central help or FAQ.",
+     "fix": "Add a short searchable help page and link it from Profile."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-CLAIM-390",
+      "B-AE-QUEUE-390",
+      "B-AE-QUEUE-1280"
+     ],
+     "reasoning": "\"How this works\" playbooks and \"?\" tooltips are present but mostly collapsed and limited to some pages.",
+     "fix": "Extend the \"How this works\" playbooks to the queue, renewals and Governance."
+    }
+   },
+   "am_i_covered": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "T-J1-1",
+      "C-POLICY-390",
+      "C-POLICY-RENEWAL-390"
+     ],
+     "reasoning": "Home lists each cover with value and status and policy pages state sums and limits (J1 takes 1 tap); Home mixes agreed and market values, and \"Cyber — held elsewhere\" is ambiguous.",
+     "fix": "Add one plain \"Covered / not covered\" status line per item, with the sum insured, on Home."
+    },
+    "broker": {
+     "score": "n/a",
+     "evidence": [],
+     "reasoning": "n/a",
+     "fix": "n/a"
+    }
+   },
+   "who_by_when": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-TRACKER-390",
+      "C-CHANGE-390",
+      "C-MESSAGES-390",
+      "C-CLAIM-NEW-390"
+     ],
+     "reasoning": "\"Handled by Account executive\" and \"within 1 business day\" are stated, but the tracker has no date for the next step and Messages shows no due-by.",
+     "fix": "Show \"With: [name] · next update by [date]\" on every tracker and thread."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-AE-INBOX-1280",
+      "B-CLAIMS-1280"
+     ],
+     "reasoning": "Due-by and \"reply by\" with Overdue/Answered are clear, but the AE column in Claims shows \"—\" and the queue has no owner.",
+     "fix": "Show the owner on every queue and claims row and fix the blank AE values."
+    }
+   },
+   "no_engine": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-THREAD-390",
+      "C-TRACKER-390",
+      "C-NOTIFS-390",
+      "C-SECURITY-390"
+     ],
+     "reasoning": "Mostly plain language, but the tracker shows \"Insurer claim no. MOCK-FICTIONAL-…\", the file list shows \"photo: p.jpg\", Notifications has \"BROKER_REPLY\" labels, and the \"(MOCKED)\" tags are preview-only.",
+     "fix": "Hide system labels like BROKER_REPLY and raw filenames and mock ids from client views."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-CLIENT-390",
+      "B-CLAIM-1280",
+      "B-RENEWALS-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "Timelines are plain sentences, but claim detail shows \"MOCKED insurer ack MOCK-FICTIONAL-…\", the REGISTRY chips and BUILD hash, and \"Class/Route\" jargon.",
+     "fix": "Move REGISTRY chips, ids and the build tag to an Operator-only Details panel."
+    }
+   },
+   "regulatory": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-THREAD-1280",
+      "C-RENEWAL-390",
+      "C-PROFILE-1280",
+      "C-TRACKER-1280"
+     ],
+     "reasoning": "The general advice warning, AFCA and complaint info, Privacy notice, FSG, and the footer \"general advice only\" are placed well; the advice warning sits only on some surfaces.",
+     "fix": "Show the general advice warning consistently on every broker-authored recommendation."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-PR-ADVICE-390",
+      "B-PR-APPROVAL-1280",
+      "B-CLAIMS-1280"
+     ],
+     "reasoning": "Principal approval for personal-advice replies and \"coverage questions are flags, never decisions\" are shown; the statement-of-advice step isn't visible.",
+     "fix": "Add a Statement of Advice checklist step to the approval panel."
+    }
+   }
+  },
+  "tasks": {
+   "J1": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "One tap from Home to the policy page showing sums and vehicle values; DEF-456 is clear."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Same path to the policy with the sum insured; unit-level cover isn't distinguished in the evidence."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "The vehicle card opens straight to the policy; tools cover (0 documents) needs its own look."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "The business pack card shows a sum insured on Home and the policy page shows the details."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "One tap to the policy with its values."
+    },
+    "professional": {
+     "success": "n/a",
+     "measured_taps": null,
+     "friction": "n/a per A20."
+    }
+   },
+   "J2": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "The + sheet leads to a \"choose policy\" step and then the form, which takes 3 taps; the holder form is simple and \"What happens next\" is shown."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Certificate request for the landlord's counterparty works, but the policy-choice detour adds a step."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Same 3-tap path; holder name and address are required and the broker may need to reply."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Same 3-tap path; non-standard wording goes to a broker."
+    },
+    "household": {
+     "success": "n/a",
+     "measured_taps": null,
+     "friction": "n/a per A20."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Same path; PI-specific wording isn't visible."
+    }
+   },
+   "J3": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "The + sheet leads to the claim form in 2 taps, but the \"which thing\" picker is a native dropdown."
+    },
+    "landlord": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "The claim form has motor, property and liability chips, but picking a specific unit isn't evident."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "The vehicle and tools claim types are covered in 2 taps; the form is long."
+    },
+    "cafe": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "The form is vehicle-centric and the property item picker isn't shown."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "2 taps to the form; the \"Not sure\" policy default helps."
+    },
+    "professional": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "The form is motor, property and liability-oriented and PI claims aren't clearly offered."
+    }
+   },
+   "J4": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Pay now on Home leads to a BPAY screen with copy buttons (mocked); there is no card payment."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Same single-tap path to what's owed."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Same single-tap path to the amount, due date and BPAY details."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "The payment shows the policy name, amount and due date; the \"was due\" wording is slightly alarming."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "One tap; the bookkeeper role can pay."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "One tap; BPAY copy reference."
+    }
+   },
+   "J5": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "One tap from the Home renewal card to the checklist; the sums insured confirmation is clear."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "The checklist asks to confirm the values with a \"Still right / Change it\" choice."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Same checklist; tools and vehicle values aren't shown in the evidence."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "The business pack sums insured appear with turnover questions; the form is long."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Same one-tap path to the checklist."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "The checklist generalises; PI-specific fields aren't in the evidence."
+    }
+   },
+   "J6": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Profile has \"+ Invite someone\" with presets, which is findable but not directly on Home."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "The Bookkeeper preset and the invite form work; authenticator enrolment adds effort for the invitee."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "The Bookkeeper preset is a good fit; name and email are required."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Same path; the bookkeeper preset (view and pay) is clear."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "The Co-owner or spouse preset (Everything) is explicit."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Same path; the Custom preset allows narrowing."
+    }
+   },
+   "J7": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Home to Profile to Documents takes 3 taps; there is no Documents link on Home, though the per-policy list is clear."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Documents are grouped per policy, so the landlord must expand the right policy."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Previous schedules and PDS are labelled; some policies are collapsed."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Business pack previous schedule and PDS are visible, but marked SAMPLE."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Same path; \"Ask your broker for a copy\" is the fallback."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Same path; the Documents location is buried under Profile."
+    }
+   }
+  }
+ },
+ "raw": "{\"heuristics\":{\"visibility\":{\"client\":{\"score\":3,\"evidence\":[\"C-TRACKER-390\",\"C-POLICY-RENEWAL-390\",\"C-ACTIVITY-390\",\"C-HOME-390\"],\"reasoning\":\"The tracker shows stages, Home and policy pages show renewal state, and Activity shows payment status; the tracker's progress ticks and its \\\"declined\\\" headline sit awkwardly together.\",\"fix\":\"Add a one-line \\\"where this is now and who holds it\\\" status banner at the top of every claim and renewal page.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-AE-INBOX-390\",\"B-AE-QUEUE-1280\",\"B-RENEWALS-1280\",\"B-OP-GOV-1280\"],\"reasoning\":\"Overdue, Answered and stage chips are clear and Release Check shows pass or fail, but the push test result is hard to read on the long page.\",\"fix\":\"Add a persistent summary strip (counts overdue, awaiting approval) on every staff page.\"}},\"real_world\":{\"client\":{\"score\":3,\"evidence\":[\"C-PLUS-390\",\"C-DOCUMENTS-390\",\"C-EXPLAIN-390\",\"C-CHANGE-390\"],\"reasoning\":\"Plain-language actions and \\\"?\\\" explainers help, but some wording is odd: \\\"Triage\\\", \\\"Decision\\\", a \\\"Renewal\\\" page saying \\\"Your cover has ended\\\", and \\\"I've paid this\\\".\",\"fix\":\"Replace internal stage names (Triage, Decision) with client-facing wording.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-AE-QUEUE-390\",\"B-CLIENT-390\",\"B-ALERTS-390\"],\"reasoning\":\"Plain-sentence timelines and \\\"What's needed\\\" are good, but labels like \\\"Structure the risk\\\", \\\"Class/Confidence/Route\\\" and \\\"REGISTRY\\\" chips remain jargon.\",\"fix\":\"Replace the Class/Confidence/Route labels and REGISTRY chips with plain terms.\"}},\"control\":{\"client\":{\"score\":3,\"evidence\":[\"C-CERT-390\",\"C-CHANGE-390\",\"C-RENEWAL-390\",\"C-PEOPLE-INVITE-390\"],\"reasoning\":\"Cancel, Back and Close are present, the renewal changes are framed as requests, and accept isn't forced; claim lodge has no visible draft or cancel.\",\"fix\":\"Add Cancel and save-draft to the claim form and a confirm-and-undo on invite removal.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-PR-ADVICE-390\",\"B-PR-APPROVAL-1280\",\"B-AE-MENU-390\"],\"reasoning\":\"Principals can Approve or Reject, withdrawn drafts can be edited and resent, and the menu can be closed; there is no visible undo for queue actions.\",\"fix\":\"Add a short undo window after Approve and Reject.\"}},\"consistency\":{\"client\":{\"score\":3,\"evidence\":[\"C-HOME-390\",\"C-POLICY-390\",\"C-CERT-390\",\"C-CLAIM-NEW-390\"],\"reasoning\":\"The shell, bottom bar, \\\"What happens next\\\" panels and card style are consistent; the claim form uses native selects and chips unlike other forms, and Security uses a different layout.\",\"fix\":\"Restyle native selects and the Security page to match the app's components.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-AE-QUEUE-1280\",\"B-AE-INBOX-1280\",\"B-CLAIMS-1280\",\"B-RENEWALS-1280\"],\"reasoning\":\"Shared dark shell with consistent nav and keyboard hints, but action patterns vary (Review/More vs Open vs Start early) and the 390px layouts differ between pages.\",\"fix\":\"Standardise row actions and the chip/filter patterns across lists.\"}},\"error_prevention\":{\"client\":{\"score\":3,\"evidence\":[\"C-CERT-390\",\"C-RENEWAL-390\",\"C-PEOPLE-INVITE-390\",\"C-CHANGE-390\"],\"reasoning\":\"Continue is disabled until the holder is entered, renewal changes are framed as broker-checked requests, and the invite uses presets; pre-submit review isn't visible on the claim or change forms.\",\"fix\":\"Add a review-before-send step on the claim and change forms.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-PR-ADVICE-1280\",\"B-ALERTS-390\",\"B-AE-SCHEDULES-1280\"],\"reasoning\":\"Principal approval shows the exact files held, the upload is PDF-only and safety-checked, and attachment limits are stated; destructive actions such as Withdraw aren't confirmed in view.\",\"fix\":\"Add a confirm dialog on Withdraw and Reject that restates the files affected.\"}},\"recognition\":{\"client\":{\"score\":3,\"evidence\":[\"C-HOME-390\",\"C-PLUS-390\",\"C-POLICY-390\",\"C-DOCUMENTS-390\"],\"reasoning\":\"Labelled bottom bar, a quick-action row on the policy page, and the + sheet keep options visible; Documents groups by policy and some sections are collapsed.\",\"fix\":\"Show the Certificate and Make a claim shortcuts on each Home cover card.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-AE-QUEUE-1280\",\"B-CLIENT-1280\",\"B-AE-MENU-390\"],\"reasoning\":\"Rows show client, what's needed and due by, and shortcuts are shown; the \\\"Schedules and PDS\\\" sections are collapsed and the queue has no context preview.\",\"fix\":\"Show a one-line context summary of the matter under each queue row.\"}},\"flexibility\":{\"client\":{\"score\":3,\"evidence\":[\"C-POLICY-390\",\"C-PLUS-390\",\"C-ACTIVITY-390\",\"C-DOCUMENTS-390\"],\"reasoning\":\"Shortcuts exist from policy, the + sheet and Home attention cards, plus activity filters; no search and no repeat-holder shortcuts.\",\"fix\":\"Remember recent certificate holders and offer them as one-tap choices.\"},\"broker\":{\"score\":4,\"evidence\":[\"B-AE-QUEUE-1280\",\"B-AE-INBOX-1280\",\"B-AE-MENU-390\"],\"reasoning\":\"Keyboard map (j/k, g-prefix, ⌘K), filters and the More toggle give strong expert efficiency.\",\"fix\":\"Add bulk approve for low-risk queue items.\"}},\"aesthetic\":{\"client\":{\"score\":3,\"evidence\":[\"C-HOME-390\",\"C-POLICY-390\",\"C-THREAD-390\",\"C-NOTIFS-390\"],\"reasoning\":\"Clean, focused mobile screens; the Notifications page is a long repetitive list with test replies, and the claim tracker page is dense.\",\"fix\":\"Group and collapse Notifications and move claim detail sections into tabs.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-AE-QUEUE-390\",\"B-CLAIM-1280\",\"B-OP-GOV-1280\",\"B-ALERTS-1280\"],\"reasoning\":\"Queue and inbox are tidy, but Governance, Alerts and claim detail are very long and dense.\",\"fix\":\"Collapse the lower-priority sections of Governance, Alerts and claim detail by default.\"}},\"recovery\":{\"client\":{\"score\":2,\"evidence\":[\"C-SECURITY-390\",\"C-CERT-390\",\"C-ACTIVITY-390\"],\"reasoning\":\"No error states are shown; the screens show only a disabled Continue, a \\\"Your cover has ended\\\" message, and a \\\"was due\\\" nudge with the \\\"tell your broker\\\" option.\",\"fix\":\"Add inline field-level error messages with a fix hint on every form.\"},\"broker\":{\"score\":2,\"evidence\":[\"B-AE-USERS-390\",\"B-ALERTS-390\",\"B-OP-GOV-390\"],\"reasoning\":\"A dead-end \\\"Only the Operator or Principal can manage people\\\" page gives no next step; the Release Check warning is shown, but recovery guidance for failures is not visible.\",\"fix\":\"Give permission-denied pages a next step (who to ask, back link) and give failures an actionable message.\"}},\"help\":{\"client\":{\"score\":3,\"evidence\":[\"C-EXPLAIN-390\",\"C-CHANGE-390\",\"C-CLAIM-NEW-390\",\"C-PROFILE-390\"],\"reasoning\":\"\\\"?\\\" explainers, \\\"What happens next\\\" and \\\"Help — contact my broker\\\" are good; there is no central help or FAQ.\",\"fix\":\"Add a short searchable help page and link it from Profile.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-CLAIM-390\",\"B-AE-QUEUE-390\",\"B-AE-QUEUE-1280\"],\"reasoning\":\"\\\"How this works\\\" playbooks and \\\"?\\\" tooltips are present but mostly collapsed and limited to some pages.\",\"fix\":\"Extend the \\\"How this works\\\" playbooks to the queue, renewals and Governance.\"}},\"am_i_covered\":{\"client\":{\"score\":3,\"evidence\":[\"C-HOME-390\",\"T-J1-1\",\"C-POLICY-390\",\"C-POLICY-RENEWAL-390\"],\"reasoning\":\"Home lists each cover with value and status and policy pages state sums and limits (J1 takes 1 tap); Home mixes agreed and market values, and \\\"Cyber — held elsewhere\\\" is ambiguous.\",\"fix\":\"Add one plain \\\"Covered / not covered\\\" status line per item, with the sum insured, on Home.\"},\"broker\":{\"score\":\"n/a\",\"evidence\":[],\"reasoning\":\"n/a\",\"fix\":\"n/a\"}},\"who_by_when\":{\"client\":{\"score\":3,\"evidence\":[\"C-TRACKER-390\",\"C-CHANGE-390\",\"C-MESSAGES-390\",\"C-CLAIM-NEW-390\"],\"reasoning\":\"\\\"Handled by Account executive\\\" and \\\"within 1 business day\\\" are stated, but the tracker has no date for the next step and Messages shows no due-by.\",\"fix\":\"Show \\\"With: [name] · next update by [date]\\\" on every tracker and thread.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-AE-QUEUE-1280\",\"B-AE-INBOX-1280\",\"B-CLAIMS-1280\"],\"reasoning\":\"Due-by and \\\"reply by\\\" with Overdue/Answered are clear, but the AE column in Claims shows \\\"—\\\" and the queue has no owner.\",\"fix\":\"Show the owner on every queue and claims row and fix the blank AE values.\"}},\"no_engine\":{\"client\":{\"score\":3,\"evidence\":[\"C-THREAD-390\",\"C-TRACKER-390\",\"C-NOTIFS-390\",\"C-SECURITY-390\"],\"reasoning\":\"Mostly plain language, but the tracker shows \\\"Insurer claim no. MOCK-FICTIONAL-…\\\", the file list shows \\\"photo: p.jpg\\\", Notifications has \\\"BROKER_REPLY\\\" labels, and the \\\"(MOCKED)\\\" tags are preview-only.\",\"fix\":\"Hide system labels like BROKER_REPLY and raw filenames and mock ids from client views.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-CLIENT-390\",\"B-CLAIM-1280\",\"B-RENEWALS-1280\",\"B-OP-GOV-1280\"],\"reasoning\":\"Timelines are plain sentences, but claim detail shows \\\"MOCKED insurer ack MOCK-FICTIONAL-…\\\", the REGISTRY chips and BUILD hash, and \\\"Class/Route\\\" jargon.\",\"fix\":\"Move REGISTRY chips, ids and the build tag to an Operator-only Details panel.\"}},\"regulatory\":{\"client\":{\"score\":3,\"evidence\":[\"C-THREAD-1280\",\"C-RENEWAL-390\",\"C-PROFILE-1280\",\"C-TRACKER-1280\"],\"reasoning\":\"The general advice warning, AFCA and complaint info, Privacy notice, FSG, and the footer \\\"general advice only\\\" are placed well; the advice warning sits only on some surfaces.\",\"fix\":\"Show the general advice warning consistently on every broker-authored recommendation.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-PR-ADVICE-390\",\"B-PR-APPROVAL-1280\",\"B-CLAIMS-1280\"],\"reasoning\":\"Principal approval for personal-advice replies and \\\"coverage questions are flags, never decisions\\\" are shown; the statement-of-advice step isn't visible.\",\"fix\":\"Add a Statement of Advice checklist step to the approval panel.\"}}},\"tasks\":{\"J1\":{\"farmer\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"One tap from Home to the policy page showing sums and vehicle values; DEF-456 is clear.\"},\"landlord\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"Same path to the policy with the sum insured; unit-level cover isn't distinguished in the evidence.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"The vehicle card opens straight to the policy; tools cover (0 documents) needs its own look.\"},\"cafe\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"The business pack card shows a sum insured on Home and the policy page shows the details.\"},\"household\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"One tap to the policy with its values.\"},\"professional\":{\"success\":\"n/a\",\"measured_taps\":null,\"friction\":\"n/a per A20.\"}},\"J2\":{\"farmer\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"The + sheet leads to a \\\"choose policy\\\" step and then the form, which takes 3 taps; the holder form is simple and \\\"What happens next\\\" is shown.\"},\"landlord\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Certificate request for the landlord's counterparty works, but the policy-choice detour adds a step.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Same 3-tap path; holder name and address are required and the broker may need to reply.\"},\"cafe\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Same 3-tap path; non-standard wording goes to a broker.\"},\"household\":{\"success\":\"n/a\",\"measured_taps\":null,\"friction\":\"n/a per A20.\"},\"professional\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Same path; PI-specific wording isn't visible.\"}},\"J3\":{\"farmer\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"The + sheet leads to the claim form in 2 taps, but the \\\"which thing\\\" picker is a native dropdown.\"},\"landlord\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"The claim form has motor, property and liability chips, but picking a specific unit isn't evident.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"The vehicle and tools claim types are covered in 2 taps; the form is long.\"},\"cafe\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"The form is vehicle-centric and the property item picker isn't shown.\"},\"household\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"2 taps to the form; the \\\"Not sure\\\" policy default helps.\"},\"professional\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"The form is motor, property and liability-oriented and PI claims aren't clearly offered.\"}},\"J4\":{\"farmer\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"Pay now on Home leads to a BPAY screen with copy buttons (mocked); there is no card payment.\"},\"landlord\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"Same single-tap path to what's owed.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"Same single-tap path to the amount, due date and BPAY details.\"},\"cafe\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"The payment shows the policy name, amount and due date; the \\\"was due\\\" wording is slightly alarming.\"},\"household\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"One tap; the bookkeeper role can pay.\"},\"professional\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"One tap; BPAY copy reference.\"}},\"J5\":{\"farmer\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"One tap from the Home renewal card to the checklist; the sums insured confirmation is clear.\"},\"landlord\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"The checklist asks to confirm the values with a \\\"Still right / Change it\\\" choice.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"Same checklist; tools and vehicle values aren't shown in the evidence.\"},\"cafe\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"The business pack sums insured appear with turnover questions; the form is long.\"},\"household\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"Same one-tap path to the checklist.\"},\"professional\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"The checklist generalises; PI-specific fields aren't in the evidence.\"}},\"J6\":{\"farmer\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"Profile has \\\"+ Invite someone\\\" with presets, which is findable but not directly on Home.\"},\"landlord\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"The Bookkeeper preset and the invite form work; authenticator enrolment adds effort for the invitee.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"The Bookkeeper preset is a good fit; name and email are required.\"},\"cafe\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"Same path; the bookkeeper preset (view and pay) is clear.\"},\"household\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"The Co-owner or spouse preset (Everything) is explicit.\"},\"professional\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"Same path; the Custom preset allows narrowing.\"}},\"J7\":{\"farmer\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Home to Profile to Documents takes 3 taps; there is no Documents link on Home, though the per-policy list is clear.\"},\"landlord\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Documents are grouped per policy, so the landlord must expand the right policy.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Previous schedules and PDS are labelled; some policies are collapsed.\"},\"cafe\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Business pack previous schedule and PDS are visible, but marked SAMPLE.\"},\"household\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Same path; \\\"Ask your broker for a copy\\\" is the fallback.\"},\"professional\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Same path; the Documents location is buried under Profile.\"}}}}",
+ "attempts": [
+  {
+   "attempt": 1,
+   "errors": [],
+   "temperature": "provider default (temperature not accepted)"
+  }
+ ]
+}

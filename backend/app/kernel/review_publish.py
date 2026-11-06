@@ -11,21 +11,89 @@ from app.kernel import object_store, reviews as rv
 from app.kernel.renewals import _event
 
 PREFIX = "brokaid/reviews"
+RELEASE = "R3.11"  # R3.14 reruns set this and PREV_ID (the review it is compared with)
+PREV_ID: str | None = None
+FEATURES_NOTE: str | None = None  # feature summary given to the reviewers, repeated in the report
+NO_GEMINI = "Gemini 3.1 Pro"  # Gemini scored every R3.11 row 4, so each comparison is also shown without it
+
+
+def _mean(vals):
+    vals = [v for v in vals if v is not None]
+    return round(sum(vals) / len(vals), 2) if vals else None
+
+
+def _wo(r):
+    return _mean([v for m, v in r["scores"].items() if m != NO_GEMINI]) if r else None
+
+
+def _d(a, b):
+    return round(a - b, 2) if a is not None and b is not None else None
+
+
+def compare(con: dict, prev: dict) -> dict:
+    """Per row and per surface: consensus and consensus without Gemini, now vs the previous review, and the ≥3.0 bar."""
+    pr = {(r["row"], r["surface"]): r for r in prev["rows"]}
+    rows = []
+    for r in con["rows"]:
+        p = pr.get((r["row"], r["surface"]))
+        now_wo, prev_wo = _wo(r), _wo(p)
+        rows.append({"row": r["row"], "label": r["label"], "surface": r["surface"], "mean": r["mean"], "prev": p and p["mean"],
+                     "delta": _d(r["mean"], p and p["mean"]), "mean_wo": now_wo, "prev_wo": prev_wo, "delta_wo": _d(now_wo, prev_wo),
+                     "pass": r["pass"], "pass_wo": None if now_wo is None else now_wo >= 3.0})
+    surfaces = {}
+    for s_ in rv.SURFACES:
+        rs = [r for r in rows if r["surface"] == s_]
+        m = {k: _mean([r[k] for r in rs]) for k in ("mean", "prev", "mean_wo", "prev_wo")}
+        surfaces[s_] = {**m, "delta": _d(m["mean"], m["prev"]), "delta_wo": _d(m["mean_wo"], m["prev_wo"]),
+                        "rows_passing": sum(1 for r in rs if r["pass"]), "rows_passing_wo": sum(1 for r in rs if r["pass_wo"]),
+                        "prev_rows_passing": sum(1 for r in prev["rows"] if r["surface"] == s_ and r["pass"]),
+                        "prev_rows_passing_wo": sum(1 for r in prev["rows"] if r["surface"] == s_ and (_wo(r) or 0) >= 3.0),
+                        "rows_scored": sum(1 for r in rs if r["mean"] is not None)}
+    return {"prev_review_id": prev.get("review_id"), "rows": rows, "surfaces": surfaces}
+
+
+def _yn(v) -> str:
+    return "–" if v is None else ("yes" if v else "no")
+
+
+def _sd(v) -> str:
+    return "–" if v is None else f"{v:+.2f}"
+
+
+def compare_md(cmp: dict) -> list[str]:
+    P = str(cmp["prev_review_id"]).split("-")[0]
+    L = ["", f"## vs {P} (`{cmp['prev_review_id']}`)", "", "Consensus = mean of the 4 models; \"no Gemini\" = mean of the other 3.", "",
+         f"| Surface | Consensus | {P} | vs {P} | No Gemini | {P} no Gemini | vs {P} (no Gemini) | Rows ≥3.0 | Rows ≥3.0 (no Gemini) |",
+         "|---|---|---|---|---|---|---|---|---|"]
+    for s_, m in cmp["surfaces"].items():
+        L.append(f"| {s_} | **{_fmt(m['mean'])}** | {_fmt(m['prev'])} | {_sd(m['delta'])} | **{_fmt(m['mean_wo'])}** | {_fmt(m['prev_wo'])} | "
+                 f"{_sd(m['delta_wo'])} | {m['rows_passing']}/{m['rows_scored']} (was {m['prev_rows_passing']}) | "
+                 f"{m['rows_passing_wo']}/{m['rows_scored']} (was {m['prev_rows_passing_wo']}) |")
+    L += ["", f"| Row | Surface | Consensus | {P} | vs {P} | ≥3.0 | No Gemini | {P} no Gemini | vs {P} (no Gemini) | ≥3.0 (no Gemini) |",
+          "|---|---|---|---|---|---|---|---|---|---|"]
+    for r in cmp["rows"]:
+        L.append(f"| {r['label']} | {r['surface']} | {_fmt(r['mean'])} | {_fmt(r['prev'])} | {_sd(r['delta'])} | {_yn(r['pass'])} | "
+                 f"{_fmt(r['mean_wo'])} | {_fmt(r['prev_wo'])} | {_sd(r['delta_wo'])} | {_yn(r['pass_wo'])} |")
+    return L
 
 
 def _fmt(v) -> str:
     return "–" if v is None else (f"{v:.2f}" if isinstance(v, float) else str(v))
 
 
-def markdown(review_id: str, at: datetime, man: dict, results: list[dict], con: dict) -> str:
+def markdown(review_id: str, at: datetime, man: dict, results: list[dict], con: dict, cmp: dict | None = None) -> str:
     names = [r["model"] for r in results]
-    L = ["# R3.11 Multi-model UX review against A20 (preview build)", "",
+    L = [f"# {RELEASE} Multi-model UX review against A20 (preview build)", "",
          f"Review `{review_id}` · {at:%Y-%m-%d %H:%M} UTC · build {man.get('sha', '?')} · preview (Harbourline demo), not production.",
          "Reviewers (independent, same inputs): " + ", ".join(f"{r['model']} (`{r['model_id']}`)" for r in results), "",
          "## Headline", "", "| Surface | " + " | ".join(names) + " | Consensus | A20 baseline | Rows ≥3.0 |", "|---|" + "---|" * (len(names) + 3)]
     for s in rv.SURFACES:
         m = con["surfaces"][s]
         L.append(f"| {s} | " + " | ".join(_fmt(m["per_model"][n]) for n in names) + f" | **{_fmt(m['consensus'])}** | {m['baseline']} | {m['rows_passing']}/{m['rows_scored']} |")
+    if FEATURES_NOTE:
+        L += ["", "## Feature summary given to the reviewers", "", *[f"> {x}" for x in FEATURES_NOTE.splitlines()]]
+    if cmp:
+        L += compare_md(cmp)
     L += ["", "## §2 Heuristic matrix (0–4, bar ≥3.0)", "",
           "| Row | Surface | " + " | ".join(names) + " | Mean | Min–max | Baseline | Δ | Pass | Disagree |", "|---|---|" + "---|" * (len(names) + 6)]
     for r in con["rows"]:
@@ -123,13 +191,15 @@ async def publish(db, d: str, man: dict, results: list[dict], prompt: str, at: d
     t = await db.tenants.find_one({"slug": "harbourline"})  # tenant-safe: system-only — Harbourline demo tenant by slug
     if not t or not devmode.is_demo_row(t):
         raise SystemExit("Harbourline demo tenant not found")
-    tid, review_id = t["tenant_id"], f"R3.11-{at:%Y%m%d-%H%M}-{uuid.uuid4().hex[:6]}"
+    tid, review_id = t["tenant_id"], f"{RELEASE}-{at:%Y%m%d-%H%M}-{uuid.uuid4().hex[:6]}"
     models = {r["model"]: r["output"] for r in results}
     con = rv.consolidate(models)
-    md = markdown(review_id, at, man, results, con)
+    prev = await db.reviews.find_one({"tenant_id": tid, "review_id": PREV_ID}, {"_id": 0}) if PREV_ID else None  # tenant-safe: system-only
+    cmp = compare(con, {**prev["consolidated"], "review_id": PREV_ID}) if prev else None
+    md = markdown(review_id, at, man, results, con, cmp)
     shots = Path(d, "shots")
     base = f"{PREFIX}/{review_id}"
-    files = {"md": f"{base}/R3.11_multi_model_review.md", "pdf": f"{base}/R3.11_multi_model_review.pdf"}
+    files = {"md": f"{base}/{RELEASE}_multi_model_review.md", "pdf": f"{base}/{RELEASE}_multi_model_review.pdf"}
     await object_store.put_object(files["md"], md.encode(), "text/markdown")
     await object_store.put_object(files["pdf"], pdf(md, man, shots), "application/pdf")
     raw = {}
@@ -143,12 +213,12 @@ async def publish(db, d: str, man: dict, results: list[dict], prompt: str, at: d
         ev[s["id"]] = f"{base}/evidence/{s['file']}"
         await object_store.put_object(ev[s["id"]], (shots / s["file"]).read_bytes(), "image/png")
     await object_store.put_object(f"{base}/context_pack.txt", prompt.encode(), "text/plain")
-    doc = {"tenant_id": tid, "review_id": review_id, "title": "R3.11 multi-model review against A20", "created_at": at, "sha": man.get("sha"),
+    doc = {"tenant_id": tid, "review_id": review_id, "title": f"{RELEASE} multi-model review against A20", "created_at": at, "sha": man.get("sha"),
            "models": [{"name": r["model"], "model_id": r["model_id"], "attempts": r["attempts"]} for r in results],
-           "consolidated": con, "files": files, "raw": raw, "evidence": ev, "tasks_measured": man["tasks"]}
+           "consolidated": con, "compare": cmp, "files": files, "raw": raw, "evidence": ev, "tasks_measured": man["tasks"]}
     await db.reviews.insert_one(doc)  # tenant-safe: system-only — written with tenant_id
     await _event(db, tid, "ReviewPublished", {"review_id": review_id, "models": [r["model_id"] for r in results],
                  "client_consensus": con["surfaces"]["client"]["consensus"], "broker_consensus": con["surfaces"]["broker"]["consensus"],
                  "pdf": files["pdf"]}, f"review_published:{review_id}", "system", "operator")
-    Path(d, "R3.11_multi_model_review.md").write_text(md)
-    return {"review_id": review_id, "surfaces": con["surfaces"], "top_fixes": [(f["label"], f["surface"], f["priority"]) for f in con["fixes"][:5]]}
+    Path(d, f"{RELEASE}_multi_model_review.md").write_text(md)
+    return {"review_id": review_id, "surfaces": con["surfaces"], "compare": cmp and cmp["surfaces"], "top_fixes": [(f["label"], f["surface"], f["priority"]) for f in con["fixes"][:5]]}

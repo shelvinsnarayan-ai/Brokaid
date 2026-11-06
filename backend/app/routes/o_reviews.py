@@ -37,7 +37,7 @@ async def list_reviews(request: Request, s: Session = Depends(_reader)) -> dict:
 @router.get("/{review_id}")
 async def get_review(review_id: str, request: Request, s: Session = Depends(_reader)) -> dict:
     d = await _get(request, s, review_id)
-    return {"review": {**{k: d[k] for k in ("review_id", "title", "sha", "models", "consolidated", "tasks_measured")},
+    return {"review": {**{k: d[k] for k in ("review_id", "title", "sha", "models", "consolidated", "tasks_measured")}, "compare": d.get("compare"),
                        "created_at": d["created_at"].isoformat(), "raw_models": list(d["raw"]), "evidence_ids": list(d["evidence"])}}
 
 
