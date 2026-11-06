@@ -15,7 +15,7 @@ interface TimelineItem {
 }
 
 /** R3.13: each event is a plain sentence from the server (event_text.py); raw type/payload sit behind Details. */
-export function KTimeline({ items, testId, initial = 5 }: { items: TimelineItem[]; testId?: string; initial?: number }) {
+export function KTimeline({ items, testId, initial = 5, more }: { items: TimelineItem[]; testId?: string; initial?: number; more?: () => void }) {
   const [all, setAll] = useState(false);
   if (items.length === 0) {
     return <div className="k-empty" data-testid={testId ?? "k-timeline-empty"}>No events yet.</div>;
@@ -36,7 +36,12 @@ export function KTimeline({ items, testId, initial = 5 }: { items: TimelineItem[
       </ul>
       {items.length > initial ? (
         <button type="button" className="k-btn" style={{ marginTop: 8 }} onClick={() => setAll(!all)} data-testid={`${testId ?? "k-timeline"}-show-all`}>
-          {all ? "Show fewer" : `Show all ${items.length}`}
+          {all ? "Show fewer" : "Show all"}
+        </button>
+      ) : null}
+      {all && more ? (
+        <button type="button" className="k-btn" style={{ marginTop: 8, marginLeft: 8 }} onClick={more} data-testid={`${testId ?? "k-timeline"}-load-more`}>
+          Load older events
         </button>
       ) : null}
     </>

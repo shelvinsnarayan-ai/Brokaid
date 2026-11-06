@@ -68,8 +68,17 @@ async def list_queue(
     _ensure_queue_role(session)
     store = _store(request)
     cards = await workflow.fetch_pending_queue(store, session.tenant_id)
+    from app.db.tenant_safe import wrap
+    from app.kernel.notify import _client_id
+    from app.kernel.tenant_ctx import use_tenant
+    safe = wrap(store)
+    async with use_tenant(session.tenant_id):
+        cids = {c["envelope_id"]: c.get("client_id") or await _client_id(safe, {"envelope_id": c["envelope_id"]}) for c in cards}
+        names = {x["client_id"]: x.get("display_name") async for x in
+                 safe.clients.find({"client_id": {"$in": [v for v in cids.values() if v]}}, {"client_id": 1, "display_name": 1})}
     for c in cards:
-        c.setdefault("client_display", None)
+        if not c.get("client_display"):
+            c["client_display"] = names.get(cids.get(c["envelope_id"]))
         c.setdefault("matter_display", None)
     return {"cards": cards, "count": len(cards)}
 

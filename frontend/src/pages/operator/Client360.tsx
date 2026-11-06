@@ -26,6 +26,12 @@ export function Client360() {
   const [events, setEvents] = useState<Ev[]>([]);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const h = () => { setOffset(0); setTick((t) => t + 1); };
+    window.addEventListener("brokaid:timeline-refresh", h);
+    return () => window.removeEventListener("brokaid:timeline-refresh", h);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -42,7 +48,7 @@ export function Client360() {
       setEvents((prev) => offset === 0 ? b.events : [...prev, ...b.events]);
       setTotal(b.total);
     })();
-  }, [id, offset]);
+  }, [id, offset, tick]);
 
   if (!header) return <KEmpty title="Loading Client 360" testId="client360-loading" />;
 
@@ -54,7 +60,7 @@ export function Client360() {
 
       <div className="k-meta-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
         <div className="k-meta-cell"><div className="k-meta-cell__label">Industry</div>
-          <div className="k-meta-cell__value" style={{ fontSize: 12 }}>{header.industry}</div></div>
+          <div className="k-meta-cell__value" style={{ fontSize: 12 }}>{(header.industry || "").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase())}</div></div>
         <div className="k-meta-cell"><div className="k-meta-cell__label">Domicile</div>
           <div className="k-meta-cell__value" style={{ fontSize: 12 }}>{header.domicile}</div></div>
         <div className="k-meta-cell"><div className="k-meta-cell__label">Active policies</div>
@@ -68,17 +74,7 @@ export function Client360() {
       <h2 style={{ fontFamily: "var(--font-display-ledger)", fontWeight: 300, fontSize: 18, marginTop: 20 }}>
         Timeline · {total} events
       </h2>
-      <KTimeline items={events} testId="client360-timeline" />
-      {events.length < total && events.length > 5 && (
-        <button
-          className="k-btn"
-          onClick={() => setOffset((o) => o + PAGE)}
-          data-testid="client360-load-more"
-          style={{ marginTop: 12 }}
-        >
-          Load more
-        </button>
-      )}
+      <KTimeline items={events} testId="client360-timeline" more={events.length < total ? () => setOffset((o) => o + PAGE) : undefined} />
 
       <div style={{ marginTop: 24 }}>
         <Link to="/o/clients" className="k-btn">← Back to clients</Link>

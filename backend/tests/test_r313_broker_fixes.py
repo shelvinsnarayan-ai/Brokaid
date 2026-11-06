@@ -89,4 +89,25 @@ def test_staff_upload_withdraw_and_rbac():
             assert await wrap(db).policy_documents.count_documents({"policy_id": PID}) == 2  # never deleted
         staff = (await c.get(f"/api/o/clients/{CID}/policy-documents", cookies=opj)).json()
         assert staff["can_edit"] is False and any(d["withdrawn"] for p in staff["policies"] for d in p["documents"])
+        # withdrawing a new current schedule puts the one it replaced as current back
+        a = (await c.post(f"/api/o/policies/{PID}/documents", cookies=aej, files=f(OK_PDF), data=form)).json()["document"]["doc_id"]
+        b = (await c.post(f"/api/o/policies/{PID}/documents", cookies=aej, files=f(OK_PDF), data=form)).json()["document"]["doc_id"]
+        async with use_tenant(tid):
+            assert not (await wrap(db).policy_documents.find_one({"doc_id": a}))["current"]
+        assert (await c.post(f"/api/o/policy-documents/{b}/withdraw", cookies=aej, json={"reason": "wrong term"})).status_code == 200
+        async with use_tenant(tid):
+            assert (await wrap(db).policy_documents.find_one({"doc_id": a}))["current"] is True
+        # alerts: older notifications get client_name backfilled from their source event
+        async with use_tenant(tid):
+            await wrap(db).notifications.insert_one({"notification_id": "n-old", "user_id": ae["user_id"], "kind": "broker_review",
+                                                     "title": "t", "body": "b", "link": f"/o/clients/{CID}", "read_at": None,
+                                                     "created_at": tok_time(), "updated_at": tok_time(), "test": False})
+            name = (await wrap(db).clients.find_one({"client_id": CID}))["display_name"]
+        al = (await c.get("/api/notifications", cookies=aej)).json()["notifications"]
+        assert next(n for n in al if n["id"] == "n-old")["client_name"] == name
     run(go)
+
+
+def tok_time():
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc)

@@ -82,7 +82,7 @@ export function OperatorClaim() {
     <section className="imp-page" data-testid="operator-claim-root">
       <Link to="/o/claims" className="imp-muted" data-testid="claim-back">← Claims</Link>
       <header>
-        <p className="imp-muted">CLAIM · {c.client_name} · {c.channel}{c.test ? " · TEST" : ""}</p>
+        <p className="imp-muted">CLAIM · {c.client_name} · {({ in_app: "Reported in the app", email: "By email", phone: "By phone", broker: "Entered by broker" } as Record<string, string>)[c.channel] || c.channel}{c.test ? " · Test data" : ""}</p>
         <h1 data-testid="claim-ref">{c.claim_reference}</h1>
         <Playbook k="claims" />
         <p data-testid="claim-stage"><strong>{c.stage_label}</strong>{c.overdue ? " · OVERDUE" : ""} · acknowledge by {dt(c.ack_due)} · {c.product || "no policy"} · {c.insurer || "—"} · excess {c.excess ?? "—"}</p>

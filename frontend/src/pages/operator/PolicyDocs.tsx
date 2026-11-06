@@ -24,7 +24,10 @@ function UploadForm({ pid, replaces, onDone }: { pid: string; replaces?: Doc; on
     const b = await r.json().catch(() => ({}));
     setBusy(false);
     if (!r.ok) { setErr(typeof b.detail === "string" ? b.detail : "Upload failed."); return; }
+    setFile(null); setTerm("");
+    (document.querySelector(`[data-testid="pdoc-file-${pid}"]`) as HTMLInputElement | null)?.value && ((document.querySelector(`[data-testid="pdoc-file-${pid}"]`) as HTMLInputElement).value = "");
     onDone();
+    window.dispatchEvent(new Event("brokaid:timeline-refresh"));
   };
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end", margin: "8px 0" }} data-testid={`pdoc-form-${pid}`}>
@@ -37,7 +40,7 @@ function UploadForm({ pid, replaces, onDone }: { pid: string; replaces?: Doc; on
         <input className="k-input" placeholder="Term, e.g. 22 Jun 2026 – 22 Jun 2027" value={term} onChange={(e) => setTerm(e.target.value)} data-testid={`pdoc-term-${pid}`} />
         <label style={{ fontSize: 12 }}><input type="checkbox" checked={current} onChange={(e) => setCurrent(e.target.checked)} data-testid={`pdoc-current-${pid}`} /> Current term</label>
       </> : null}
-      <input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} data-testid={`pdoc-file-${pid}`} />
+      <input type="file" accept="application/pdf" className="k-file" onChange={(e) => setFile(e.target.files?.[0] || null)} data-testid={`pdoc-file-${pid}`} />
       <button type="button" className="k-btn k-btn--primary" disabled={!file || busy} onClick={send} data-testid={`pdoc-upload-${pid}`}>
         {busy ? "Uploading…" : replaces ? "Replace" : "Upload PDF"}</button>
       {err ? <span className="imp-err" role="alert" data-testid={`pdoc-error-${pid}`}>{err}</span> : null}
@@ -47,18 +50,23 @@ function UploadForm({ pid, replaces, onDone }: { pid: string; replaces?: Doc; on
 
 function DocRow({ d, pid, edit, reload }: { d: Doc; pid: string; edit: boolean; reload: () => void }) {
   const [replacing, setReplacing] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const withdraw = async () => {
     const reason = window.prompt("Why are you withdrawing this document? (the client stops seeing it; it's kept in the record)");
-    if (!reason) return;
-    await fetch(`${API}/api/o/policy-documents/${d.doc_id}/withdraw`, { method: "POST", credentials: "include",
-      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }) });
+    if (reason === null) return;
+    if (reason.trim().length < 3) { setErr("Give a short reason (at least 3 characters)."); return; }
+    const r = await fetch(`${API}/api/o/policy-documents/${d.doc_id}/withdraw`, { method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: reason.trim() }) });
+    if (!r.ok) { const b = await r.json().catch(() => ({})); setErr(typeof b.detail === "string" ? b.detail : "Couldn't withdraw it."); return; }
+    setErr(null);
     reload();
   };
   return (
     <li style={{ padding: "6px 0", opacity: d.withdrawn ? 0.55 : 1 }} data-testid={`pdoc-row-${d.doc_id}`}>
       <a href={`${API}/api/o/policy-documents/${d.doc_id}/file`} target="_blank" rel="noreferrer">{d.kind_label}</a>
-      {d.term_label ? ` · ${d.term_label}` : ""}{d.kind === "schedule" ? (d.current ? " · current" : " · previous") : ""}
+      {d.term_label ? ` · ${d.term_label}` : ""}{d.kind === "schedule" && !d.withdrawn ? (d.current ? " · current" : " · previous") : ""}
       {d.sample ? " · SAMPLE" : ""}{d.withdrawn ? ` · withdrawn (${d.withdrawn_reason})` : ""}
+      {err ? <span className="imp-err" role="alert" data-testid={`pdoc-row-error-${d.doc_id}`}> {err}</span> : null}
       {edit && !d.withdrawn ? <>
         {" "}<button type="button" className="k-btn" onClick={() => setReplacing(!replacing)} data-testid={`pdoc-replace-${d.doc_id}`}>Replace</button>
         {" "}<button type="button" className="k-btn" onClick={withdraw} data-testid={`pdoc-withdraw-${d.doc_id}`}>Withdraw</button>

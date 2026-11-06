@@ -102,7 +102,8 @@ function ReviewRow({ r, canAct, onNudge, onLapse }: { r: Row; canAct: boolean; o
       <td style={{ whiteSpace: "nowrap" }}>
         <span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}>
           {r.actions.open ? <Link to={r.actions.open} data-testid={`review-open-${id}`}>Open renewal</Link> : null}
-          {r.actions.refund_or_bind ? <Link to={r.actions.refund_or_bind} data-testid={`review-refund-${id}`}>Refund or bind <StaffHelp k="refund_or_bind" testid={`review-help-refund-${id}`} /></Link> : null}
+          {r.actions.refund_or_bind ? <><Link to={r.actions.refund_or_bind} data-testid={`review-refund-${id}`}>Refund or bind</Link>
+            <StaffHelp k="refund_or_bind" testid={`review-help-refund-${id}`} /></> : null}
           {canAct && r.actions.confirm_lapse ? <button className="k-btn" onClick={() => onLapse(r)} data-testid={`review-confirm-lapse-${id}`}>Confirm lapse</button> : null}
           {canAct && r.actions.confirm_lapse ? <StaffHelp k="lapse" testid={`review-help-lapse-${id}`} /> : null}
           {canAct ? <button className="k-btn" onClick={() => onNudge(r)} data-testid={`review-nudge-${id}`}>Nudge AE</button> : null}

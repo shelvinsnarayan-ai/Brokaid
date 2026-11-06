@@ -232,7 +232,7 @@ async def names(store, tid: str, actors: list) -> dict:
     if not ids:
         return {}
     async with use_tenant(tid):
-        return {u["user_id"]: (u.get("display_name") or "Someone").split(" ")[0] async for u in
+        return {u["user_id"]: (u.get("display_name") or "Someone") async for u in
                 wrap(store).users.find({"user_id": {"$in": list(ids)}}, {"user_id": 1, "display_name": 1})}
 
 

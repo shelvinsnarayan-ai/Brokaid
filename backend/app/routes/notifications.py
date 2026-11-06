@@ -53,7 +53,38 @@ async def list_notifications(request: Request, unread_only: bool = False, limit:
         if unread_only:
             q["read_at"] = None
         rows = [n async for n in safe.notifications.find(q).sort("updated_at", -1).limit(max(1, min(limit, 200)))]
+        await _backfill_client(safe, rows)
     return {"notifications": [_view(n) for n in rows]}
+
+
+async def _backfill_client(safe, rows: list[dict]) -> None:
+    """R3.13: older alerts predate client_name; resolve it once from the source event (or link) and store it."""
+    import re
+
+    from app.kernel.notify import _client_id
+    todo = [n for n in rows if not n.get("client_name") and not n.get("client_name_resolved")]
+    if not todo:
+        return
+    evs = {e["event_id"]: e.get("payload") or {} async for e in
+           safe.events.find({"event_id": {"$in": [n.get("source_event_id") for n in todo if n.get("source_event_id")]}}, {"event_id": 1, "payload": 1})}
+    cid_of = {}
+    for n in todo:
+        p = dict(evs.get(n.get("source_event_id")) or {})
+        m = re.match(r"^/o/clients/([0-9a-f-]{36})", n.get("link") or "")
+        if m:
+            p.setdefault("client_id", m.group(1))
+        r = re.search(r"[?&]r=([0-9a-f-]{36})", n.get("link") or "")
+        if r and not p.get("client_id"):
+            rn = await safe.renewals.find_one({"renewal_id": r.group(1)}, {"client_id": 1})
+            if rn:
+                p["client_id"] = rn["client_id"]
+        cid_of[n["notification_id"]] = await _client_id(safe, p) if p else None
+    names = {c["client_id"]: c.get("display_name") async for c in
+             safe.clients.find({"client_id": {"$in": [v for v in cid_of.values() if v]}}, {"client_id": 1, "display_name": 1})}
+    for n in todo:
+        n["client_name"] = names.get(cid_of[n["notification_id"]])
+        await safe.notifications.update_one({"notification_id": n["notification_id"]},
+                                            {"$set": {"client_name": n["client_name"], "client_name_resolved": True}})
 
 
 @router.get("/unread-count")
