@@ -134,7 +134,12 @@ async def pending_quote(
     if not body.get("pending"):
         return {k: v for k, v in body.items() if k in ("pending", "reason")}
     if body.get("state") in ("with_broker", "awaiting_broker_review", "broker_reviewed", "declined"):
+        from app.kernel import handled_by as hb
+        async with use_tenant(session.tenant_id):
+            pol = await wrap(request.app.state.mongo_db).policies.find_one({"policy_id": policy_id}, {"client_id": 1})
+        step = None if body["state"] == "declined" else "Your broker reviews your change"
         return {
+            "handled_by": await hb.card(request.app.state.mongo_db, session.tenant_id, (pol or {}).get("client_id"), next_step=step),
             "pending": True,
             "state": body["state"],
             "envelope_id": body["envelope_id"],

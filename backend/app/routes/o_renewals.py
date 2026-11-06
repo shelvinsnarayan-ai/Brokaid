@@ -365,7 +365,18 @@ async def my_comparison_pdf(renewal_id: str, request: Request, s=Depends(_client
 
 @c_router.get("/renewals/{renewal_id}")
 async def my_renewal(renewal_id: str, request: Request, s=Depends(_client)) -> dict:
-    return await _client_detail(_store(request), s.tenant_id, await _client_load(request, s, renewal_id))
+    from app.kernel import handled_by as hb
+    r = await _client_load(request, s, renewal_id)
+    out = await _client_detail(_store(request), s.tenant_id, r)
+    if r["stage"] in rn.TERMINAL:
+        step, by = None, None
+    elif out.get("checklist"):
+        step, by = "Confirm your renewal details", r.get("expiry")  # the real deadline: cover ends
+    elif out.get("options") and not out.get("decision"):
+        step, by = "Choose your renewal option", r.get("expiry")
+    else:
+        step, by = "Your broker prepares your renewal", None
+    return {**out, "handled_by": await hb.card(_store(request), s.tenant_id, r["client_id"], next_step=step, by=by)}
 
 
 class InfoBody(BaseModel):

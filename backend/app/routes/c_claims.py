@@ -141,9 +141,12 @@ async def get_claim(claim_id: str, request: Request, session: Session = Depends(
     reply_ids = [d["reply_id"] for d in c.get("docs") or [] if d.get("reply_id")]
     async with use_tenant(session.tenant_id):
         hidden = {f["ref"] async for f in _wrap_safe(store).test_flags.find({"kind": "reply", "ref": {"$in": reply_ids}})} if reply_ids else set()
+    from app.kernel import handled_by as hb
+    step, by = hb.claim_next(c)
     return {"claim": {**ck.client_view(c, await compliance_docs.settings(store, session.tenant_id)),
                       "policy_status": await ck.policy_status(store, session.tenant_id, c.get("policy_id")),
-                      "quote_summary": repair_quote.summary(c, hidden)}}
+                      "quote_summary": repair_quote.summary(c, hidden),
+                      "handled_by": await hb.card(store, session.tenant_id, c["client_id"], next_step=step, by=by)}}
 
 
 @router.post("/claims/{claim_id}/files")
