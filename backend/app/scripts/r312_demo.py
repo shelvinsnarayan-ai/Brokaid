@@ -84,7 +84,7 @@ async def _schedules(db, tid, now) -> list:
             label = f"{s:%-d %b %Y} – {e:%-d %b %Y}" + (" (current term)" if current else "")
             q = {"tenant_id": tid, "policy_id": pid, "kind": "schedule", "current": current}
             if await db.policy_documents.find_one(q):
-                await db.policy_documents.update_one(q, {"$set": {"term_label": label}})
+                await db.policy_documents.update_one(q, {"$set": {"term_label": label, "title": "Policy schedule"}})
                 out.append({"policy_id": pid, "current": current, "replayed": True})
                 continue
             pdf = sample_pdf(p, client, s, e, label)
@@ -92,7 +92,7 @@ async def _schedules(db, tid, now) -> list:
             path = f"{object_store.APP_NAME}/tenants/{tid}/policy-docs/{pid}/{doc_id}.pdf"
             await object_store.put_object(path, pdf, "application/pdf")
             row = {"doc_id": doc_id, "tenant_id": tid, "client_id": CLIENT, "policy_id": pid, "kind": "schedule", "current": current,
-                   "title": "Policy schedule (SAMPLE)", "term_label": label, "filename": f"schedule-{s:%Y}-SAMPLE.pdf",
+                   "title": "Policy schedule", "term_label": label, "filename": f"schedule-{s:%Y}-SAMPLE.pdf",
                    "storage_path": path, "sha256": hashlib.sha256(pdf).hexdigest(), "sample": True, "demo": True,
                    "created_at": now}
             await db.policy_documents.insert_one(dict(row))

@@ -73,6 +73,7 @@ export function Profile() {
         <h1 className="mer-head__name mer-h">Profile</h1>
         <p className="mer-head__greet" data-testid="mer-profile-business">{home?.client_name || ""}</p>
       </header>
+      <People />
       <section className="mer-sec">
         <div className="mer-card">
           {MENU.map(([id, label, to]) => (
@@ -82,7 +83,6 @@ export function Profile() {
             onClick={signOut} data-testid="mer-profile-signout"><span className="mer-row__main"><p className="mer-row__t" style={{ color: "#B42318" }}>Sign out</p></span></button>
         </div>
       </section>
-      <People />
       <section className="mer-sec"><h2 className="mer-sec__title">Business details</h2></section>
       <div className="mer-legacy"><ClientProfile /></div>
     </div>

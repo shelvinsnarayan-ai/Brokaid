@@ -69,8 +69,8 @@ export function ClientDocuments() {
 
 function AskCopy({ to, id, what }: { to: string; id: string; what: string }) {
   return (
-    <div className="mer-row" data-testid={`client-documents-missing-${id}`}>
-      <span className="mer-row__main"><p className="mer-row__s">We don't have a copy of the {what} here yet.</p></span>
+    <div className="mer-row" style={{ flexWrap: "wrap", gap: 8 }} data-testid={`client-documents-missing-${id}`}>
+      <span className="mer-row__main" style={{ flexBasis: "100%" }}><p className="mer-row__s">We don't have a copy of the {what} here yet.</p></span>
       <Link className="mer-btn mer-btn--ghost" to={to} data-testid={`client-documents-ask-${id}`}>Ask your broker for a copy</Link>
     </div>
   );

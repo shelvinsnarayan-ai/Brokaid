@@ -70,10 +70,12 @@ async def library(store, tid: str, client_id: str) -> dict:
         if p["policy_id"] in certs:
             g["certificates"].append({"id": f"cert-{p['policy_id']}", "title": "Certificate of currency", "subtitle": "Latest",
                                       "href": f"/c/cover/{p['policy_id']}/certificate", "download": False})
+        seen = set()
         for a in accs:
-            if a.get("policy_id") == p["policy_id"] and a.get("kind") in ("renewal", "endorsement"):
+            if a.get("policy_id") == p["policy_id"] and a.get("kind") in ("renewal", "endorsement") and a.get("ref_id") not in seen:
+                seen.add(a.get("ref_id"))
                 g["receipts"].append({"id": a["acceptance_id"], "title": f"Signed acceptance · {a['kind']}",
-                                      "subtitle": a.get("label") or "", "href": f"/c/acceptance/{a['kind']}/{a['ref_id']}", "download": False})
+                                      "subtitle": " · ".join(x for x in (_long(a.get("accepted_at") or a.get("created_at")), a.get("label")) if x), "href": f"/c/acceptance/{a['kind']}/{a['ref_id']}", "download": False})
         name = p.get("product") or "policy"
         missing = {"schedule": not g["schedule"], "pds": not g["pds"]}
         out.append({"policy_id": p["policy_id"], "title": name, "insurer": p.get("insurer_display"),

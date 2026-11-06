@@ -18,7 +18,7 @@ function Toggles({ v, set, id }: { v: Record<string, boolean>; set: (v: Record<s
   ))}</>;
 }
 
-function InviteForm({ onDone }: { onDone: () => void }) {
+function InviteForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const [f, setF] = useState({ name: "", email: "", preset: "bookkeeper" });
   const [custom, setCustom] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
@@ -49,6 +49,7 @@ function InviteForm({ onDone }: { onDone: () => void }) {
       {f.preset === "custom" ? <Toggles v={custom} set={setCustom} id="people-custom" /> : null}
       {err ? <p className="brokaid-form__err" role="alert" data-testid="people-invite-error">{err}</p> : null}
       <button className="mer-btn" disabled={busy} data-testid="people-invite-send">{busy ? "Sending…" : "Send invite"}</button>
+      <button type="button" className="mer-ex__close" onClick={onCancel} data-testid="people-invite-cancel-form">Cancel</button>
     </form>
   );
 }
@@ -76,6 +77,7 @@ function MemberRow({ m, manage, reload }: { m: Member; manage: boolean; reload: 
           <button type="button" className="mer-btn mer-btn--ghost" style={{ color: "var(--bad)" }}
             onClick={() => window.confirm(`Remove ${m.name}? They'll lose access straight away.`) && run(() => authCall(`c/members/${m.membership_id}/remove`, {}))}
             data-testid={`people-remove-${m.membership_id}`}>Remove from this account</button>
+          <button type="button" className="mer-ex__close" onClick={() => setEdit(false)} data-testid={`people-edit-cancel-${m.membership_id}`}>Cancel</button>
         </div>
       ) : null}
       {err ? <p className="brokaid-form__err" role="alert" style={{ width: "100%" }}>{err}</p> : null}
@@ -101,7 +103,7 @@ export function People() {
               data-testid={`people-invite-cancel-${i.invite_id}`}>Cancel</button>
           </div>
         ))}
-        {d.can_manage ? (inviting ? <InviteForm onDone={load} /> : (
+        {d.can_manage ? (inviting ? <InviteForm onDone={load} onCancel={() => setInviting(false)} /> : (
           <button type="button" className="mer-row" style={{ width: "100%", border: 0, background: "none", textAlign: "left", cursor: "pointer", font: "inherit" }}
             onClick={() => setInviting(true)} data-testid="people-invite-open"><span className="mer-row__main"><p className="mer-row__t">+ Invite someone</p></span></button>
         )) : <p className="mer-row__s" style={{ padding: "0 14px 14px" }} data-testid="people-readonly">Only an owner can add or change people.</p>}

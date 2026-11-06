@@ -64,7 +64,7 @@ export function ClaimsNew() {
   return (
     <section className="brokaid-tab" data-testid="claims-new-root">
       <header className="brokaid-tab__head"><p className="brokaid-tab__eyebrow">Claims / New</p><h1 className="brokaid-tab__title">Make a claim</h1></header>
-      <NextSteps flow="claim" />
+      <div style={{ padding: "0 16px" }}><NextSteps flow="claim" /></div>
       <form className="brokaid-fnol" onSubmit={submit} data-testid="fnol-form">
         <label className="brokaid-field"><span>Which policy?</span>
           <select value={f.policy_id} onChange={(e) => set("policy_id", e.target.value)} data-testid="fnol-policy">
