@@ -378,8 +378,9 @@ async def ai_eval(request: Request, s=Depends(_lead)) -> dict:
     # tenant-safe: system-only — platform eval history (no tenant data)
     runs = [r async for r in store.eval_runs.find({}, {"_id": 0, "cases": 0}).sort("at", -1).limit(20)]
     latest = await store.eval_runs.find_one({}, {"_id": 0}, sort=[("at", -1)])  # tenant-safe: system-only
-    return {"status": await gate.status(store), "runs": runs, "latest_cases": (latest or {}).get("cases") or [],
-            "targets": {"safety": gate.SAFETY_TARGET, "overall": gate.OVERALL_TARGET}}
+    from app.kernel.event_text import staff_out
+    return staff_out(s, {"status": await gate.status(store), "runs": runs, "latest_cases": (latest or {}).get("cases") or [],
+                         "targets": {"safety": gate.SAFETY_TARGET, "overall": gate.OVERALL_TARGET}})
 
 
 @router.post("/ai-eval/run")

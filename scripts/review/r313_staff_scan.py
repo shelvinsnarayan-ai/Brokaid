@@ -20,6 +20,12 @@ PAT = {"uuid": re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0
        "sha": re.compile(r"\b[0-9a-f]{40,64}\b", re.I), "json": re.compile(r'\{"')}
 DENIED = {"payload", "user_id", "membership_id", "invite_id", "token_id", "event_id", "source_event_id", "proposal_ref"}
 API_HITS: list = []
+# Explicitly allowed: the caller's own session identity, and the ids a management screen submits back to act
+# (AE assignment picker, revoke an invite, change a user's role). None of these are event/evidence payloads.
+ALLOW = [(re.compile(r"^(c|o)/me$"), re.compile(r"^\.user\.user_id$")),
+         (re.compile(r"^o/clients/[^/]+/assignment$"), re.compile(r"^\.assigned\.user_id$")),
+         (re.compile(r"^o/invites$"), re.compile(r"^\.invites\[\d+\]\.invite_id$")),
+         (re.compile(r"^o/users$"), re.compile(r"^\.users\[\d+\]\.user_id$"))]
 
 
 def bad_keys(obj, path=""):
@@ -46,8 +52,10 @@ async def on_response(resp):
         bad = bad_keys(await resp.json())
     except Exception:  # noqa: BLE001
         return
+    path = u.split("/api/", 1)[1].split("?")[0]
+    bad = [b for b in bad if not any(rp.match(path) and rk.match(b) for rp, rk in ALLOW)]
     if bad:
-        API_HITS.append({"url": u.split("/api/", 1)[1][:90], "keys": sorted(set(bad))[:5]})
+        API_HITS.append({"url": path[:90], "keys": sorted(set(bad))[:5]})
 
 
 DRILL = {"/o/clients": 'a[href^="/o/clients/"]', "/o/claims": 'a[href^="/o/claims/"]', "/o/inbox": 'a[href^="/o/inbox/"]',

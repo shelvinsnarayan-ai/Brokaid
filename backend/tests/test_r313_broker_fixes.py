@@ -193,4 +193,7 @@ def test_staff_event_and_evidence_endpoints_redact_for_ae_and_principal():
         assert all(set(e) <= {"ts", "text", "link", "who"} for e in rows)
         opt = (await c.get(f"/api/o/client/{CID}/timeline", cookies=opj)).text
         assert "secret note" in opt and "ab" * 32 in opt and '"payload"' in opt
+        if prj:
+            ev = await c.get("/api/o/compliance/ai-eval", cookies=prj)
+            assert ev.status_code == 200 and not _bad_keys(ev.json()), _bad_keys(ev.json())[:3]
     run(go)
