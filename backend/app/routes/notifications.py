@@ -31,12 +31,17 @@ async def _scope(safe, session: Session, include_tests: bool) -> dict:
     return q
 
 
+SEVERITY = {"promise_overdue": "urgent", "advised_no_receipt": "urgent", "bank_unmatched": "urgent", "client_question": "action",
+            "broker_review": "action", "approval_needed": "action", "promise_due": "action", "renewal_30": "action"}
+
+
 def _view(n: dict) -> dict:
     iso = lambda v: v.replace(tzinfo=v.tzinfo or timezone.utc).isoformat() if v else None  # noqa: E731
     return {"id": n["notification_id"], "kind": n["kind"], "title": n["title"], "body": n["body"],
             "link": n["link"], "count": n.get("count", 1), "created_at": iso(n["created_at"]),
             "updated_at": iso(n.get("updated_at") or n["created_at"]), "read": n["read_at"] is not None,
-            "channels_state": n.get("channels_state", {})}
+            "channels_state": n.get("channels_state", {}), "client_name": n.get("client_name"),
+            "severity": SEVERITY.get(n["kind"], "fyi")}
 
 
 @router.get("")

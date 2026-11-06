@@ -7,6 +7,7 @@ import { AssignedAe } from "./AssignedAe";
 import { KEmpty } from "../../components/ledger/KEmpty";
 import { KNumber } from "../../components/ledger/KNumber";
 import { KTimeline } from "../../components/ledger/KTimeline";
+import { PolicyDocs } from "./PolicyDocs";
 
 const API = import.meta.env.VITE_API_BASE || "";
 const PAGE = 25;
@@ -62,11 +63,13 @@ export function Client360() {
           <div className="k-meta-cell__value" data-testid="client360-matter-count"><KNumber value={header.open_matters} format="int" /></div></div>
       </div>
 
+      <PolicyDocs clientId={id} />
+
       <h2 style={{ fontFamily: "var(--font-display-ledger)", fontWeight: 300, fontSize: 18, marginTop: 20 }}>
-        Timeline · {events.length} of {total}
+        Timeline · {total} events
       </h2>
       <KTimeline items={events} testId="client360-timeline" />
-      {events.length < total && (
+      {events.length < total && events.length > 5 && (
         <button
           className="k-btn"
           onClick={() => setOffset((o) => o + PAGE)}

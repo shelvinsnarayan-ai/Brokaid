@@ -15,6 +15,8 @@ import { KKbd } from "../components/ledger/KKbd";
 import { AppFooter } from "../components/AppFooter";
 import "../styles/app-footer.css";
 import { useOperatorStore } from "../state/operatorStore";
+import { useStackedTables } from "./useStackedTables";
+import "../styles/staff-mobile.css";
 
 // R0.6 (Addendum 2 §8.1): working roles see the work; Principal group for
 // principal + operator; Operator group for the operator role only.
@@ -66,6 +68,9 @@ export function OperatorControlLayout() {
   const isPrincipal = role === "principal" || role === "operator";
   const NAV = NAV_GROUPS.filter((g) => !g.roles || g.roles.includes(role || ""));
   const [reviewBadge, setReviewBadge] = useState<number | null>(null);
+  const [menu, setMenu] = useState(false);
+  useEffect(() => setMenu(false), [location.pathname]);
+  useStackedTables("[data-testid=operator-main]", location.pathname);
   useEffect(() => {
     if (role !== "operator" && role !== "principal") return;
     authCall<{ badge: number }>("o/renewal-review/count", undefined, "GET").then((d) => setReviewBadge(d.badge)).catch(() => setReviewBadge(null));
@@ -141,6 +146,9 @@ export function OperatorControlLayout() {
           {session && (
             <>
               <Bell base="/o" />
+              <button type="button" className="ledger-topbar__menu" onClick={() => setMenu(true)} aria-expanded={menu}
+                data-testid="operator-menu-open">☰ Menu</button>
+              <span className="ledger-topbar__extra" style={{ display: "contents" }}>
               <span data-testid="operator-user-label">
                 <KKbd testId="user-role">{session.session.active_role}</KKbd>{" "}
                 <strong>{session.user.display_name}</strong>
@@ -149,13 +157,15 @@ export function OperatorControlLayout() {
               <Link to="/o/users" className="k-btn" data-testid="operator-users-link">People</Link>
               <Link to="/account/security" className="k-btn" data-testid="operator-security-link">Security</Link>
               <button className="k-btn" onClick={logout} data-testid="operator-logout">Sign out</button>
+              </span>
             </>
           )}
         </div>
       </header>
 
       <div className="ledger-shell">
-        <nav className="ledger-rail" data-testid="operator-rail">
+        {menu ? <div className="ledger-rail__scrim" onClick={() => setMenu(false)} data-testid="operator-menu-scrim" /> : null}
+        <nav className={`ledger-rail${menu ? " is-open" : ""}`} data-testid="operator-rail">
           {NAV.map((g) => (
             <div key={g.title || "work"} className="ledger-rail__group" data-testid={`rail-group-${(g.title || "work").toLowerCase()}`}>
             {g.title && <div className="ledger-rail__group-title">{g.title}</div>}
@@ -180,6 +190,16 @@ export function OperatorControlLayout() {
             Press <KKbd>?</KKbd> for the full keyboard map.<br/>
             Prefix <KKbd>g</KKbd> to jump.
           </div>
+          {session ? (
+            <div className="ledger-rail__mobile" data-testid="operator-menu-account">
+              <span>{session.user.display_name} · {session.session.active_role}</span>
+              <TenantSwitcher testid="operator-menu-tenant-switcher" />
+              <Link to="/o/users" className="k-btn" data-testid="operator-menu-users">People</Link>
+              <Link to="/account/security" className="k-btn" data-testid="operator-menu-security">Security</Link>
+              <button className="k-btn" onClick={logout} data-testid="operator-menu-logout">Sign out</button>
+              <button className="k-btn" onClick={() => setMenu(false)} data-testid="operator-menu-close">Close menu</button>
+            </div>
+          ) : null}
         </nav>
 
         <main className="ledger-main" data-testid="operator-main">

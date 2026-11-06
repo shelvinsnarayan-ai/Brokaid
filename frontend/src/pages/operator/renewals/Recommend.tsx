@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Detail } from "./api";
+import { StaffHelp } from "../../../components/ledger/StaffHelp";
 
 export function Recommend({ d, role, act }: { d: Detail; role?: string; act: (a: string, b?: unknown) => Promise<void> }) {
   const rec = d.renewal.recommendation;
@@ -25,7 +26,7 @@ export function Recommend({ d, role, act }: { d: Detail; role?: string; act: (a:
       ) : null}
       {rec ? (
         <p data-testid="renewal-rec-tier" className={rec.tier === "P" ? "imp-warn" : "imp-muted"}>
-          Advice boundary: tier {rec.tier} ({rec.rule_id}) — {rec.reason}.
+          Advice boundary: tier {rec.tier} <StaffHelp k="tier" testid="renewal-help-tier" /> ({rec.rule_id}) — {rec.reason}.
           {rec.tier === "P" ? (rec.principal_approved_by ? " Approved by a Principal." : " A Principal must approve before the client sees it.") : ""}
         </p>
       ) : null}

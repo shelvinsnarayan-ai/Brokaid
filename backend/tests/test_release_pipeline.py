@@ -267,6 +267,8 @@ def test_release_pipeline_audit_grep_backstop() -> None:
            # R1.3: the R0.8 inbox only READS ClientMessage* event types (ASK_TYPES), and the inbox seed writes
            # demo replies through the ledger; neither builds a ClientMessage outside release.py.
            and h not in ("app/kernel/inbox.py", "app/seeds/seed_inbox_mongo.py")
+           # R3.13: event_text.py only maps event types to plain sentences for staff screens; it never emits.
+           and h != "app/kernel/event_text.py"
            and not h.endswith("trail_mongo.py")   # R2 dual-ledger: same guard
            and not h.endswith("c_ask.py")     # phase 12: read-only SELECT
     ]

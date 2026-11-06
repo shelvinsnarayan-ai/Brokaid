@@ -38,7 +38,7 @@ async def library(store, tid: str, client_id: str) -> dict:
     async with use_tenant(tid):
         pols = [p async for p in safe.policies.find({"client_id": client_id, "test": {"$ne": True},
                                                       "status": {"$in": ["managed", "in_force"]}}, {"_id": 0})]
-        files = [f async for f in safe.policy_documents.find({"client_id": client_id, "staff_only": {"$ne": True}}, {"_id": 0})]
+        files = [f async for f in safe.policy_documents.find({"client_id": client_id, "staff_only": {"$ne": True}, "withdrawn_at": None}, {"_id": 0})]
         dels = [d async for d in safe.doc_deliveries.find({"client_id": client_id}, {"_id": 0}).sort("at", -1)]
         accs = [a async for a in safe.acceptances.find({"client_id": client_id}, {"_id": 0})]
         certs = {e["payload"].get("policy_id") async for e in safe.events.find(
@@ -91,5 +91,5 @@ async def library(store, tid: str, client_id: str) -> dict:
 
 async def file_for(store, tid: str, client_ids: set, doc_id: str) -> dict | None:
     async with use_tenant(tid):
-        f = await wrap(store).policy_documents.find_one({"doc_id": doc_id, "staff_only": {"$ne": True}}, {"_id": 0})
+        f = await wrap(store).policy_documents.find_one({"doc_id": doc_id, "staff_only": {"$ne": True}, "withdrawn_at": None}, {"_id": 0})
     return f if f and f["client_id"] in client_ids else None

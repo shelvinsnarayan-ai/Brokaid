@@ -35,6 +35,7 @@ const resolvedVerb = (r: { event_type: string | null; verdict: string | null }) 
   return "Approved";
 };
 import "../../styles/phase13.css";
+import { Playbook } from "../../components/ledger/StaffHelp";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -143,6 +144,7 @@ export function DecisionCard() {
     <section data-testid="decision-card-page">
       <p className="ledger-main__eyebrow">Queue · {labelFor(card.class_key)}</p>
       <h1 className="ledger-main__title">Decision card</h1>
+      <Playbook k="endorsement" />
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
         <KChip variant={card.sla_state} testId="dcard-sla-chip">{card.sla_state} · {countdown(card.sla_deadline)}</KChip>

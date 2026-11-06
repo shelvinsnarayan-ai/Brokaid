@@ -8,6 +8,7 @@ import { uploadClaimFile } from "../../claims/upload";
 import { ClaimActions } from "./Actions";
 import "../../../styles/import.css";
 import "../../../styles/claims.css";
+import { Playbook, StaffHelp } from "../../../components/ledger/StaffHelp";
 
 function Notes({ c, onDone }: { c: any; onDone: () => void }) {
   const [text, setText] = useState("");
@@ -83,6 +84,7 @@ export function OperatorClaim() {
       <header>
         <p className="imp-muted">CLAIM · {c.client_name} · {c.channel}{c.test ? " · TEST" : ""}</p>
         <h1 data-testid="claim-ref">{c.claim_reference}</h1>
+        <Playbook k="claims" />
         <p data-testid="claim-stage"><strong>{c.stage_label}</strong>{c.overdue ? " · OVERDUE" : ""} · acknowledge by {dt(c.ack_due)} · {c.product || "no policy"} · {c.insurer || "—"} · excess {c.excess ?? "—"}</p>
       </header>
       <div className="clm-o-grid">
@@ -158,7 +160,7 @@ function ClaimMessages({ claimId }: { claimId: string }) {
             <ClaimAttachments atts={m.attachments || []} base={`${API}/api/o/claims/${claimId}/files`} testid={`claim-message-att-${k}`} /></div>
         ))
       )}
-      {data.reply_by_text ? <p className="imp-muted" data-testid="claim-messages-reply-by">Reply by {data.reply_by_text}</p> : null}
+      {data.reply_by_text ? <p className="imp-muted" data-testid="claim-messages-reply-by">Reply by <StaffHelp k="reply_by" testid="claim-help-reply-by" /> {data.reply_by_text}</p> : null}
       {data.exists ? (
         <Link className="k-btn" to={`/o/inbox/${encodeURIComponent(data.thread_id)}`} data-testid="claim-messages-open">
           {data.can_reply ? "Reply in Inbox" : "Open in Inbox (read-only)"}</Link>

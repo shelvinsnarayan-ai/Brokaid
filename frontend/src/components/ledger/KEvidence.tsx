@@ -1,4 +1,5 @@
 import { labelFor } from "../../lib/labels";
+import { Details } from "./Details";
 import { fmtDateTime } from "../../lib/format";
 interface EvidenceItem {
   event_id: string;
@@ -48,12 +49,13 @@ export function KEvidence({ items, testId }: { items: EvidenceItem[]; testId?: s
                 </>
               ) : (it.payload as any)?.label ? (
                 <>{(it.payload as any).label}</>
+              ) : (it as any).text ? (
+                <>{(it as any).text}</>
               ) : (
-                Object.entries(it.payload || {})
-                  .filter(([, v]) => typeof v === "string" || typeof v === "number")
-                  .slice(0, 4).map(([, v]) => String(v)).join(" · ").slice(0, 200)
+                "System update recorded"
               )}
             </div>
+            <Details value={it} testid={`k-evidence-details-${it.event_id}`} />
           </div>
         );
       })}

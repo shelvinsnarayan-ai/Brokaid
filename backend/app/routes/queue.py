@@ -125,6 +125,10 @@ async def get_card(
                     "type": e["type"], "actor": e["actor"],
                     "payload": e["payload"],
                 })
+        from app.kernel.event_text import describe
+        for ev in evidence:
+            if ev["type"] != "Citation":
+                ev.update(describe(ev["type"], ev["payload"]))
     conf_obj = (proposal.get("payload") or {}).get("confidence") or {}
     components = conf_obj.get("components") or {}
     scalar = conf_obj.get("scalar")

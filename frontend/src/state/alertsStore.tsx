@@ -6,7 +6,7 @@ const API = (import.meta as any).env.VITE_API_BASE || "";
 
 export interface Alert {
   id: string; kind: string; title: string; body: string; link: string; count: number;
-  created_at: string; updated_at: string; read: boolean;
+  created_at: string; updated_at: string; read: boolean; client_name?: string | null; severity?: "urgent" | "action" | "fyi";
 }
 
 interface AlertsState {

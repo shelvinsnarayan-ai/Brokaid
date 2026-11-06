@@ -1,6 +1,7 @@
 /**
  * /o/kpi/:id — KPI detail. Drillable → event list; else meta breakdown.
  */
+import { Details } from "../../components/ledger/Details";
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { KEmpty } from "../../components/ledger/KEmpty";
@@ -65,16 +66,7 @@ export function KpiDetail() {
       )}
 
       <h2 style={{ fontFamily: "var(--font-display-ledger)", fontWeight: 300, fontSize: 18 }}>Meta</h2>
-      <pre style={{
-        background: "rgba(230,234,242,0.03)", border: "1px solid rgba(230,234,242,0.08)",
-        padding: 12, borderRadius: 3, fontSize: 12, overflowX: "auto",
-        fontFamily: "var(--font-mono)", color: "var(--bone)",
-      }} data-testid="kpi-detail-meta">
-        {JSON.stringify(
-          Object.fromEntries(Object.entries(summary.meta).filter(([k]) => k !== "events")),
-          null, 2
-        )}
-      </pre>
+      <Details value={Object.fromEntries(Object.entries(summary.meta).filter(([k]) => k !== "events"))} testid="kpi-detail-meta" />
 
       {DRILLABLE.has(kpiId) ? (
         <>
@@ -88,8 +80,9 @@ export function KpiDetail() {
                 {drill.events.map((e: any, i: number) => (
                   <tr key={e?.event_id ?? i}>
                     <td className="k-num">{i + 1}</td>
-                    <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
-                      {JSON.stringify(e).slice(0, 220)}
+                    <td>
+                      {e.text || "System update recorded"} <span className="k-timeline__ts">· {e.ts ? new Date(e.ts).toLocaleString("en-AU") : ""}</span>
+                      <Details value={e} testid={`kpi-event-details-${i}`} />
                     </td>
                   </tr>
                 ))}

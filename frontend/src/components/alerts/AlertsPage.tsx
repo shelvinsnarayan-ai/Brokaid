@@ -1,7 +1,7 @@
 /** R0.11A — full alerts page + notification preferences (/c/alerts and /o/alerts). */
 import { useEffect, useState } from "react";
 import { useAlertsStore } from "../../state/alertsStore";
-import { AlertsList } from "./AlertsList";
+import { AlertsList, GroupedAlerts } from "./AlertsList";
 import { PushControl } from "./PushControl";
 import { PushTestCard } from "./PushTestCard";
 
@@ -74,7 +74,7 @@ export function AlertsPage({ surface }: { surface: "client" | "operator" }) {
         <button type="button" className="brokaid-bell__link" onClick={() => void markAll()} disabled={!count}
           data-testid="alerts-mark-all">Mark all read</button>
       </header>
-      <AlertsList items={items} testid="alerts-list" />
+      {surface === "operator" ? <GroupedAlerts items={items} testid="alerts-list" /> : <AlertsList items={items} testid="alerts-list" />}
       <PrefsCard surface={surface} />
       {surface === "operator" ? <PushTestCard /> : null}
     </section>

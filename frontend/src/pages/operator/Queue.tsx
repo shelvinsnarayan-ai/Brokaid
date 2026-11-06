@@ -2,12 +2,13 @@
  * /o/queue — full pending list with keyboard nav (j/k/Enter/a/r).
  * SLA countdown recomputed every 5s.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { KChip } from "../../components/ledger/KChip";
 import { KEmpty } from "../../components/ledger/KEmpty";
 import { KKbd } from "../../components/ledger/KKbd";
 import { KNumber } from "../../components/ledger/KNumber";
+import { StaffHelp } from "../../components/ledger/StaffHelp";
 import { useOperatorStore } from "../../state/operatorStore";
 import { confidenceWord, labelFor } from "../../lib/labels";
 
@@ -45,6 +46,7 @@ export function Queue() {
   const toast = useOperatorStore((s) => s.toast);
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState(0);
+  const [expanded, setExpanded] = useState<number | null>(null);
   const [filter, setFilter] = useState("");
   const [now, setNow] = useState(new Date());
   const [error, setError] = useState<string | null>(null);
@@ -154,34 +156,46 @@ export function Queue() {
       {visible.length === 0 ? (
         <KEmpty title="Queue clear" hint="No pending decisions." testId="queue-empty" />
       ) : (
+        <>
+        <p className="staff-legend" style={{ fontSize: 12, color: "var(--bone-muted)", margin: "0 0 8px" }} data-testid="queue-legend">
+          Labels: Class <StaffHelp k="class" testid="queue-legend-class" /> · Confidence <StaffHelp k="confidence" testid="queue-legend-confidence" /> ·
+          Route <StaffHelp k="route" testid="queue-legend-route" />
+        </p>
         <table className="k-table" data-testid="queue-table">
           <thead>
             <tr>
-              <th>SLA</th><th>Class</th><th>Client</th><th>Reason</th>
-              <th className="k-num-th">Confidence</th><th className="k-num-th">Countdown</th>
-              <th>Route</th>
+              <th>Client</th><th>What's needed <StaffHelp k="class" testid="queue-help-class" /></th><th>Due by</th><th>Action</th>
             </tr>
           </thead>
           <tbody>
             {visible.map(({ card: c, cls }, i) => (
-              <tr
-                key={c.envelope_id}
-                className={cls}
-                onClick={() => { setSelected(i); nav(`/o/queue/${c.envelope_id}`); }}
-                style={{ cursor: "pointer" }}
-                data-testid={`queue-row-${i}`}
-              >
-                <td><KChip variant={c.sla_state}>{c.sla_state}</KChip></td>
-                <td title={c.class_key} data-raw={c.class_key} data-testid={`queue-class-${i}`}>{labelFor(c.class_key)}</td>
-                <td>{c.client_display ?? "—"}</td>
-                <td style={{ color: "var(--bone-muted)", fontSize: 12 }} title={c.gate_reason ?? ""} data-raw={c.gate_reason ?? ""} data-testid={`queue-reason-${i}`}>{labelFor(c.gate_reason)}</td>
-                <td className="k-num" data-testid={`queue-confidence-${i}`}>{isPrincipal ? <KNumber value={c.confidence} format="raw" /> : confidenceWord(c.confidence)}</td>
-                <td className="k-num" data-testid={`queue-countdown-${i}`}>{countdown(c.sla_deadline, now)}</td>
-                <td title={c.routed_to_role ?? ""} data-raw={c.routed_to_role ?? ""}>{labelFor(c.routed_to_role)}</td>
-              </tr>
+              <Fragment key={c.envelope_id}>
+                <tr className={cls} data-testid={`queue-row-${i}`}>
+                  <td>{c.client_display ?? "—"}</td>
+                  <td data-testid={`queue-class-${i}`}>{labelFor(c.class_key)}
+                    <span style={{ display: "block", color: "var(--bone-muted)", fontSize: 12 }} data-testid={`queue-reason-${i}`}>{labelFor(c.gate_reason)}</span></td>
+                  <td data-testid={`queue-countdown-${i}`}><KChip variant={c.sla_state}>{countdown(c.sla_deadline, now)}</KChip></td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <button type="button" className="k-btn k-btn--primary" onClick={() => { setSelected(i); nav(`/o/queue/${c.envelope_id}`); }}
+                      data-testid={`queue-open-${i}`}>Review</button>{" "}
+                    <button type="button" className="k-btn" aria-expanded={expanded === i} onClick={() => setExpanded(expanded === i ? null : i)}
+                      data-testid={`queue-more-${i}`}>{expanded === i ? "Less" : "More"}</button>
+                  </td>
+                </tr>
+                {expanded === i ? (
+                  <tr className="is-expanded" data-testid={`queue-row-${i}-more`}>
+                    <td colSpan={4} style={{ fontSize: 12, color: "var(--bone-muted)" }}>
+                      SLA {c.sla_state} · Confidence <StaffHelp k="confidence" testid={`queue-help-confidence-${i}`} />{" "}
+                      <span data-testid={`queue-confidence-${i}`}>{isPrincipal ? <KNumber value={c.confidence} format="raw" /> : confidenceWord(c.confidence)}</span>
+                      {" "}· Route <StaffHelp k="route" testid={`queue-help-route-${i}`} /> {labelFor(c.routed_to_role)}
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
             ))}
           </tbody>
         </table>
+        </>
       )}
     </section>
   );

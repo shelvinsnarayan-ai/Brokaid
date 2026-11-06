@@ -50,6 +50,8 @@ async def drill(
     events = list(target.meta.get("events") or [])
     total = len(events)
     page = events[offset: offset + limit]
+    from app.kernel.event_text import render
+    await render(request.app.state.mongo_db, session.tenant_id, page)
     return {
         "kpi_id": kpi_id,
         "label": target.meta.get("label"),

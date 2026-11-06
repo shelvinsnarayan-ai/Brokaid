@@ -10,6 +10,7 @@ interface Page {
   covered: string[]; excess: string | null; summary?: string | null; renewal: { renewal_id: string; text: string } | null;
   vehicles: { rego: string; title: string; use?: string; figure: Fig | null }[]; activity: Item[];
   previous: { policy_id: string; product: string; period: string; status: string }[];
+  previous_docs?: { doc_id: string; title: string; term_label: string; sample: boolean }[];
   renewal_section: { state: string; text: string; renews_on: string; action: { label: string; href: string } | null } | null;
   key_numbers: { label: string; value: string; explain: string }[];
 }
@@ -82,9 +83,13 @@ export default function PolicyPage() {
         </section>
         <section className="mer-sec" data-testid="mer-policy-previous">
           <h2 className="mer-sec__title">Previous terms</h2>
-          {data.previous.length ? <div className="mer-card">{data.previous.map((p) => (
+          {data.previous.length || data.previous_docs?.length ? <div className="mer-card">{data.previous.map((p) => (
             <div key={p.policy_id} className="mer-row"><span className="mer-row__main"><p className="mer-row__t">{p.product}</p>
-              <p className="mer-row__s">{p.period} · {p.status}</p></span></div>))}</div>
+              <p className="mer-row__s">{p.period} · {p.status}</p></span></div>))}
+            {(data.previous_docs || []).map((d) => (
+              <a key={d.doc_id} className="mer-row" href={`${import.meta.env.VITE_API_BASE || ""}/api/c/documents/file/${d.doc_id}`} target="_blank" rel="noreferrer"
+                data-testid={`mer-policy-previous-doc-${d.doc_id}`}><span className="mer-row__main"><p className="mer-row__t">Previous schedule{d.sample ? " (SAMPLE)" : ""}</p>
+                <p className="mer-row__s">{d.term_label} · also in Documents</p></span>›</a>))}</div>
             : <p className="mer-empty">No previous terms.</p>}
         </section>
       </div>

@@ -5,6 +5,7 @@ import { Recommend } from "./Recommend";
 import { TmdCheck } from "./TmdCheck";
 import { OfflineSign } from "../OfflineSign";
 import { api, aud, get, type Detail } from "./api";
+import { Playbook, StaffHelp } from "../../../components/ledger/StaffHelp";
 
 export function RenewalDetail({ id, role, mode, onClose, onChanged }: { id: string; role?: string; mode?: string; onClose: () => void; onChanged: () => void }) {
   const [d, setD] = useState<Detail | null>(null);
@@ -25,6 +26,7 @@ export function RenewalDetail({ id, role, mode, onClose, onChanged }: { id: stri
         <h2 className="imp-h2" data-testid="renewal-detail-title">{r.client_name} · {r.product}</h2>
         <button className="k-btn" onClick={onClose} data-testid="renewal-detail-close">Close</button>
       </div>
+      <Playbook k="renewal" />
       <p className="imp-muted" data-testid="renewal-detail-stage">
         Stage: <b className={`rn-stage rn-stage--${r.stage}`}>{r.stage_label}</b>{r.stage === "lapse_risk" ? ` (was ${r.current.replace("_", " ")})` : ""}
         {" · "}expiring {d.comparison.expiring.insurer} at {aud(d.comparison.expiring.premium)}, excess {aud(d.comparison.expiring.excess)}
@@ -68,7 +70,7 @@ export function RenewalDetail({ id, role, mode, onClose, onChanged }: { id: stri
       {["quotes_in", "recommendation_ready"].includes(r.current) ? <Recommend d={d} role={role} act={act} /> : null}
       <ComparisonEmails rows={(d as any).comparison_emails || []} canResend={can && ["client_decision", "paid"].includes(r.current)}
         onResend={() => act("resend-comparison")} />
-      {d.payable ? <p className="imp-muted" data-testid="renewal-payable">Payment: CRN {d.payable.crn} · {aud(d.payable.amount)} · <b>{d.payable.state}</b></p> : null}
+      {d.payable ? <p className="imp-muted" data-testid="renewal-payable">Payment: CRN <StaffHelp k="crn" testid="renewal-help-crn" /> {d.payable.crn} · {aud(d.payable.amount)} · <b>{d.payable.state}</b></p> : null}
       {d.packet ? (
         <div data-testid="renewal-packet">
           <h3 className="imp-h3">Change packet for iAdviser (enter by hand — no write-back)</h3>
@@ -129,7 +131,7 @@ function LapseDecisions({ r, role, act, load, onChanged }: { r: any; role?: stri
       ) : null}
       {rr ? (
         <div className="imp-card" data-testid="renewal-refund-or-bind">
-          <h3 className="imp-h3">Refund or bind decision</h3>
+          <h3 className="imp-h3">Refund or bind decision <StaffHelp k="refund_or_bind" testid="renewal-help-refund" /></h3>
           {rr.state === "open" ? <>
             <p className="imp-warn" data-testid="renewal-refund-or-bind-text">The policy lapsed with the premium held in trust. Refund it, or bind with a late wet signature (Principal approval).</p>
             <button className="k-btn" onClick={() => act("mark-refund")} data-testid="renewal-mark-refund">Mark for refund</button>

@@ -94,4 +94,11 @@ async def policy(policy_id: str, request: Request, s: Session = Depends(require_
     page = ch.policy_page(ctx, policy_id, datetime.now(timezone.utc), lead) if ctx else None
     if not page:
         raise HTTPException(status_code=404, detail="not_found")
+    from app.db.tenant_safe import wrap
+    from app.kernel.tenant_ctx import use_tenant
+    async with use_tenant(s.tenant_id):
+        page["previous_docs"] = [{"doc_id": d["doc_id"], "title": d["title"], "term_label": d.get("term_label") or "", "sample": bool(d.get("sample"))}
+                                 async for d in wrap(store).policy_documents.find(
+                                     {"policy_id": policy_id, "kind": "schedule", "current": False, "withdrawn_at": None,
+                                      "staff_only": {"$ne": True}}, {"_id": 0})]
     return page

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Basis, PageHead, getJson, muted } from "./stubKit";
+import { StaffHelp } from "../../components/ledger/StaffHelp";
 
 export interface ThreadRow {
   thread_id: string; client: string; subject: string; last_message: string; last_at: string;
@@ -39,7 +40,7 @@ export function Inbox() {
       {!rows.length ? <p style={muted} data-testid="inbox-empty">No client messages yet.</p> : (
         <div data-testid="inbox-table" role="table">
           <div className={`${grid} inbox-head`} style={{ ...muted, padding: "6px 10px" }} role="row">
-            <span>Client</span><span>Last message</span><span>Reply by</span><span>Status</span>
+            <span>Client</span><span>Last message</span><span>Reply by <StaffHelp k="reply_by" testid="inbox-help-reply-by" /></span><span>Status</span>
           </div>
           {rows.map((t, i) => (
             <Link key={t.thread_id} to={`/o/inbox/${encodeURIComponent(t.thread_id)}`} className={grid} role="row"

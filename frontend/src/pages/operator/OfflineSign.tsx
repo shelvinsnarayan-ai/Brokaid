@@ -1,6 +1,7 @@
 /** R2.0 — staff: record a wet-signed scan for insurers that need one (OfflineSignatureRecorded). */
 import { useState } from "react";
 import "../../styles/acceptance.css";
+import { StaffHelp } from "../../components/ledger/StaffHelp";
 
 const API = import.meta.env.VITE_API_BASE || "";
 
@@ -23,7 +24,7 @@ export function OfflineSign({ kind, refId, onDone }: { kind: "endorsement" | "re
   }
   return (
     <details className="acc-offline" data-testid={`offline-sign-${kind}`}>
-      <summary>Signed offline (insurer needs a wet signature)</summary>
+      <summary>Signed offline (insurer needs a wet signature) <StaffHelp k="signed_offline" testid="help-signed-offline" /></summary>
       <input type="file" accept="application/pdf,image/jpeg,image/png,image/heic" onChange={(e) => setFile(e.target.files?.[0] || null)}
         data-testid="offline-sign-file" />
       <input placeholder="Reason, e.g. insurer requires a wet signature" value={reason} onChange={(e) => setReason(e.target.value)}

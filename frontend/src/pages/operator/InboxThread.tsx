@@ -9,6 +9,7 @@ import { AttachTray } from "../client/AttachTray";
 import { useAttachments } from "../client/useAttachments";
 import type { Limits } from "../client/attachUpload";
 import { QuoteFields, quoteLine, useQuotes, type Quote } from "./QuoteFields";
+import { StaffHelp } from "../../components/ledger/StaffHelp";
 
 interface Msg { who: "client" | "broker" | "pending"; text: string; at: string; author: string | null; attachments?: Att[]; claim_id?: string | null }
 interface Approval {
@@ -189,7 +190,7 @@ export function InboxThread() {
       <PageHead eyebrow={`INBOX · ${t.client.toUpperCase()}`} title={t.subject}>
         <p style={{ ...muted, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <StatusPill s={t.status} testid="thread-status" />
-          <span data-testid="thread-reply-by">Reply by {t.reply_by_text} (+1 business day)</span>
+          <span data-testid="thread-reply-by">Reply by {t.reply_by_text} (+1 business day) <StaffHelp k="reply_by" testid="thread-help-reply-by" /></span>
           {t.kept && <span data-testid="thread-kept">{t.kept.late ? "Answered late" : "Answered on time"}</span>}
         </p>
       </PageHead>

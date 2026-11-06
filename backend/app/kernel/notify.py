@@ -52,6 +52,8 @@ STAFF_REVIEW = dict(kind="broker_review", to=("staff", ("ae",)), title="A reques
                     many="{n} requests need a broker", body="{client} has a request waiting for broker review.",
                     link="/o/queue/{envelope_id}")
 RULES: dict[str, dict] = {
+    "PolicyDocumentAdded": dict(kind="document_ready", to=("client", None), title="Your new {doc} is ready",
+                                many="{n} new documents are ready", body="Open Documents to view or download it.", link="/c/documents"),
     "ClientMemberInvited": dict(kind="broker_review", to=("staff", ("ae",)), title="{client} invited someone to their account",
                                 many="{n} people invited by {client}", body="FYI only — no approval needed.", link="/o/clients"),
     "ClientQuestionAsked": dict(kind="client_question", to=("staff", ("ae", "principal")),
@@ -156,7 +158,8 @@ async def _prefs(safe, user_id: str) -> dict:
 
 async def deliver(store, tenant_id: str, user_id: str, *, kind: str, title: str, many: str, body: str,
                   link: str, dedupe_key: str, idem: str, source_event_id: str | None = None,
-                  thread_id: str | None = None, reply_id: str | None = None, test: bool = False) -> str:
+                  thread_id: str | None = None, reply_id: str | None = None, test: bool = False,
+                  client_name: str | None = None) -> str:
     """Create or coalesce one notification. Returns 'created' | 'coalesced' | 'duplicate'."""
     safe = wrap(store)
     now = datetime.now(timezone.utc)
@@ -180,7 +183,7 @@ async def deliver(store, tenant_id: str, user_id: str, *, kind: str, title: str,
         doc = {"notification_id": str(uuid.uuid4()), "user_id": user_id, "kind": kind, "title": title,
                "body": body, "link": link, "source_event_id": source_event_id, "dedupe_key": dedupe_key,
                "idem_keys": [idem], "count": 1, "created_at": now, "updated_at": now, "read_at": None,
-               "thread_id": thread_id, "reply_id": reply_id, "test": test}
+               "thread_id": thread_id, "reply_id": reply_id, "test": test, "client_name": client_name}
         prefs = await _prefs(safe, user_id)
         doc["channels_state"] = {c.name: await c.deliver(doc, prefs) for c in CHANNELS}
         try:
@@ -202,6 +205,8 @@ async def on_event(store, tenant_id: str, type_: str, payload: dict, event_id: s
         return
     p = payload or {}
     safe = wrap(store)
+    if type_ == "PolicyDocumentAdded" and (p.get("sample") or p.get("demo")):
+        return
     if type_ == "OperatorApproval" and p.get("envelope_id"):
         # Only a priced change waits on the client; a broker taking a parked review is a different alert.
         async with use_tenant(tenant_id):
@@ -237,6 +242,7 @@ async def on_event(store, tenant_id: str, type_: str, payload: dict, event_id: s
     ctx = {"client": (client or {}).get("display_name", "A client"), "author": author or "Your broker",
            "policy_id": policy_id or "", "attach": f" with {p['attachment_summary']}" if p.get("attachment_summary") else "",
            "envelope_id": p.get("envelope_id") or "", "thread_id": thread_id or "", "payable_id": p.get("payable_id") or "",
+           "doc": {"schedule": "schedule", "pds": "PDS", "wording": "policy wording"}.get(p.get("kind"), "document"),
            "reply_by": inbox.fmt_short(inbox.reply_by_for(inbox._utc(received), hstate))}
     ref = thread_id or p.get("envelope_id") or event_id
     for uid in recipients:
@@ -247,7 +253,7 @@ async def on_event(store, tenant_id: str, type_: str, payload: dict, event_id: s
                             else rule["link"].format(**ctx)), dedupe_key=f"{rule['kind']}:{ref}",
                       idem=rule["once"].format(**ctx) if rule.get("once") else f"ev:{event_id}",
                       source_event_id=event_id, thread_id=thread_id, reply_id=p.get("reply_id"),
-                      test=test)
+                      test=test, client_name=(client or {}).get("display_name"))
 
 
 async def run_checks(store, tenant_id: str, now: datetime | None = None) -> dict:

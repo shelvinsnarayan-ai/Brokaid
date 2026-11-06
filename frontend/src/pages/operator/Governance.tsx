@@ -311,29 +311,54 @@ export function Governance() {
     catch (e) { done(String(e)); }
   }
   if (denied) return <p data-testid="governance-denied" style={muted}>Agent operations are for the Operator role.</p>;
+  const engaged = rows.filter((r) => r.enabled && !r.released_at).length;
+  const Sec = ({ id, title, open, children }: { id: string; title: string; open?: boolean; children: React.ReactNode }) => (
+    <details style={card} open={open} data-testid={`gov-sec-${id}`}><summary style={{ cursor: "pointer", fontWeight: 600 }}>{title}</summary>
+      <div style={{ marginTop: 10 }}>{children}</div></details>
+  );
   return (
     <div data-testid="governance-page" style={{ maxWidth: 1100 }}>
       <p style={muted}>CONTROL · GOVERNANCE</p>
       <h1 style={{ fontSize: 28, marginBottom: 16 }}>Governance</h1>
       {msg && <p data-testid="gov-message" style={{ ...muted, marginBottom: 12 }}>{msg}</p>}
-      <section style={card}><ReleaseCheck /></section>
-      <section style={card} data-testid="gov-invites-card"><strong>People</strong> · <Link to="/o/invites" data-testid="gov-invites-link">Invite staff and clients</Link></section>
-      <section style={card}><BackgroundWork /></section>
-      <section style={card}><GoLive /></section>
-      <section style={card}><ExposureReport /></section>
-      <section style={card}><a className="k-btn" href="/o/reviews" data-testid="gov-reviews-link">UX reviews (multi-model)</a></section>
-      <section style={card}><AiEval /></section>
-      <SpendCard s={spendData} />
-      <RegistryCard />
+      <StatusCards engaged={engaged} spend={spendData} />
+      <Sec id="release" title="Release check" open><ReleaseCheck /></Sec>
       <section style={card} data-testid="gov-kill-switches">
         <h2 style={{ fontSize: 16 }}>Kill switches</h2>
         <p style={muted}>An engaged switch stops matching assistant work before any model call. Takes effect within 10 seconds.</p>
         <SwitchRows rows={rows} onRelease={release} />
         <EngageForm agents={agents} packages={packages} onDone={done} />
       </section>
+      <Sec id="exposure" title="Exposure report" open><ExposureReport /></Sec>
+      <section style={card} data-testid="gov-invites-card"><strong>People</strong> · <Link to="/o/invites" data-testid="gov-invites-link">Invite staff and clients</Link></section>
+      <Sec id="spend" title="Model spend"><SpendCard s={spendData} /></Sec>
+      <Sec id="eval" title="AI eval gate"><AiEval /></Sec>
+      <Sec id="background" title="Background work"><BackgroundWork /></Sec>
+      <Sec id="golive" title="Go-live checklist"><GoLive /></Sec>
+      <Sec id="registry" title="Assistant registry (raw config)"><RegistryCard /></Sec>
+      <section style={card}><a className="k-btn" href="/o/reviews" data-testid="gov-reviews-link">UX reviews (multi-model)</a></section>
       <DrillLog />
       <EmailOverrides />
       <DemoReset onDone={done} />
+    </div>
+  );
+}
+
+function StatusCards({ engaged, spend }: { engaged: number; spend: Spend | null }) {
+  const [ev, setEv] = useState<any>(null);
+  useEffect(() => { fetch(`${API}/api/o/compliance/ai-eval`, { credentials: "include" }).then((r) => (r.ok ? r.json() : null)).then(setEv).catch(() => {}); }, []);
+  const last = ev?.status?.last;
+  const cards: [string, string, string][] = [
+    ["model", "Model", last?.model || "Not run yet"],
+    ["kill", "Kill switches", engaged ? `${engaged} on — assistant work paused` : "All off"],
+    ["spend", "Spend this month", spend ? `US$${spend.cost_usd.toFixed(2)}${spend.cap_usd ? ` of US$${spend.cap_usd.toFixed(0)} cap` : " · no cap"}` : "…"],
+    ["eval", "Last eval", last ? (last.gate_pass ? "Passed" : "Failed") : "Not run yet"],
+  ];
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 20 }} data-testid="gov-status-cards">
+      {cards.map(([k, l, v]) => (
+        <div key={k} style={{ ...card, marginBottom: 0 }} data-testid={`gov-status-${k}`}><div style={muted}>{l}</div><div style={{ fontSize: 18, marginTop: 4 }}>{v}</div></div>
+      ))}
     </div>
   );
 }
