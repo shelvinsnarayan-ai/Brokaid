@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.tenant_safe import wrap
 from app.kernel import media, object_store
+from app.kernel.client_library import term_text
 from app.kernel.tenant_ctx import use_tenant
 from app.kernel.trail_dispatch import append_via_dispatch
 from app.middleware.session import require_operator_session
@@ -32,7 +33,7 @@ def _writer(s) -> None:
 
 def _view(d: dict) -> dict:
     return {"doc_id": d["doc_id"], "policy_id": d["policy_id"], "kind": d["kind"], "kind_label": KINDS.get(d["kind"], d["kind"]),
-            "title": d["title"], "term_label": d.get("term_label") or "", "current": bool(d.get("current")),
+            "title": d["title"], "term_label": term_text(d), "current": bool(d.get("current")),
             "sample": bool(d.get("sample")), "filename": d["filename"], "created_at": d["created_at"].isoformat() if d.get("created_at") else None,
             "withdrawn": bool(d.get("withdrawn_at")), "withdrawn_reason": d.get("withdrawn_reason")}
 

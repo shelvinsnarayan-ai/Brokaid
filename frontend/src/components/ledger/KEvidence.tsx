@@ -2,7 +2,7 @@ import { labelFor } from "../../lib/labels";
 import { Details } from "./Details";
 import { fmtDateTime } from "../../lib/format";
 interface EvidenceItem {
-  event_id: string;
+  event_id?: string;
   ts: string;
   type: string;
   payload?: Record<string, any>;
@@ -17,12 +17,12 @@ export function KEvidence({ items, testId }: { items: EvidenceItem[]; testId?: s
   }
   return (
     <div data-testid={testId ?? "k-evidence"}>
-      {items.map((it) => {
+      {items.map((it, idx) => {
         const isCarrier = it.type === "CarrierQuoted";
         const isSubmission = it.type === "SubmissionDrafted";
         const carrier = isCarrier ? (it.payload as any) : null;
         return (
-          <div key={it.event_id} className="k-evidence__item">
+          <div key={it.event_id || idx} className="k-evidence__item">
             <div className="k-evidence__meta">
               {labelFor(it.type)} · {fmtDateTime(it.ts)}
               {isCarrier && (
@@ -55,7 +55,7 @@ export function KEvidence({ items, testId }: { items: EvidenceItem[]; testId?: s
                 "System update recorded"
               )}
             </div>
-            <Details value={it} testid={`k-evidence-details-${it.event_id}`} />
+            <Details value={it} testid={`k-evidence-details-${idx}`} />
           </div>
         );
       })}

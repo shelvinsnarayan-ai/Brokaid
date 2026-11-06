@@ -16,6 +16,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 CLIENT = "00000000-0000-4000-8000-000000000001"
 RENEW = "00000000-0000-4000-8000-000000000151"
 SCHEDULES = ("00000000-0000-4000-8000-000000000101", RENEW)
+MOTOR = "00000000-0000-4000-8000-000000000104"  # R3.13b: current SAMPLE schedule only
 RENEW_IN_DAYS = 32
 
 
@@ -76,13 +77,17 @@ async def _schedules(db, tid, now) -> list:
     from app.kernel.renewals import _event
     client = (await db.clients.find_one({"tenant_id": tid, "client_id": CLIENT}) or {}).get("display_name") or "Client"
     out = []
-    for pid in SCHEDULES:
+    for cur in (True, False):  # label older SAMPLE rows with their slot once, so reruns stay idempotent after real uploads
+        await db.policy_documents.update_many({"tenant_id": tid, "sample": True, "kind": "schedule", "current": cur, "term_slot": None},
+                                              {"$set": {"term_slot": "current" if cur else "previous"}})
+    for pid in (*SCHEDULES, MOTOR):
         p = await db.policies.find_one({"tenant_id": tid, "policy_id": pid}, {"_id": 0})
         start = p["inception"].replace(tzinfo=timezone.utc)
         end = p["expiry"].replace(tzinfo=timezone.utc) if p["expiry"].tzinfo is None else p["expiry"]
-        for current, s, e in ((True, start, end), (False, start - timedelta(days=365), start)):
-            label = f"{s:%-d %b %Y} – {e:%-d %b %Y}" + (" (current term)" if current else "")
-            q = {"tenant_id": tid, "policy_id": pid, "kind": "schedule", "current": current}
+        terms = ((True, start, end),) if pid == MOTOR else ((True, start, end), (False, start - timedelta(days=365), start))
+        for current, s, e in terms:
+            label = f"{s:%-d %b %Y} – {e:%-d %b %Y}"
+            q = {"tenant_id": tid, "policy_id": pid, "kind": "schedule", "sample": True, "term_slot": "current" if current else "previous"}
             if await db.policy_documents.find_one(q):
                 await db.policy_documents.update_one(q, {"$set": {"term_label": label, "title": "Policy schedule"}})
                 out.append({"policy_id": pid, "current": current, "replayed": True})
@@ -94,6 +99,7 @@ async def _schedules(db, tid, now) -> list:
             row = {"doc_id": doc_id, "tenant_id": tid, "client_id": CLIENT, "policy_id": pid, "kind": "schedule", "current": current,
                    "title": "Policy schedule", "term_label": label, "filename": f"schedule-{s:%Y}-SAMPLE.pdf",
                    "storage_path": path, "sha256": hashlib.sha256(pdf).hexdigest(), "sample": True, "demo": True,
+                   "term_slot": "current" if current else "previous", "withdrawn_at": None,
                    "created_at": now}
             await db.policy_documents.insert_one(dict(row))
             await _event(db, tid, "PolicyDocumentAdded", {k: row[k] for k in ("doc_id", "policy_id", "client_id", "kind", "term_label",

@@ -149,7 +149,8 @@ async def inbox(request: Request, include_tests: bool = False,
     rows = await inbox_k.load_threads(request.app.state.mongo_db, session.tenant_id, include_tests=include_tests)
     labels = await _claim_labels(request.app.state.mongo_db, session.tenant_id)
     out = [_thread_row(t, now, labels) for t in inbox_k.sort_threads(rows, now)]
-    return {"threads": out, "count": _n(len(out))}
+    from app.kernel.event_text import staff_out
+    return staff_out(session, {"threads": out, "count": _n(len(out))})
 
 
 @router.get("/inbox/{thread_id}")
@@ -168,13 +169,15 @@ async def inbox_thread(thread_id: str, request: Request,
              "attachments": _ct.attachments(claim, m.get("file_ids") or []) if claim else [],
              "claim_id": claim["claim_id"] if claim else None}
             for m in t["messages"]]
-    return {**_thread_row(t, now, await _claim_labels(request.app.state.mongo_db, session.tenant_id)), "conversation": msgs,
+    from app.kernel.event_text import staff_out
+    return staff_out(session, {**_thread_row(t, now, await _claim_labels(request.app.state.mongo_db, session.tenant_id)), "conversation": msgs,
             "can_reply": session.active_role in inbox_k.REPLY_ROLES, "me": {"user_id": session.user_id, "role": session.active_role},
             "attachment_limits": ({"max_files": 5, "photo_bytes": 10 * 1024 * 1024, "pdf_bytes": 20 * 1024 * 1024,
                                    "message_bytes": 250 * 1024 * 1024, "videos_enabled": False, "documents_enabled": True,
                                    "closed": _ct.is_closed(claim)} if claim else None),
-            "advice_approvals": await inbox_k.approvals(request.app.state.mongo_db, session.tenant_id, thread_id),
-            "kept": ({"kept_at": t["kept"]["kept_at"].isoformat(), "late": t["kept"]["late"]} if t["kept"] else None)}
+            "advice_approvals": [{**a, "mine": a.get("requested_by") == session.user_id}
+                                 for a in await inbox_k.approvals(request.app.state.mongo_db, session.tenant_id, thread_id)],
+            "kept": ({"kept_at": t["kept"]["kept_at"].isoformat(), "late": t["kept"]["late"]} if t["kept"] else None)})
 
 
 class ReplyBody(BaseModel):

@@ -1,6 +1,7 @@
 """R3.12 J7 — client Documents grouped by policy. Internal/engine paperwork never leaves the server."""
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from urllib.parse import quote
 
@@ -19,6 +20,14 @@ NAMES = {"FSG": "Financial Services Guide", "PDS": "Product Disclosure Statement
 def client_visible(row: dict) -> bool:
     return (row.get("kind") in CLIENT_KINDS and not row.get("staff_only") and not row.get("internal")
             and not row.get("test"))
+
+
+def term_text(f: dict) -> str:
+    """Term label from status at read time (stored labels never say current/previous)."""
+    label = re.sub(r"\s*\((current|previous)( term)?\)\s*$", "", f.get("term_label") or "", flags=re.I).strip()
+    if f.get("kind") != "schedule":
+        return label
+    return " · ".join(x for x in (label, "current term" if f.get("current") else "previous term") if x)
 
 
 def _ask(text: str) -> str:
@@ -50,7 +59,7 @@ async def library(store, tid: str, client_id: str) -> dict:
         for f in files:
             if f["policy_id"] != p["policy_id"]:
                 continue
-            item = {"id": f["doc_id"], "title": f["title"], "subtitle": f.get("term_label") or "", "sample": bool(f.get("sample")),
+            item = {"id": f["doc_id"], "title": f["title"], "subtitle": term_text(f), "sample": bool(f.get("sample")),
                     "href": f"/api/c/documents/file/{f['doc_id']}", "download": True}
             key = {"schedule": "schedule" if f.get("current") else "previous", "pds": "pds", "certificate": "certificates",
                    "receipt": "receipts"}.get(f["kind"], "letters")

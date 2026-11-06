@@ -39,7 +39,8 @@ def operator(s=Depends(require_operator_session)):
 @router.get("/renewal-review")
 async def review(request: Request, ae: str | None = None, stage: str | None = None, insurer: str | None = None, s=Depends(reader)) -> dict:
     d = await rv.review(_store(request), s.tenant_id, ae=ae, stage=stage, insurer=insurer)
-    return {**d, "can_act": s.active_role == "operator"}
+    from app.kernel.event_text import staff_out
+    return staff_out(s, {**d, "can_act": s.active_role == "operator"})
 
 
 @router.get("/renewal-review/count")

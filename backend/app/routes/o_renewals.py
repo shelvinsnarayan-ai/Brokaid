@@ -116,9 +116,10 @@ async def pipeline(request: Request, stage: str | None = None, ae: str | None = 
         rows = [r for r in rows if r["overdue"]]
     rows.sort(key=lambda r: (not r["overdue"], tuple(reversed(r["expiry"].split("/")))))
     counts = {k: sum(1 for r in rows if r["stage"] == k) for k in ["not_started", *rn.LABEL]}
-    return {"renewals": rows, "count": _n(len(rows)), "stage_counts": counts, "stages": rn.LABEL,
+    from app.kernel.event_text import staff_out
+    return staff_out(s, {"renewals": rows, "count": _n(len(rows)), "stage_counts": counts, "stages": rn.LABEL,
             "aes": sorted({(r["ae_user_id"], r["ae"]) for r in rows if r["ae_user_id"]}, key=lambda x: x[1] or ""),
-            "settings": await holidays.tenant_settings(store, s.tenant_id)}
+            "settings": await holidays.tenant_settings(store, s.tenant_id)})
 
 
 class SettingsBody(BaseModel):
@@ -220,7 +221,8 @@ async def resend_comparison(renewal_id: str, request: Request, s=Depends(require
 
 @router.get("/renewals/{renewal_id}")
 async def detail(renewal_id: str, request: Request, s=Depends(require_operator_session)) -> dict:
-    return await _detail(_store(request), s.tenant_id, await _load(request, s, renewal_id))
+    from app.kernel.event_text import staff_out
+    return staff_out(s, await _detail(_store(request), s.tenant_id, await _load(request, s, renewal_id)))
 
 
 class NoteBody(BaseModel):

@@ -49,8 +49,8 @@ interface CardResp {
     client_display?: string | null; matter_display?: string | null;
     routed_to_role: string | null;
   };
-  proposal: { event_id: string; ts: string; type: string; payload: any };
-  evidence: { event_id: string; ts: string; type: string; payload: any }[];
+  proposal: { event_id?: string; ts: string; type: string; payload: any; output?: any; claim_id?: string | null };
+  evidence: { event_id?: string; ts: string; type: string; payload?: any; text?: string; link?: string | null; kind?: string | null }[];
   confidence: {
     components: { schema_validity: number; completeness: number;
                   citation_existence: number; class_agreement: number };
@@ -129,12 +129,12 @@ export function DecisionCard() {
   const compValues = Object.values(confidence.components || {}).map(Number);
   const staleFormat = compValues.length > 0 && compValues.every((v) => v === 0)
     && confidence.scalar !== null && Math.abs(Number(confidence.scalar) - 0.9) < 1e-9;
-  const cites: unknown[] = (proposal as any)?.payload?.citations || [];
-  const mismatch = proposal?.type === "RequestNeedsHumanReview" ? (proposal as any).payload?.mismatch : null;
+  const cites: unknown[] = (proposal as any)?.citations || (proposal as any)?.payload?.citations || [];
+  const mismatch = proposal?.type === "RequestNeedsHumanReview" ? ((proposal as any).mismatch ?? (proposal as any).payload?.mismatch) : null;
   const objectCites = evidence.length === 0 && cites.some((c) => c !== null && typeof c === "object");
   const isTrust = card.class_key === "trust_money";
   const isClaim = card.class_key === "claim_admin";
-  const claimId = isClaim ? (proposal.payload?.claim_id as string | undefined) : undefined;
+  const claimId = isClaim ? ((proposal.claim_id ?? proposal.payload?.claim_id) as string | undefined) : undefined;
   const isCompliance = session?.session.active_role === "compliance";
   // R0.6: engine detail (scores) is Operator-only (role=operator).
   const isOperator = session?.session.active_role === "operator";
@@ -176,31 +176,31 @@ export function DecisionCard() {
         <div className="dcard-col" data-testid="dcard-proposal">
           <h3>Proposal</h3>
           <div style={{ marginBottom: 8, color: "var(--slate)", fontSize: 11 }}>
-            {labelFor(proposal.type)}{isOperator ? ` · ${proposal.event_id.slice(0, 8)}…` : ""} · {fmtDateTime(proposal.ts)}
+            {labelFor(proposal.type)}{isOperator && proposal.event_id ? ` · ${proposal.event_id.slice(0, 8)}…` : ""} · {fmtDateTime(proposal.ts)}
           </div>
           {mismatch ? (
             <div data-testid="dcard-mismatch" style={{ fontSize: 12 }}>
               <p style={{ marginTop: 0, color: "var(--alert)" }}>
-                {(proposal as any).payload?.stage === "advice_boundary"
+                {((proposal as any).stage ?? (proposal as any).payload?.stage) === "advice_boundary"
                   ? "Parked: this needs personal advice from a broker. Nothing was quoted."
-                  : (proposal as any).payload?.stage === "enter_insurer_quote"
+                  : ((proposal as any).stage ?? (proposal as any).payload?.stage) === "enter_insurer_quote"
                   ? "Parked: get a real quote from the insurer and enter it below. Nothing was auto-priced."
                   : "Parked: the request doesn't match what the policy holds. Nothing was quoted."}
               </p>
-              {(proposal as any).payload?.stage !== "advice_boundary" && (
+              {((proposal as any).stage ?? (proposal as any).payload?.stage) !== "advice_boundary" && (
                 <>
                   <p>Field · <code data-testid="dcard-mismatch-field">{mismatch.field_path}</code></p>
                   <p>Client said · <code data-testid="dcard-mismatch-value">{typeof mismatch.attempted_value === "object" ? Object.values(mismatch.attempted_value ?? {}).join(" ") : String(mismatch.attempted_value)}</code></p>
                 </>
               )}
               <p>Check · <span data-testid="dcard-mismatch-reason">{mismatch.reason}</span></p>
-              {(proposal as any).payload?.stage === "enter_insurer_quote" && !data.resolution
+              {((proposal as any).stage ?? (proposal as any).payload?.stage) === "enter_insurer_quote" && !data.resolution
                 ? <EnterInsurerQuote envelopeId={envelope_id!} onDone={() => setTick((n) => n + 1)} /> : null}
             </div>
           ) : (
             <p style={{ marginTop: 0 }}>
-              {proposal.payload?.output?.summary
-                ? String(proposal.payload.output.summary).replace(/\b[a-z]+(?:_[a-z0-9]+)+\b/g, (k) => labelFor(k).toLowerCase()).replace("awaiting operator review", "waiting for a broker")
+              {(proposal.output ?? proposal.payload?.output)?.summary
+                ? String((proposal.output ?? proposal.payload?.output).summary).replace(/\b[a-z]+(?:_[a-z0-9]+)+\b/g, (k) => labelFor(k).toLowerCase()).replace("awaiting operator review", "waiting for a broker")
                 : <em style={{ color: "var(--slate)" }}>No summary given</em>}
             </p>
           )}

@@ -14,12 +14,12 @@ import { StaffHelp } from "../../components/ledger/StaffHelp";
 interface Msg { who: "client" | "broker" | "pending"; text: string; at: string; author: string | null; attachments?: Att[]; claim_id?: string | null }
 interface Approval {
   approval_id: string; body: string; status: "pending" | "approved" | "rejected" | "withdrawn" | "refused"; requested_at: string;
-  requested_by: string; decided_by?: string | null; reason?: string | null; draft_id?: string; files?: (Att & { quote?: Quote | null })[];
+  requested_by?: string; mine?: boolean; decided_by?: string | null; reason?: string | null; draft_id?: string; files?: (Att & { quote?: Quote | null })[];
 }
 export interface Prefill { text: string; draft_id?: string; files?: (Att & { quote?: Quote | null })[]; approval_id: string }
 const STATUS: Record<Approval["status"], string> = { pending: "Awaiting Principal approval", approved: "Approved", rejected: "Rejected by a Principal. Files kept as drafts",
   withdrawn: "Withdrawn. Files kept as drafts", refused: "Not sent" };
-interface Thread extends ThreadRow { conversation: Msg[]; can_reply: boolean; kept: { kept_at: string; late: boolean } | null; advice_approvals: Approval[]; me?: { user_id: string; role: string }; attachment_limits?: (Limits & { closed?: boolean }) | null }
+interface Thread extends ThreadRow { conversation: Msg[]; can_reply: boolean; kept: { kept_at: string; late: boolean } | null; advice_approvals: Approval[]; me?: { user_id?: string; role: string }; attachment_limits?: (Limits & { closed?: boolean }) | null }
 
 const MAX = 4000;
 
@@ -40,7 +40,7 @@ async function post(path: string, body: unknown) {
 }
 
 /** R1.8: personal-advice replies wait for a Principal; the approval is bound to the exact text and (R3.7) the exact files. */
-function Approvals({ id, list, me, onDone, onEdit }: { id: string; list: Approval[]; me?: { user_id: string; role: string }; onDone: () => void; onEdit: (p: Prefill) => void }) {
+function Approvals({ id, list, me, onDone, onEdit }: { id: string; list: Approval[]; me?: { user_id?: string; role: string }; onDone: () => void; onEdit: (p: Prefill) => void }) {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   if (!list?.length) return null;
@@ -61,7 +61,7 @@ function Approvals({ id, list, me, onDone, onEdit }: { id: string; list: Approva
     if (!r.ok) { setErr("Reply not sent."); return; }
     onDone();
   }
-  const mine = (a: Approval) => me?.user_id === a.requested_by;
+  const mine = (a: Approval) => a.mine ?? me?.user_id === a.requested_by;
   return (
     <section style={{ ...card, marginBottom: 12 }} data-testid="advice-approvals">
       <p style={muted}>Personal-advice replies (Principal approval required; a Statement of Advice may be needed)</p>

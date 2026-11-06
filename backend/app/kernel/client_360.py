@@ -136,10 +136,11 @@ async def get_client_timeline(
         events: list[dict] = []
         total = 0
         async with use_tenant(tenant_id):
+            hidden = [f["ref"] async for f in safe.test_flags.find({"kind": "event"}, {"ref": 1})]
             query = {"$or": [
                 {"payload.client_id": client_id},
                 {"actor.id": client_id},
-            ]}
+            ], "payload.test": {"$ne": True}, **({"event_id": {"$nin": hidden}} if hidden else {})}
             async for _ in safe.events.find(query):
                 total += 1
             async for r in safe.events.find(query).sort("seq", -1).skip(offset).limit(limit):

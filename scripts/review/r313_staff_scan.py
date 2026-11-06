@@ -1,5 +1,7 @@
 """R3.13 staff screen check (Playwright): as AE (and Principal), every staff route at 390 and 1280 must show no raw ids/hashes/JSON,
 page width == viewport at 390 (no horizontal scroll) and primary actions not clipped.
+R3.13b: also scans every /api JSON response the staff pages load: no `payload`, no *sha256/_hash keys, no person/credential ids
+(user_id, membership_id, invite_id, token_id, event_id) except the AE picker options under `aes`.
 Usage: python scripts/review/r313_staff_scan.py https://<preview-host> [persona-email]"""
 import asyncio
 import json
@@ -16,6 +18,38 @@ ROUTES = ["/o/queue", "/o/inbox", "/o/claims", "/o/renewals", "/o/renewal-review
           "/o/invites", "/o/users", "/o/policies", "/o/matters", "/o/compliance", "/o/clients/00000000-0000-4000-8000-000000000001"]
 PAT = {"uuid": re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I),
        "sha": re.compile(r"\b[0-9a-f]{40,64}\b", re.I), "json": re.compile(r'\{"')}
+DENIED = {"payload", "user_id", "membership_id", "invite_id", "token_id", "event_id", "source_event_id", "proposal_ref"}
+API_HITS: list = []
+
+
+def bad_keys(obj, path=""):
+    out = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            kl = str(k).lower()
+            if kl == "aes":
+                continue
+            if kl in DENIED or "sha256" in kl or kl.endswith("_hash"):
+                out.append(f"{path}.{k}")
+            out += bad_keys(v, f"{path}.{k}")
+    elif isinstance(obj, list):
+        for i, x in enumerate(obj):
+            out += bad_keys(x, f"{path}[{i}]")
+    return out
+
+
+async def on_response(resp):
+    u = resp.url
+    if "/api/" not in u or "/api/auth/" in u or "/api/me" in u or "json" not in (resp.headers.get("content-type") or ""):
+        return
+    try:
+        bad = bad_keys(await resp.json())
+    except Exception:  # noqa: BLE001
+        return
+    if bad:
+        API_HITS.append({"url": u.split("/api/", 1)[1][:90], "keys": sorted(set(bad))[:5]})
+
+
 DRILL = {"/o/clients": 'a[href^="/o/clients/"]', "/o/claims": 'a[href^="/o/claims/"]', "/o/inbox": 'a[href^="/o/inbox/"]',
          "/o/queue": 'a[href^="/o/queue/"]'}
 
@@ -42,6 +76,7 @@ async def main():
         r = await c.request.post(f"{BASE}/api/auth/dev/impersonate", data={"email": WHO})
         assert r.ok, r.status
         page = await c.new_page()
+        page.on("response", lambda r: asyncio.ensure_future(on_response(r)))
         for w in (390, 1280):
             await page.set_viewport_size({"width": w, "height": 844 if w == 390 else 800})
             for route in ROUTES:
@@ -62,7 +97,12 @@ async def main():
                 except Exception as e:  # noqa: BLE001
                     res.append({"route": route, "w": w, "error": str(e)[:120]})
         await b.close()
-    bad = [r for r in res if r.get("leaks") or r.get("overflow") or r.get("clipped") or r.get("error")]
+    await asyncio.sleep(2)
+    seen = {}
+    for h in API_HITS:
+        seen.setdefault(h["url"].split("?")[0], h)
+    res += [{"route": "api:" + k, "api_leaks": v["keys"]} for k, v in seen.items()]
+    bad = [r for r in res if r.get("leaks") or r.get("overflow") or r.get("clipped") or r.get("error") or r.get("api_leaks")]
     (OUT / f"scan_{WHO.split('@')[0]}.json").write_text(json.dumps(res, indent=1))
     print(json.dumps(bad, indent=1))
     print(f"{len(res)} checks, {len(bad)} with problems")

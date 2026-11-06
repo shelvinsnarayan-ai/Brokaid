@@ -1,5 +1,6 @@
 """R3.13: every emitted event type has a plain sentence (or is deliberately generic); sentences never leak ids/JSON;
 staff policy-document upload (PDF safety, RBAC, client visibility, withdraw)."""
+import json
 import re
 from datetime import timedelta
 from pathlib import Path
@@ -94,6 +95,9 @@ def test_staff_upload_withdraw_and_rbac():
         b = (await c.post(f"/api/o/policies/{PID}/documents", cookies=aej, files=f(OK_PDF), data=form)).json()["document"]["doc_id"]
         async with use_tenant(tid):
             assert not (await wrap(db).policy_documents.find_one({"doc_id": a}))["current"]
+        sub = {x["id"]: x["subtitle"] for p in (await c.get("/api/c/documents/library", cookies=cj)).json()["policies"]
+               for g in p["groups"] for x in g["items"]}
+        assert "previous term" in sub[a] and "current term" not in sub[a] and "current term" in sub[b], sub
         assert (await c.post(f"/api/o/policy-documents/{b}/withdraw", cookies=aej, json={"reason": "wrong term"})).status_code == 200
         async with use_tenant(tid):
             assert (await wrap(db).policy_documents.find_one({"doc_id": a}))["current"] is True
@@ -111,3 +115,82 @@ def test_staff_upload_withdraw_and_rbac():
 def tok_time():
     from datetime import datetime, timezone
     return datetime.now(timezone.utc)
+
+
+DENIED = {"payload", "user_id", "membership_id", "invite_id", "token_id", "event_id", "source_event_id", "proposal_ref"}
+
+
+def _bad_keys(obj, path="") -> list[str]:
+    out = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            kl = str(k).lower()
+            if kl == "aes":  # explicitly allowed: AE picker options {user_id, name}
+                continue
+            if kl in DENIED or "sha256" in kl or kl.endswith("_hash"):
+                out.append(f"{path}.{k}")
+            out += _bad_keys(v, f"{path}.{k}")
+    elif isinstance(obj, list):
+        for i, x in enumerate(obj):
+            out += _bad_keys(x, f"{path}[{i}]")
+    return out
+
+
+def test_staff_event_and_evidence_endpoints_redact_for_ae_and_principal():
+    """R3.13b: AE/Principal JSON has no raw payload, hashes, person/credential ids; Operator still gets raw details."""
+    async def go(db, c, app):
+        from app.kernel import renewals as rn
+        tid = await _tid(db)
+        async with use_tenant(tid):
+            ae = await wrap(db).users.find_one({"email": "ae@harbourline.example"})
+            op = await wrap(db).users.find_one({"email": "operator@harbourline.example"})
+            pr = await wrap(db).users.find_one({"email": "qa.principal@harbourline.example"})
+        await rn._event(db, tid, "ClientMemberInvited", {"client_id": CID, "invite_id": "11111111-2222-4333-8444-555555555555",
+                        "membership_id": "66666666-2222-4333-8444-555555555555", "file_sha256": "ab" * 32, "note": "secret note"},
+                        "r313b:test:invite", ae["user_id"], "ae")
+
+        async def jar(uid, role):
+            s = await create_session_scoped(db, tid, user_id=uid, active_role=role, mfa_verified=True, ttl=timedelta(minutes=30))
+            return {COOKIE_NAME: s.session_id}
+        aej, opj = await jar(ae["user_id"], "ae"), await jar(op["user_id"], "operator")
+        prj = await jar(pr["user_id"], "principal") if pr else None
+
+        async def urls(j):
+            u = [f"/api/o/client/{CID}/timeline", "/api/o/queue", "/api/o/claims", "/api/o/inbox", "/api/o/renewals",
+                 "/api/o/renewal-review", "/api/notifications"]
+            q = (await c.get("/api/o/queue", cookies=j)).json().get("cards") or []
+            u += [f"/api/o/queue/{x['envelope_id']}" for x in q[:3] if x.get("envelope_id")]
+            cl = (await c.get("/api/o/claims", cookies=j)).json().get("claims") or []
+            for x in cl[:2]:
+                u += [f"/api/o/claims/{x['claim_id']}", f"/api/o/claims/{x['claim_id']}/thread"]
+            th = (await c.get("/api/o/inbox", cookies=j)).json().get("threads") or []
+            u += [f"/api/o/inbox/{x['thread_id']}" for x in th[:3] if x.get("thread_id")]
+            rw = (await c.get("/api/o/renewals", cookies=j)).json().get("renewals") or []
+            u += [f"/api/o/renewals/{x['renewal_id']}" for x in rw[:2] if x.get("renewal_id")]
+            ks = (await c.get("/api/o/kpi/summary", cookies=j)).json()
+            kids = [k.get("id") or k.get("kpi_id") for k in (ks.get("kpis") if isinstance(ks, dict) else ks) or [] if isinstance(k, dict)]
+            u += [f"/api/o/kpi/{k}/events" for k in kids[:3] if k]
+            return u
+
+        for j, who in ((aej, "ae"), (prj, "principal")):
+            if not j:
+                continue
+            checked = 0
+            for u in await urls(j):
+                r = await c.get(u, cookies=j)
+                if r.status_code != 200:
+                    continue
+                checked += 1
+                body = r.json()
+                bad = _bad_keys(body)
+                assert not bad, (who, u, bad[:5])
+                text = json.dumps({k: v for k, v in body.items() if k != "aes"} if isinstance(body, dict) else body)
+                assert ae["user_id"] not in text and "ab" * 32 not in text and "secret note" not in text, (who, u)
+            assert checked >= 6, (who, checked)
+        tl = (await c.get(f"/api/o/client/{CID}/timeline", cookies=aej)).json()
+        rows = tl.get("events") if isinstance(tl, dict) else tl
+        assert any("invite" in (e.get("text") or "").lower() for e in rows), rows[:3]
+        assert all(set(e) <= {"ts", "text", "link", "who"} for e in rows)
+        opt = (await c.get(f"/api/o/client/{CID}/timeline", cookies=opj)).text
+        assert "secret note" in opt and "ab" * 32 in opt and '"payload"' in opt
+    run(go)

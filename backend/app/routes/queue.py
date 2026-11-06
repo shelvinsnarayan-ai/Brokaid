@@ -80,7 +80,8 @@ async def list_queue(
         if not c.get("client_display"):
             c["client_display"] = names.get(cids.get(c["envelope_id"]))
         c.setdefault("matter_display", None)
-    return {"cards": cards, "count": len(cards)}
+    from app.kernel.event_text import staff_out
+    return {"cards": staff_out(session, cards), "count": len(cards)}
 
 
 @router.get("/{envelope_id}")
@@ -134,10 +135,13 @@ async def get_card(
                     "type": e["type"], "actor": e["actor"],
                     "payload": e["payload"],
                 })
-        from app.kernel.event_text import describe
+        from app.kernel.event_text import describe, raw_ok, staff_out
         for ev in evidence:
-            if ev["type"] != "Citation":
-                ev.update(describe(ev["type"], ev["payload"]))
+            ev.update(describe(ev["type"], ev["payload"]) if ev["type"] != "Citation" else
+                      {"text": ev["payload"].get("label") or "Cited source", "link": None})
+        if not raw_ok(session):
+            evidence = [{"ts": e["ts"], "type": "Citation" if e["type"] == "Citation" else "Event", "text": e["text"], "link": e["link"],
+                         "kind": (e["payload"] or {}).get("kind") if e["type"] == "Citation" else None} for e in evidence]
     conf_obj = (proposal.get("payload") or {}).get("confidence") or {}
     components = conf_obj.get("components") or {}
     scalar = conf_obj.get("scalar")
@@ -157,8 +161,14 @@ async def get_card(
         }
     return {
         "resolution": resolution,
-        "card": card,
-        "proposal": scrub(proposal),
+        "card": staff_out(session, card),
+        "proposal": staff_out(session, scrub(proposal)) if raw_ok(session) else
+        {"ts": proposal.get("ts"), "type": proposal.get("type"),
+         "stage": (proposal.get("payload") or {}).get("stage"),
+         "citations": staff_out(session, scrub((proposal.get("payload") or {}).get("citations") or [])),
+         "mismatch": staff_out(session, scrub((proposal.get("payload") or {}).get("mismatch"))),
+         "output": staff_out(session, scrub((proposal.get("payload") or {}).get("output"))),
+         "claim_id": (proposal.get("payload") or {}).get("claim_id")},
         "evidence": scrub(evidence),
         "confidence": {
             "components": {

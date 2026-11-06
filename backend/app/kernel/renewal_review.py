@@ -108,7 +108,7 @@ async def review(store, tid: str, now: datetime | None = None, *, ae: str | None
                             "refund_or_bind": f"/o/renewals?r={r['renewal_id']}" if r and cur == "lapsed" and rr.get("state") == "open" else None,
                             "nudge": True}})
     if ae:
-        rows = [x for x in rows if (x["ae"]["user_id"] == ae) or (ae == "unassigned" and x["ae"]["status"] != "ok")]
+        rows = [x for x in rows if ae in (x["ae"]["user_id"], x["ae"]["name"]) or (ae == "unassigned" and x["ae"]["status"] != "ok")]
     if stage:
         rows = [x for x in rows if x["stage"] == stage]
     if insurer:

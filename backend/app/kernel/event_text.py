@@ -244,8 +244,53 @@ def who_of(actor, nm: dict) -> str | None:
 
 
 async def render(store, tid: str, rows: list[dict]) -> list[dict]:
-    """Adds text + link to event dicts having type/payload/actor (in place)."""
     nm = await names(store, tid, [r.get("actor") if isinstance(r.get("actor"), dict) else {} for r in rows])
     for r in rows:
         r.update(describe(r.get("type", ""), r.get("payload") or {}, who_of(r.get("actor") or {}, nm)))
     return rows
+
+
+# ---- R3.13b: server-side redaction for staff who aren't Operator/platform admin ----
+RAW_ROLES = {"operator", "platform_admin"}
+_UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
+_HEX = re.compile(r"^[0-9a-f]{40,64}$", re.I)
+# Person, credential and engine identifiers never go to AE/Principal. Entity ids the UI routes with (claim_id, policy_id …) stay.
+DENY_KEYS = {"user_id", "membership_id", "invite_id", "token_id", "session_id", "event_id", "source_event_id", "proposal_ref",
+             "resolved_by_event", "grantee", "idempotency_key", "actor_id", "prev_hash", "hash", "chain_hash",
+             "payload", "raw", "registry"}
+
+
+def raw_ok(session) -> bool:
+    return getattr(session, "active_role", None) in RAW_ROLES
+
+
+def _deny(k: str, v) -> bool:
+    kl = k.lower()
+    if kl in DENY_KEYS or "sha256" in kl or kl.endswith("_hash"):
+        return True
+    if isinstance(v, str) and (kl == "by" or kl.endswith("_by")) and _UUID.match(v):
+        return True
+    return isinstance(v, str) and bool(_HEX.match(v))
+
+
+ALLOWED_PICKERS = {"aes"}  # AE filter/assign options: {user_id, name} is the value the picker submits
+
+
+def redact(obj):
+    if isinstance(obj, dict):
+        return {k: ([{"user_id": a.get("user_id"), "name": a.get("name")} for a in v if isinstance(a, dict)]
+                    if k in ALLOWED_PICKERS and isinstance(v, list) else redact(v))
+                for k, v in obj.items() if not _deny(str(k), v)}
+    if isinstance(obj, list):
+        return [redact(x) for x in obj]
+    return obj
+
+
+def plain(rows: list[dict]) -> list[dict]:
+    """Events as staff see them: sentence, time, link, who. No type/payload/ids."""
+    return [{"ts": r.get("ts"), "text": r.get("text") or GENERIC, "link": r.get("link"),
+             "who": (r.get("actor") or {}).get("name") if isinstance(r.get("actor"), dict) else None} for r in rows]
+
+
+def staff_out(session, obj):
+    return obj if raw_ok(session) else redact(obj)

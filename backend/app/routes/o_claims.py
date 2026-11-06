@@ -70,9 +70,10 @@ async def list_claims(request: Request, stage: str | None = None, ae: str | None
     rows.sort(key=lambda r: (not r["overdue"], r["lodged_at"]))
     for r in rows:
         r["ae_name"] = users.get(r["assigned_ae"])
-    return {"claims": rows, "stages": [{"key": k, "label": ck.LABEL[k]} for k in ck.STAGES],
+    from app.kernel.event_text import staff_out
+    return staff_out(s, {"claims": rows, "stages": [{"key": k, "label": ck.LABEL[k]} for k in ck.STAGES],
             "insurers": sorted({r["insurer"] for r in rows if r["insurer"]}), "aes": [{"user_id": k, "name": v} for k, v in users.items()],
-            "quoting_mode": await holidays.quoting_mode(_store(request), s.tenant_id)}
+            "quoting_mode": await holidays.quoting_mode(_store(request), s.tenant_id)})
 
 
 class StaffFNOL(FNOLBody):
@@ -102,20 +103,22 @@ async def claim_thread(claim_id: str, request: Request, s: Session = Depends(_st
     from app.kernel import claim_threads, inbox
     c = await _get(request, s, claim_id)
     t = await claim_threads.thread_for(_store(request), s.tenant_id, c["client_id"], claim_id, include_tests=True)
-    return {"thread_id": claim_threads.thread_id_for(claim_id), "exists": bool(t), "can_reply": s.active_role in inbox.REPLY_ROLES,
+    from app.kernel.event_text import staff_out
+    return staff_out(s, {"thread_id": claim_threads.thread_id_for(claim_id), "exists": bool(t), "can_reply": s.active_role in inbox.REPLY_ROLES,
             "conversation": [{"who": m["who"], "text": m["text"], "at": m["at"].isoformat(), "author": m.get("author"),
                               "attachments": claim_threads.attachments(c, m.get("file_ids") or [])}
                              for m in (t or {}).get("messages", [])],
-            "reply_by_text": inbox.fmt_short(t["reply_by"]) if t and t["reply_by"] and not t["answered"] else None}
+            "reply_by_text": inbox.fmt_short(t["reply_by"]) if t and t["reply_by"] and not t["answered"] else None})
 
 
 @router.get("/{claim_id}")
 async def detail(claim_id: str, request: Request, s: Session = Depends(_staff)) -> dict:
     c = await _get(request, s, claim_id)
     store = _store(request)
-    return {**_view(c), "quoting_mode": await holidays.quoting_mode(store, s.tenant_id),
+    from app.kernel.event_text import staff_out
+    return staff_out(s, {**_view(c), "quoting_mode": await holidays.quoting_mode(store, s.tenant_id),
             "policy_status": await ck.policy_status(store, s.tenant_id, c.get("policy_id")),
-            "complaints": await ck.linked_complaints(store, s.tenant_id, c["claim_id"])}
+            "complaints": await ck.linked_complaints(store, s.tenant_id, c["claim_id"])})
 
 
 class ComplaintFromClaim(BaseModel):

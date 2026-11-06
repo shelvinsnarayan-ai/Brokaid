@@ -11,7 +11,7 @@ const FLAG: Record<string, string> = {
 interface Row {
   bucket: string; days: number; days_text: string; renewal_id: string | null; policy_id: string; client_name: string; policy_class: string;
   policy_number: string; insurer: string; expiry: string; stage: string; stage_label: string;
-  ae: { user_id: string | null; name: string; status: string }; money: null | { state: string; held_in_trust: boolean }; flags: string[];
+  ae: { user_id?: string | null; name: string; status: string }; money: null | { state: string; held_in_trust: boolean }; flags: string[];
   actions: { open: string | null; confirm_lapse: boolean; refund_or_bind: string | null; nudge: boolean };
 }
 interface Data { as_of: string; buckets: { key: string; label: string; count: number; rows: Row[] }[]; can_act: boolean; badge: number }
@@ -50,7 +50,7 @@ export default function RenewalReview() {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "16px 0" }}>
         <select value={f.ae} onChange={(e) => setF({ ...f, ae: e.target.value })} data-testid="review-filter-ae">
           <option value="">Any AE</option><option value="unassigned">Unassigned / AE disabled</option>
-          {opts((r) => [r.ae.user_id || "", r.ae.name]).filter(([k]) => k).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          {opts((r) => [r.ae.name || "", r.ae.name]).filter(([k]) => k).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
         <select value={f.stage} onChange={(e) => setF({ ...f, stage: e.target.value })} data-testid="review-filter-stage">
           <option value="">Any stage</option>
