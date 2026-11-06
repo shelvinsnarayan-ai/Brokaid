@@ -1,0 +1,551 @@
+{
+ "model": "Claude Sonnet 5.5",
+ "provider": "anthropic",
+ "model_id": "claude-sonnet-5-5",
+ "output": {
+  "heuristics": {
+   "visibility": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "C-TRACKER-390",
+      "C-ACTIVITY-390"
+     ],
+     "reasoning": "Tracker stages, due-payment cards and thread status make state clear, but Home says 'up to date' under an overdue item and the Renewal page says cover has ended without a clear next step.",
+     "fix": "Make Home's attention summary consistent with the overdue payment and show a next-step banner on lapsed renewals."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-AE-INBOX-1280",
+      "B-AE-QUEUE-1280",
+      "B-CLAIM-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "SLA badges, Answered/Overdue status, countdowns and Release Check PASS rows show state well, but the 390 px tables are broken.",
+     "fix": "Fix the 390 px queue and renewals tables so status columns stay readable."
+    }
+   },
+   "real_world": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "C-POLICY-390",
+      "C-PLUS-390"
+     ],
+     "reasoning": "Plain-language actions like 'Make a claim' and 'Get a certificate' work, but 'Your cover has ended' and 'Triage' / 'Decision' labels are jargon-ish.",
+     "fix": "Replace internal stage labels (Triage, Decision) in Messages with plain client wording."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-CLIENT-1280",
+      "B-AE-QUEUE-1280",
+      "B-RENEWALS-1280"
+     ],
+     "reasoning": "Raw event names and JSON payloads on the client timeline, plus 'marine_services' and 'Structure the risk' labels, are not broker language.",
+     "fix": "Render timeline events as human-readable sentences instead of raw JSON."
+    }
+   },
+   "control": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-CERT-390",
+      "C-PLUS-390",
+      "C-POLICY-390"
+     ],
+     "reasoning": "Cancel, Close and Back are present and nothing is submitted without a deliberate action, but the claim form has no visible save or discard.",
+     "fix": "Add draft save and a confirm-on-leave to the claim form."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-CLAIM-1280",
+      "B-CLAIM-MSG-1280",
+      "B-PR-QUEUE-1280"
+     ],
+     "reasoning": "Back links, Re-check, Withdraw and approve/reject controls exist, but there is no visible undo.",
+     "fix": "Add undo or a confirmation step on approve/reject and withdraw."
+    }
+   },
+   "consistency": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-CHANGE-390",
+      "C-CLAIM-NEW-390",
+      "C-HOME-390",
+      "C-RENEWAL-1280"
+     ],
+     "reasoning": "Native selects and unstyled controls on the claim form clash with the polished cards, pages mix button styles, and the nav bar overlaps content on desktop.",
+     "fix": "Restyle claim form controls with the design-system components and fix the bottom bar overlap."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-RENEWALS-390",
+      "B-AE-QUEUE-390",
+      "B-AE-INBOX-1280",
+      "B-CLAIMS-1280"
+     ],
+     "reasoning": "Desktop is coherent, but the 390 px layout collapses tables into one-character columns and the nav takes the whole top of the screen.",
+     "fix": "Switch broker tables to responsive stacked cards at mobile widths."
+    }
+   },
+   "error_prevention": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-CERT-390",
+      "C-CLAIM-NEW-390",
+      "C-CLAIM-NEW-1280"
+     ],
+     "reasoning": "The certificate Continue button is disabled until valid, but the claim form has no required markers or inline validation, and 'Which policy?' defaults to 'Not sure'.",
+     "fix": "Mark required fields and validate inline on the claim form."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-PR-QUEUE-1280",
+      "B-CLAIM-1280",
+      "B-CLAIM-MSG-1280"
+     ],
+     "reasoning": "Principal approval gates, file limits and 'no scripts or passwords' hints, plus a completeness checklist, prevent errors.",
+     "fix": "Add a confirmation summary before approving advice-like replies."
+    }
+   },
+   "recognition": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "C-POLICY-390",
+      "C-PLUS-390"
+     ],
+     "reasoning": "Labelled icons, a + sheet and quick actions on the policy page keep options visible, but J5-J7 targets were not found where expected.",
+     "fix": "Add labelled entry points for renewal, people and schedule/PDS on Home and Profile."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-AE-INBOX-1280",
+      "B-CLAIM-1280",
+      "B-CLAIMS-1280"
+     ],
+     "reasoning": "The persistent sidebar with shortcut hints and labelled files help recognition, but queue rows show '—' for client.",
+     "fix": "Show the client name on every queue row."
+    }
+   },
+   "flexibility": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-PLUS-390",
+      "C-ACTIVITY-390",
+      "T-J1-1"
+     ],
+     "reasoning": "The + sheet, filters and deep links to a payment or policy give shortcuts, but there are no multi-policy shortcuts.",
+     "fix": "Add a selected-policy picker in the + sheet to skip the extra certificate tap."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-AE-INBOX-1280"
+     ],
+     "reasoning": "Keyboard map, g-prefix jumps, j/k/a/r queue controls and a command palette serve expert users.",
+     "fix": "Surface bulk actions on the queue."
+    }
+   },
+   "aesthetic": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "C-POLICY-390",
+      "C-DOCUMENTS-390"
+     ],
+     "reasoning": "Clean cards and hierarchy, but the Documents and Notifications lists are long and repetitive.",
+     "fix": "Group Documents by policy and collapse older Notifications."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-CLIENT-1280",
+      "B-AE-QUEUE-390",
+      "B-ALERTS-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "Raw JSON, dense unbroken alert and governance lists, and a broken mobile table read as cluttered.",
+     "fix": "Add progressive disclosure to timeline, alerts and governance lists."
+    }
+   },
+   "recovery": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-RENEWAL-390",
+      "C-TRACKER-1280",
+      "C-SECURITY-390"
+     ],
+     "reasoning": "The declined claim gives next steps, but the lapsed renewal says only 'Talk to your broker' and no error states are shown.",
+     "fix": "Give lapsed renewal a contact-broker action with explanation and next step."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-ALERTS-390",
+      "B-OP-GOV-1280",
+      "B-CLAIM-1280"
+     ],
+     "reasoning": "Alerts name causes and actions, but no failure or rejection states are shown for send or approve.",
+     "fix": "Show inline errors with retry for send and approve actions."
+    }
+   },
+   "help": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-PROFILE-390",
+      "C-PROFILE-1280",
+      "C-CERT-390"
+     ],
+     "reasoning": "There is a Help link and a complaint route, with brief inline hints, but no explanations of terms like excess or agreed value.",
+     "fix": "Add inline plain-language explainers for excess, sum insured and agreed value."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "Keyboard hints and a go-live checklist are shown, but there are no contextual help or definitions for queue classes.",
+     "fix": "Add tooltips explaining queue classes and routes."
+    }
+   },
+   "am_i_covered": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-1280",
+      "C-POLICY-390",
+      "T-J1-1"
+     ],
+     "reasoning": "Home lists items with value and status and policy detail shows limits and excess, but the Ranger shows 'Active' while its claim was declined and a lapsed policy is not flagged on Home.",
+     "fix": "Show a status chip (Active, Lapsed, Declined claim) on each Home cover row."
+    },
+    "broker": {
+     "score": "n/a",
+     "evidence": [],
+     "reasoning": "Not applicable for the broker surface.",
+     "fix": "n/a"
+    }
+   },
+   "who_by_when": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-TRACKER-390",
+      "C-MESSAGES-390",
+      "C-THREAD-390"
+     ],
+     "reasoning": "The tracker shows 'Handled by Account executive' and stage progress, but no due-by dates are shown for the client.",
+     "fix": "Show a 'broker will reply by' date on trackers and threads."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-AE-INBOX-1280",
+      "B-AE-QUEUE-1280",
+      "B-CLAIM-MSG-1280"
+     ],
+     "reasoning": "Reply-by times, countdowns and a route column show ownership and deadlines, but the AE is '—' on many claims and the client is blank in the queue.",
+     "fix": "Assign an AE and show the client on every queue and claim row."
+    }
+   },
+   "no_engine": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-HOME-390",
+      "C-TRACKER-1280",
+      "C-NOTIFS-390",
+      "C-PROFILE-1280"
+     ],
+     "reasoning": "Raw 'BROKER_REPLY' labels, 'MOCKED' tokens, the insurer claim no. 'MOCK-FICTIONAL-…', the 'T38 test reply' and the Jurisdiction preview leak internals (some are preview-only).",
+     "fix": "Replace BROKER_REPLY labels and ids with friendly copy and hide dev panels from clients."
+    },
+    "broker": {
+     "score": 1,
+     "evidence": [
+      "B-CLIENT-1280",
+      "B-CLIENT-390",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "Raw JSON event payloads, UUIDs, event names like RenewalStageChanged and BUILD stamps show engine internals to AEs.",
+     "fix": "Hide raw event payloads behind a details toggle and show human-readable summaries."
+    }
+   },
+   "regulatory": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-PROFILE-1280",
+      "C-RENEWAL-390",
+      "C-THREAD-1280",
+      "C-DOCUMENTS-390"
+     ],
+     "reasoning": "The general advice warning, PDS/TMD documents, Privacy notice, FSG and ASIC regulated line, a complaint route, and the AFCA text on declines are placed correctly, but the FSG and privacy notice sit buried at the bottom of Profile.",
+     "fix": "Link the FSG and privacy notice from the Profile menu and the Home footer."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-CLAIM-MSG-1280",
+      "B-PR-APPROVAL-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "Principal approval of advice replies, a Compliance nav item, a general advice warning check and a complaints alert are present, but pending approvals were not shown.",
+     "fix": "Show a pending advice-approval example, with files, in the Principal view."
+    }
+   }
+  },
+  "tasks": {
+   "J1": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "One tap from Home reaches the vehicle policy with excess and value."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Cover rows show limits on Home, but the unit rows are not distinct in the evidence."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "One tap to the ute; the Home list truncates behind the nav bar."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "The business pack shows its sum insured on Home."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Cover appears on Home with a one-tap detail."
+    },
+    "professional": {
+     "success": "n/a",
+     "measured_taps": null,
+     "friction": "n/a"
+    }
+   },
+   "J2": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "+ sheet then policy pick then holder form; the Continue button is disabled until the form is valid."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "The holder form fits a landlord, but selecting the right unit adds a step."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "The flow is clear; the 4-step stepper wraps awkwardly on mobile."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Pack policy must be picked from the 'Choose the policy' banner."
+    },
+    "household": {
+     "success": "n/a",
+     "measured_taps": null,
+     "friction": "n/a"
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "The same three-tap flow applies."
+    }
+   },
+   "J3": {
+    "farmer": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "The form is reached in two taps but the policy defaults to 'Not sure' and the asset picker is a native select."
+    },
+    "landlord": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "The form is motor-centric, with Property and Other as small chips."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "The Motor flow fits, with a long form."
+    },
+    "cafe": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "The Property damage chip is present but the specific asset is not selectable."
+    },
+    "household": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "Two taps to a long generic form, no 'which thing' picker beyond vehicle."
+    },
+    "professional": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "The form has no PI claim wording beyond the 'Liability' and 'Other' chips."
+    }
+   },
+   "J4": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "The Pay now button goes straight to the BPAY details and 'I've paid this'."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "One tap to the due item."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "BPAY copy buttons are clear, though no real pay action exists (mocked)."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "The due payment is highlighted on Home."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "The same one-tap path."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "The same one-tap path."
+    }
+   },
+   "J5": {
+    "farmer": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "The tap lands on the policy page with no renewal text; the path was blocked at step 2."
+    },
+    "landlord": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "No renewal entry on Home; 'renews 13 Sep' text leads to the policy detail only."
+    },
+    "tradie": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "The renewal page was only found for lapsed Tools and equipment via Activity, not from Home."
+    },
+    "cafe": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "The goal was not reached; no Home entry point for renewal review."
+    },
+    "household": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "The goal was not reached; no renewal entry on the policy page."
+    },
+    "professional": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "The goal was not reached."
+    }
+   },
+   "J6": {
+    "farmer": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "Profile lacks a visible 'Add a person' or Who can act link; 'Business details and people' is buried below the menu."
+    },
+    "landlord": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "The same Profile has no invite control in view."
+    },
+    "tradie": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "The People section is not visible from Profile at the top."
+    },
+    "cafe": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "A bookkeeper role exists, but there is no clear invite path."
+    },
+    "household": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "Adding a second Owner is not discoverable."
+    },
+    "professional": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "The goal was not reached."
+    }
+   },
+   "J7": {
+    "farmer": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "Documents lists PDS, TMD and wording, but it was not labelled 'Schedule' and is a long unsorted list."
+    },
+    "landlord": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "The list is not grouped by policy or year, with no schedule item visible."
+    },
+    "tradie": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "PDS entries are reached via Profile > Documents, but 'last year's' is not distinguishable."
+    },
+    "cafe": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "Several carriers' PDS entries repeat; no schedule is clear."
+    },
+    "household": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "A long flat list of documents."
+    },
+    "professional": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "The PDS is findable but the schedule is not."
+    }
+   }
+  }
+ },
+ "raw": "{\"heuristics\":{\"visibility\":{\"client\":{\"score\":3,\"evidence\":[\"C-HOME-390\",\"C-TRACKER-390\",\"C-ACTIVITY-390\"],\"reasoning\":\"Tracker stages, due-payment cards and thread status make state clear, but Home says 'up to date' under an overdue item and the Renewal page says cover has ended without a clear next step.\",\"fix\":\"Make Home's attention summary consistent with the overdue payment and show a next-step banner on lapsed renewals.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-AE-INBOX-1280\",\"B-AE-QUEUE-1280\",\"B-CLAIM-1280\",\"B-OP-GOV-1280\"],\"reasoning\":\"SLA badges, Answered/Overdue status, countdowns and Release Check PASS rows show state well, but the 390 px tables are broken.\",\"fix\":\"Fix the 390 px queue and renewals tables so status columns stay readable.\"}},\"real_world\":{\"client\":{\"score\":3,\"evidence\":[\"C-HOME-390\",\"C-POLICY-390\",\"C-PLUS-390\"],\"reasoning\":\"Plain-language actions like 'Make a claim' and 'Get a certificate' work, but 'Your cover has ended' and 'Triage' / 'Decision' labels are jargon-ish.\",\"fix\":\"Replace internal stage labels (Triage, Decision) in Messages with plain client wording.\"},\"broker\":{\"score\":2,\"evidence\":[\"B-CLIENT-1280\",\"B-AE-QUEUE-1280\",\"B-RENEWALS-1280\"],\"reasoning\":\"Raw event names and JSON payloads on the client timeline, plus 'marine_services' and 'Structure the risk' labels, are not broker language.\",\"fix\":\"Render timeline events as human-readable sentences instead of raw JSON.\"}},\"control\":{\"client\":{\"score\":3,\"evidence\":[\"C-CERT-390\",\"C-PLUS-390\",\"C-POLICY-390\"],\"reasoning\":\"Cancel, Close and Back are present and nothing is submitted without a deliberate action, but the claim form has no visible save or discard.\",\"fix\":\"Add draft save and a confirm-on-leave to the claim form.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-CLAIM-1280\",\"B-CLAIM-MSG-1280\",\"B-PR-QUEUE-1280\"],\"reasoning\":\"Back links, Re-check, Withdraw and approve/reject controls exist, but there is no visible undo.\",\"fix\":\"Add undo or a confirmation step on approve/reject and withdraw.\"}},\"consistency\":{\"client\":{\"score\":2,\"evidence\":[\"C-CHANGE-390\",\"C-CLAIM-NEW-390\",\"C-HOME-390\",\"C-RENEWAL-1280\"],\"reasoning\":\"Native selects and unstyled controls on the claim form clash with the polished cards, pages mix button styles, and the nav bar overlaps content on desktop.\",\"fix\":\"Restyle claim form controls with the design-system components and fix the bottom bar overlap.\"},\"broker\":{\"score\":2,\"evidence\":[\"B-RENEWALS-390\",\"B-AE-QUEUE-390\",\"B-AE-INBOX-1280\",\"B-CLAIMS-1280\"],\"reasoning\":\"Desktop is coherent, but the 390 px layout collapses tables into one-character columns and the nav takes the whole top of the screen.\",\"fix\":\"Switch broker tables to responsive stacked cards at mobile widths.\"}},\"error_prevention\":{\"client\":{\"score\":2,\"evidence\":[\"C-CERT-390\",\"C-CLAIM-NEW-390\",\"C-CLAIM-NEW-1280\"],\"reasoning\":\"The certificate Continue button is disabled until valid, but the claim form has no required markers or inline validation, and 'Which policy?' defaults to 'Not sure'.\",\"fix\":\"Mark required fields and validate inline on the claim form.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-PR-QUEUE-1280\",\"B-CLAIM-1280\",\"B-CLAIM-MSG-1280\"],\"reasoning\":\"Principal approval gates, file limits and 'no scripts or passwords' hints, plus a completeness checklist, prevent errors.\",\"fix\":\"Add a confirmation summary before approving advice-like replies.\"}},\"recognition\":{\"client\":{\"score\":3,\"evidence\":[\"C-HOME-390\",\"C-POLICY-390\",\"C-PLUS-390\"],\"reasoning\":\"Labelled icons, a + sheet and quick actions on the policy page keep options visible, but J5-J7 targets were not found where expected.\",\"fix\":\"Add labelled entry points for renewal, people and schedule/PDS on Home and Profile.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-AE-INBOX-1280\",\"B-CLAIM-1280\",\"B-CLAIMS-1280\"],\"reasoning\":\"The persistent sidebar with shortcut hints and labelled files help recognition, but queue rows show '—' for client.\",\"fix\":\"Show the client name on every queue row.\"}},\"flexibility\":{\"client\":{\"score\":3,\"evidence\":[\"C-PLUS-390\",\"C-ACTIVITY-390\",\"T-J1-1\"],\"reasoning\":\"The + sheet, filters and deep links to a payment or policy give shortcuts, but there are no multi-policy shortcuts.\",\"fix\":\"Add a selected-policy picker in the + sheet to skip the extra certificate tap.\"},\"broker\":{\"score\":4,\"evidence\":[\"B-AE-QUEUE-1280\",\"B-AE-INBOX-1280\"],\"reasoning\":\"Keyboard map, g-prefix jumps, j/k/a/r queue controls and a command palette serve expert users.\",\"fix\":\"Surface bulk actions on the queue.\"}},\"aesthetic\":{\"client\":{\"score\":3,\"evidence\":[\"C-HOME-390\",\"C-POLICY-390\",\"C-DOCUMENTS-390\"],\"reasoning\":\"Clean cards and hierarchy, but the Documents and Notifications lists are long and repetitive.\",\"fix\":\"Group Documents by policy and collapse older Notifications.\"},\"broker\":{\"score\":2,\"evidence\":[\"B-CLIENT-1280\",\"B-AE-QUEUE-390\",\"B-ALERTS-1280\",\"B-OP-GOV-1280\"],\"reasoning\":\"Raw JSON, dense unbroken alert and governance lists, and a broken mobile table read as cluttered.\",\"fix\":\"Add progressive disclosure to timeline, alerts and governance lists.\"}},\"recovery\":{\"client\":{\"score\":2,\"evidence\":[\"C-RENEWAL-390\",\"C-TRACKER-1280\",\"C-SECURITY-390\"],\"reasoning\":\"The declined claim gives next steps, but the lapsed renewal says only 'Talk to your broker' and no error states are shown.\",\"fix\":\"Give lapsed renewal a contact-broker action with explanation and next step.\"},\"broker\":{\"score\":2,\"evidence\":[\"B-ALERTS-390\",\"B-OP-GOV-1280\",\"B-CLAIM-1280\"],\"reasoning\":\"Alerts name causes and actions, but no failure or rejection states are shown for send or approve.\",\"fix\":\"Show inline errors with retry for send and approve actions.\"}},\"help\":{\"client\":{\"score\":2,\"evidence\":[\"C-PROFILE-390\",\"C-PROFILE-1280\",\"C-CERT-390\"],\"reasoning\":\"There is a Help link and a complaint route, with brief inline hints, but no explanations of terms like excess or agreed value.\",\"fix\":\"Add inline plain-language explainers for excess, sum insured and agreed value.\"},\"broker\":{\"score\":2,\"evidence\":[\"B-AE-QUEUE-1280\",\"B-OP-GOV-1280\"],\"reasoning\":\"Keyboard hints and a go-live checklist are shown, but there are no contextual help or definitions for queue classes.\",\"fix\":\"Add tooltips explaining queue classes and routes.\"}},\"am_i_covered\":{\"client\":{\"score\":3,\"evidence\":[\"C-HOME-1280\",\"C-POLICY-390\",\"T-J1-1\"],\"reasoning\":\"Home lists items with value and status and policy detail shows limits and excess, but the Ranger shows 'Active' while its claim was declined and a lapsed policy is not flagged on Home.\",\"fix\":\"Show a status chip (Active, Lapsed, Declined claim) on each Home cover row.\"},\"broker\":{\"score\":\"n/a\",\"evidence\":[],\"reasoning\":\"Not applicable for the broker surface.\",\"fix\":\"n/a\"}},\"who_by_when\":{\"client\":{\"score\":3,\"evidence\":[\"C-TRACKER-390\",\"C-MESSAGES-390\",\"C-THREAD-390\"],\"reasoning\":\"The tracker shows 'Handled by Account executive' and stage progress, but no due-by dates are shown for the client.\",\"fix\":\"Show a 'broker will reply by' date on trackers and threads.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-AE-INBOX-1280\",\"B-AE-QUEUE-1280\",\"B-CLAIM-MSG-1280\"],\"reasoning\":\"Reply-by times, countdowns and a route column show ownership and deadlines, but the AE is '—' on many claims and the client is blank in the queue.\",\"fix\":\"Assign an AE and show the client on every queue and claim row.\"}},\"no_engine\":{\"client\":{\"score\":2,\"evidence\":[\"C-HOME-390\",\"C-TRACKER-1280\",\"C-NOTIFS-390\",\"C-PROFILE-1280\"],\"reasoning\":\"Raw 'BROKER_REPLY' labels, 'MOCKED' tokens, the insurer claim no. 'MOCK-FICTIONAL-…', the 'T38 test reply' and the Jurisdiction preview leak internals (some are preview-only).\",\"fix\":\"Replace BROKER_REPLY labels and ids with friendly copy and hide dev panels from clients.\"},\"broker\":{\"score\":1,\"evidence\":[\"B-CLIENT-1280\",\"B-CLIENT-390\",\"B-OP-GOV-1280\"],\"reasoning\":\"Raw JSON event payloads, UUIDs, event names like RenewalStageChanged and BUILD stamps show engine internals to AEs.\",\"fix\":\"Hide raw event payloads behind a details toggle and show human-readable summaries.\"}},\"regulatory\":{\"client\":{\"score\":3,\"evidence\":[\"C-PROFILE-1280\",\"C-RENEWAL-390\",\"C-THREAD-1280\",\"C-DOCUMENTS-390\"],\"reasoning\":\"The general advice warning, PDS/TMD documents, Privacy notice, FSG and ASIC regulated line, a complaint route, and the AFCA text on declines are placed correctly, but the FSG and privacy notice sit buried at the bottom of Profile.\",\"fix\":\"Link the FSG and privacy notice from the Profile menu and the Home footer.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-CLAIM-MSG-1280\",\"B-PR-APPROVAL-1280\",\"B-OP-GOV-1280\"],\"reasoning\":\"Principal approval of advice replies, a Compliance nav item, a general advice warning check and a complaints alert are present, but pending approvals were not shown.\",\"fix\":\"Show a pending advice-approval example, with files, in the Principal view.\"}}},\"tasks\":{\"J1\":{\"farmer\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"One tap from Home reaches the vehicle policy with excess and value.\"},\"landlord\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"Cover rows show limits on Home, but the unit rows are not distinct in the evidence.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"One tap to the ute; the Home list truncates behind the nav bar.\"},\"cafe\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"The business pack shows its sum insured on Home.\"},\"household\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"Cover appears on Home with a one-tap detail.\"},\"professional\":{\"success\":\"n/a\",\"measured_taps\":null,\"friction\":\"n/a\"}},\"J2\":{\"farmer\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"+ sheet then policy pick then holder form; the Continue button is disabled until the form is valid.\"},\"landlord\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"The holder form fits a landlord, but selecting the right unit adds a step.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"The flow is clear; the 4-step stepper wraps awkwardly on mobile.\"},\"cafe\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Pack policy must be picked from the 'Choose the policy' banner.\"},\"household\":{\"success\":\"n/a\",\"measured_taps\":null,\"friction\":\"n/a\"},\"professional\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"The same three-tap flow applies.\"}},\"J3\":{\"farmer\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"The form is reached in two taps but the policy defaults to 'Not sure' and the asset picker is a native select.\"},\"landlord\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"The form is motor-centric, with Property and Other as small chips.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"The Motor flow fits, with a long form.\"},\"cafe\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"The Property damage chip is present but the specific asset is not selectable.\"},\"household\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"Two taps to a long generic form, no 'which thing' picker beyond vehicle.\"},\"professional\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"The form has no PI claim wording beyond the 'Liability' and 'Other' chips.\"}},\"J4\":{\"farmer\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"The Pay now button goes straight to the BPAY details and 'I've paid this'.\"},\"landlord\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"One tap to the due item.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"BPAY copy buttons are clear, though no real pay action exists (mocked).\"},\"cafe\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"The due payment is highlighted on Home.\"},\"household\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"The same one-tap path.\"},\"professional\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"The same one-tap path.\"}},\"J5\":{\"farmer\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"The tap lands on the policy page with no renewal text; the path was blocked at step 2.\"},\"landlord\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"No renewal entry on Home; 'renews 13 Sep' text leads to the policy detail only.\"},\"tradie\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"The renewal page was only found for lapsed Tools and equipment via Activity, not from Home.\"},\"cafe\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"The goal was not reached; no Home entry point for renewal review.\"},\"household\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"The goal was not reached; no renewal entry on the policy page.\"},\"professional\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"The goal was not reached.\"}},\"J6\":{\"farmer\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"Profile lacks a visible 'Add a person' or Who can act link; 'Business details and people' is buried below the menu.\"},\"landlord\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"The same Profile has no invite control in view.\"},\"tradie\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"The People section is not visible from Profile at the top.\"},\"cafe\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"A bookkeeper role exists, but there is no clear invite path.\"},\"household\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"Adding a second Owner is not discoverable.\"},\"professional\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"The goal was not reached.\"}},\"J7\":{\"farmer\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"Documents lists PDS, TMD and wording, but it was not labelled 'Schedule' and is a long unsorted list.\"},\"landlord\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"The list is not grouped by policy or year, with no schedule item visible.\"},\"tradie\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"PDS entries are reached via Profile > Documents, but 'last year's' is not distinguishable.\"},\"cafe\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"Several carriers' PDS entries repeat; no schedule is clear.\"},\"household\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"A long flat list of documents.\"},\"professional\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"The PDS is findable but the schedule is not.\"}}}}",
+ "attempts": [
+  {
+   "attempt": 1,
+   "errors": [],
+   "temperature": "provider default (temperature not accepted)"
+  }
+ ]
+}

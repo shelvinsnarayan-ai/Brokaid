@@ -1,0 +1,576 @@
+{
+ "model": "GPT-5.5",
+ "provider": "openai",
+ "model_id": "gpt-5.5",
+ "output": {
+  "heuristics": {
+   "visibility": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "C-ACTIVITY-390",
+      "C-TRACKER-390",
+      "C-RENEWAL-390"
+     ],
+     "reasoning": "Attention cards, payment due state, claim progress and renewal status are visible, but some important states are not surfaced from Home.",
+     "fix": "Surface renewal and document status as first-class Home attention items with clear next actions."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-INBOX-1280",
+      "B-AE-QUEUE-1280",
+      "B-CLAIMS-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "Overdue threads, countdowns, routes, claim stages, alerts and release checks make operational status highly visible.",
+     "fix": "Keep the same status model but improve small-screen rendering so the visibility survives mobile widths."
+    }
+   },
+   "real_world": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "C-POLICY-390",
+      "C-ACTIVITY-390",
+      "C-CERT-390"
+     ],
+     "reasoning": "Uses broker/client language such as cover, excess, certificate holder, BPAY and sums insured, with only occasional system/demo wording.",
+     "fix": "Replace preview/system terms on client-facing screens with plain insurance-client language or hide them outside internal preview."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-AE-INBOX-1280",
+      "B-RENEWALS-1280",
+      "B-CLAIM-1280",
+      "B-PR-QUEUE-1280"
+     ],
+     "reasoning": "Broker workflows map to AE inbox, renewals, claims, approvals and SLAs, though some raw IDs and technical labels break the domain model.",
+     "fix": "Translate raw IDs/build tags/registry labels into broker-meaningful labels with drill-down only where needed."
+    }
+   },
+   "control": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-PLUS-390",
+      "C-CERT-390",
+      "C-CHANGE-390",
+      "C-SECURITY-390"
+     ],
+     "reasoning": "Clients can close/cancel flows, choose major actions and manage security, but people/role control is not exposed in the evidenced Profile path.",
+     "fix": "Add a clear People and permissions entry in Profile for inviting/removing spouse, contact or bookkeeper access."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-CLAIM-MSG-1280",
+      "B-RENEWALS-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "Keyboard shortcuts, filters, approvals, attachments and governance controls give strong control, limited by mobile table usability.",
+     "fix": "Provide responsive card/detail controls for broker queues instead of compressed tables on 390px."
+    }
+   },
+   "consistency": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "C-PLUS-390",
+      "C-POLICY-390",
+      "C-MESSAGES-390"
+     ],
+     "reasoning": "Bottom navigation, cards, action sheet and policy actions are consistent, but preview banners and overlay positioning disrupt the pattern.",
+     "fix": "Reserve fixed layout space for preview/bottom bars so they never obscure content or create double-header artifacts."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-AE-QUEUE-390",
+      "B-RENEWALS-390",
+      "B-CLAIMS-390",
+      "B-AE-QUEUE-1280"
+     ],
+     "reasoning": "Desktop navigation and tables are consistent, but the same components collapse poorly on mobile with wrapped columns and clipped content.",
+     "fix": "Introduce a dedicated mobile broker layout using stacked rows with visible primary fields and overflow details."
+    }
+   },
+   "error_prevention": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-CERT-390",
+      "C-CLAIM-NEW-1280",
+      "C-THREAD-1280",
+      "C-TRACKER-390"
+     ],
+     "reasoning": "Stepper states, disabled-looking Continue, file limits, metadata stripping and insurer disclaimer reduce mistakes, but long forms lack visible validation examples.",
+     "fix": "Add inline validation and pre-submit review summaries for certificate, change and claim flows."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-PR-APPROVAL-1280",
+      "B-PR-QUEUE-1280",
+      "B-CLAIM-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "Principal routing, confidence, completeness checks, file context and release checks prevent high-risk actions, though mobile compression increases error risk.",
+     "fix": "Block approval/action controls on unusable small-screen table states until a readable detail view is opened."
+    }
+   },
+   "recognition": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-HOME-390",
+      "C-PROFILE-390",
+      "C-DOCUMENTS-390",
+      "T-J5-1",
+      "T-J7-2"
+     ],
+     "reasoning": "Core cover and profile options are recognizable, but renewal, people management and specific document discovery fail or require knowing where to look.",
+     "fix": "Add explicit Home/Profile shortcuts for Renewal, People who can act, Schedules and PDS."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-CLIENT-1280",
+      "B-AE-INBOX-1280",
+      "B-CLAIM-1280",
+      "B-RENEWALS-1280"
+     ],
+     "reasoning": "Queues and filters support recognition, but raw timeline events, IDs and dense tables force staff to interpret system data.",
+     "fix": "Replace raw event payloads with summarized human-readable activity rows and expandable technical detail."
+    }
+   },
+   "flexibility": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-PLUS-390",
+      "C-HOME-390",
+      "C-POLICY-390",
+      "C-ACTIVITY-390"
+     ],
+     "reasoning": "The plus sheet and policy quick actions shorten common paths, but desktop remains a mobile frame and failed renewal/people/doc paths limit efficiency.",
+     "fix": "Add adaptive desktop shortcuts and a persistent search/action launcher for renewal, documents and people."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-INBOX-1280",
+      "B-AE-QUEUE-1280",
+      "B-RENEWALS-1280",
+      "B-CLAIMS-1280"
+     ],
+     "reasoning": "Keyboard shortcuts, queue filters, role-specific navigation and table actions support efficient expert workflows.",
+     "fix": "Add saved filters/views for common AE, Principal and Operator work modes."
+    }
+   },
+   "aesthetic": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "C-POLICY-390",
+      "C-MESSAGES-390",
+      "C-HOME-1280"
+     ],
+     "reasoning": "The client UI is clean, scannable and card-based, but fixed preview/bottom bars and desktop whitespace reduce polish.",
+     "fix": "Tune responsive layout so desktop uses space productively and fixed bars never cover content."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-AE-INBOX-1280",
+      "B-AE-QUEUE-390",
+      "B-CLAIM-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "Desktop admin screens are dense but workable; mobile broker screens become visually cluttered and hard to read.",
+     "fix": "Redesign broker mobile as task cards rather than forcing desktop tables into the viewport."
+    }
+   },
+   "recovery": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-CERT-390",
+      "C-CHANGE-390",
+      "C-TRACKER-390",
+      "C-PROFILE-390"
+     ],
+     "reasoning": "Cancel, message broker and complaint paths exist, but no evidenced inline error messages, undo states or failed-submit recovery are shown.",
+     "fix": "Show field-level errors, save drafts, and offer clear retry/contact-broker recovery after failed submissions."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-ALERTS-1280",
+      "B-CLAIM-1280",
+      "B-OP-GOV-1280",
+      "B-AE-QUEUE-1280"
+     ],
+     "reasoning": "Alerts, re-checks, governance controls and queues help recover operational issues, though form/action error recovery is not evidenced.",
+     "fix": "Add explicit retry, rollback and audit-confirmation states for broker actions."
+    }
+   },
+   "help": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-PROFILE-390",
+      "C-CLAIM-NEW-1280",
+      "C-TRACKER-390",
+      "C-RENEWAL-390"
+     ],
+     "reasoning": "Help/contact broker and some explanatory copy exist, but contextual help is sparse for complex tasks like renewal, claims and certificates.",
+     "fix": "Add contextual help panels explaining each flow, required information and what happens next."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-AE-INBOX-390",
+      "B-AE-QUEUE-1280",
+      "B-OP-GOV-1280",
+      "B-ALERTS-390"
+     ],
+     "reasoning": "Keyboard hints, release checks and operational labels help experts, but there is little procedural guidance for less frequent tasks.",
+     "fix": "Add inline playbooks/checklists for approvals, claims handling, renewals and operator governance."
+    }
+   },
+   "am_i_covered": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "C-POLICY-390",
+      "T-J1-1",
+      "C-TRACKER-390"
+     ],
+     "reasoning": "Home cards and policy detail show status, sum insured/limit and covered items quickly, but claims still require care to distinguish quote/coverage decision.",
+     "fix": "Add a single explicit covered/not-covered status chip on each policy and claim context."
+    },
+    "broker": {
+     "score": "n/a",
+     "evidence": [],
+     "reasoning": "n/a",
+     "fix": "n/a"
+    }
+   },
+   "who_by_when": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-HOME-390",
+      "C-ACTIVITY-390",
+      "C-TRACKER-390",
+      "C-MESSAGES-390"
+     ],
+     "reasoning": "Payments and claim handler are visible, but client matters rarely show a named owner, SLA or promised next date.",
+     "fix": "Add owner name, next step and due-by date to every attention item, claim and renewal card."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-INBOX-1280",
+      "B-AE-QUEUE-1280",
+      "B-RENEWALS-1280",
+      "B-CLAIM-1280"
+     ],
+     "reasoning": "Inbox reply-by times, queue countdowns/routes, renewal next steps and claim acknowledgement deadlines clearly show ownership and timing.",
+     "fix": "Expose assignee names consistently wherever the current column shows only a dash."
+    }
+   },
+   "no_engine": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-HOME-390",
+      "C-ACTIVITY-390",
+      "C-PROFILE-1280",
+      "C-LOGIN-390"
+     ],
+     "reasoning": "Client screens expose preview-only DEV AUTH, demo, MOCKED and dev-only jurisdiction elements that would be inappropriate in a client experience.",
+     "fix": "Gate all development, mocked and jurisdiction-preview elements behind an internal-only wrapper outside client review flows."
+    },
+    "broker": {
+     "score": 1,
+     "evidence": [
+      "B-AE-INBOX-1280",
+      "B-CLIENT-1280",
+      "B-AE-QUEUE-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "Broker screens expose build hashes, registry tags, raw IDs and JSON-like payloads throughout operational views.",
+     "fix": "Move build/registry/raw payloads into an optional diagnostics drawer restricted to operators."
+    }
+   },
+   "regulatory": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-MESSAGES-390",
+      "C-THREAD-1280",
+      "C-DOCUMENTS-390",
+      "C-RENEWAL-390",
+      "C-PROFILE-1280"
+     ],
+     "reasoning": "General advice warnings, PDS/TMD documents, privacy notice and renewal disclosure are present, though some are low-visibility or buried.",
+     "fix": "Make regulatory notices contextually prominent at decision points while keeping downloadable documents easy to identify."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-PR-APPROVAL-1280",
+      "B-CLAIM-MSG-1280",
+      "B-CLAIM-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "Approval queues, advice-sensitive replies, document handling and governance checks support regulatory control, but raw system traces reduce clarity.",
+     "fix": "Add a compliance summary panel that states the required disclosure/approval status in plain language for each regulated action."
+    }
+   }
+  },
+  "tasks": {
+   "J1": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "One tap reaches policy detail with insured item, amount and excess; lower Home cards can be partly obscured by the bottom bar."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "One tap pattern supports checking a unit policy, provided the unit appears as a Home cover card."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Ute/tool-style cover can be checked from Home in one tap with sum insured visible."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Business pack or contents cards expose amount and status from Home with one tap to detail."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Policy-card pattern is likely clear for household cover if the relevant item is listed."
+    },
+    "professional": {
+     "success": "n/a",
+     "measured_taps": null,
+     "friction": "A20 marks J1 for professional as not applicable."
+    }
+   },
+   "J2": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Three taps via +, certificate mode and policy selection; holder form is clear but requires choosing the right cover."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Certificate flow names a counterparty and is step-based, with moderate policy-picking friction."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Certificate request is reachable and holder fields match the job; policy selection adds a step."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Counterparty certificate is discoverable from the + sheet but not a direct Home card action until a policy is chosen."
+    },
+    "household": {
+     "success": "n/a",
+     "measured_taps": null,
+     "friction": "A20 marks J2 for household as not applicable."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Certificate path is generic enough for professional cover, assuming the relevant policy card is selectable."
+    }
+   },
+   "J3": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Two taps reach claim lodgement; long form and bottom nav overlap add mobile friction before submission."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Claim flow supports broad categories, but property/unit specificity depends on choosing the right policy/type."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Motor/property/liability chips make tradie claims findable, though the form is lengthy."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "General claim path is quick, but business-pack specifics may require free-text explanation."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Two taps to claim form with 'Not sure' policy fallback helps non-expert users."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Claim lodgement is reachable, though PI/professional categories are not visibly specialised in the evidence."
+    }
+   },
+   "J4": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "One tap reaches payment due with BPAY biller/reference and copy actions."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Activity payment card is prominent and filterable, though payment is mocked in preview."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Payment due and pay/copy actions are reachable from Home in one tap."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Amount owed and how to pay are explicit, with minimal navigation friction."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Payment information is straightforward if the user has permission to pay."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Payment task succeeds quickly via Activity, independent of policy type."
+    }
+   },
+   "J5": {
+    "farmer": {
+     "success": "Partial",
+     "measured_taps": 1,
+     "friction": "Measured path reached policy detail but no renewal/review entry was visible, despite a standalone renewal screen existing."
+    },
+    "landlord": {
+     "success": "Partial",
+     "measured_taps": 1,
+     "friction": "Renewal review is not reliably discoverable from the relevant policy detail."
+    },
+    "tradie": {
+     "success": "Partial",
+     "measured_taps": 1,
+     "friction": "Tools/equipment renewal screen exists but the Home-to-policy measured path did not expose it."
+    },
+    "cafe": {
+     "success": "Partial",
+     "measured_taps": 1,
+     "friction": "Confirming renewal details depends on finding a renewal entry elsewhere rather than from the policy card."
+    },
+    "household": {
+     "success": "Partial",
+     "measured_taps": 1,
+     "friction": "The task is blocked from the measured policy route because no renewal label or review action appears."
+    },
+    "professional": {
+     "success": "Partial",
+     "measured_taps": 1,
+     "friction": "Renewal comparison exists in evidence, but discovery from Home fails in the measured path."
+    }
+   },
+   "J6": {
+    "farmer": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "Measured path to Profile found no Add person, Invite, People or Who can act control."
+    },
+    "landlord": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "No evidenced way to let a spouse/contact/bookkeeper act from Profile."
+    },
+    "tradie": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "Bookkeeper/contact permission management is not discoverable in the screenshots."
+    },
+    "cafe": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "Profile shows account details but no people-management action."
+    },
+    "household": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "Spouse/owner delegation cannot be completed from the measured path."
+    },
+    "professional": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "No visible invite or role-permission control for adding a delegate."
+    }
+   },
+   "J7": {
+    "farmer": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "Documents is reachable in two taps, but no schedule/year filter is visible and PDS is only spelled out as Product Disclosure Statement."
+    },
+    "landlord": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "Document list has disclosure documents but not an obvious last-year schedule."
+    },
+    "tradie": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "The user can find documents, but the measured goal fails because Schedule/PDS labels are not surfaced as expected."
+    },
+    "cafe": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "Many documents appear without search, policy grouping or last-year schedule labelling."
+    },
+    "household": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "Disclosure documents are available, but historical schedule discovery is weak."
+    },
+    "professional": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "Documents page exists, but it lacks clear PDS acronym, schedule and year-based retrieval cues."
+    }
+   }
+  }
+ },
+ "raw": "{\n  \"heuristics\": {\n    \"visibility\": {\n      \"client\": {\n        \"score\": 3,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-ACTIVITY-390\",\n          \"C-TRACKER-390\",\n          \"C-RENEWAL-390\"\n        ],\n        \"reasoning\": \"Attention cards, payment due state, claim progress and renewal status are visible, but some important states are not surfaced from Home.\",\n        \"fix\": \"Surface renewal and document status as first-class Home attention items with clear next actions.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-INBOX-1280\",\n          \"B-AE-QUEUE-1280\",\n          \"B-CLAIMS-1280\",\n          \"B-OP-GOV-1280\"\n        ],\n        \"reasoning\": \"Overdue threads, countdowns, routes, claim stages, alerts and release checks make operational status highly visible.\",\n        \"fix\": \"Keep the same status model but improve small-screen rendering so the visibility survives mobile widths.\"\n      }\n    },\n    \"real_world\": {\n      \"client\": {\n        \"score\": 3,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-POLICY-390\",\n          \"C-ACTIVITY-390\",\n          \"C-CERT-390\"\n        ],\n        \"reasoning\": \"Uses broker/client language such as cover, excess, certificate holder, BPAY and sums insured, with only occasional system/demo wording.\",\n        \"fix\": \"Replace preview/system terms on client-facing screens with plain insurance-client language or hide them outside internal preview.\"\n      },\n      \"broker\": {\n        \"score\": 3,\n        \"evidence\": [\n          \"B-AE-INBOX-1280\",\n          \"B-RENEWALS-1280\",\n          \"B-CLAIM-1280\",\n          \"B-PR-QUEUE-1280\"\n        ],\n        \"reasoning\": \"Broker workflows map to AE inbox, renewals, claims, approvals and SLAs, though some raw IDs and technical labels break the domain model.\",\n        \"fix\": \"Translate raw IDs/build tags/registry labels into broker-meaningful labels with drill-down only where needed.\"\n      }\n    },\n    \"control\": {\n      \"client\": {\n        \"score\": 3,\n        \"evidence\": [\n          \"C-PLUS-390\",\n          \"C-CERT-390\",\n          \"C-CHANGE-390\",\n          \"C-SECURITY-390\"\n        ],\n        \"reasoning\": \"Clients can close/cancel flows, choose major actions and manage security, but people/role control is not exposed in the evidenced Profile path.\",\n        \"fix\": \"Add a clear People and permissions entry in Profile for inviting/removing spouse, contact or bookkeeper access.\"\n      },\n      \"broker\": {\n        \"score\": 3,\n        \"evidence\": [\n          \"B-AE-QUEUE-1280\",\n          \"B-CLAIM-MSG-1280\",\n          \"B-RENEWALS-1280\",\n          \"B-OP-GOV-1280\"\n        ],\n        \"reasoning\": \"Keyboard shortcuts, filters, approvals, attachments and governance controls give strong control, limited by mobile table usability.\",\n        \"fix\": \"Provide responsive card/detail controls for broker queues instead of compressed tables on 390px.\"\n      }\n    },\n    \"consistency\": {\n      \"client\": {\n        \"score\": 3,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-PLUS-390\",\n          \"C-POLICY-390\",\n          \"C-MESSAGES-390\"\n        ],\n        \"reasoning\": \"Bottom navigation, cards, action sheet and policy actions are consistent, but preview banners and overlay positioning disrupt the pattern.\",\n        \"fix\": \"Reserve fixed layout space for preview/bottom bars so they never obscure content or create double-header artifacts.\"\n      },\n      \"broker\": {\n        \"score\": 2,\n        \"evidence\": [\n          \"B-AE-QUEUE-390\",\n          \"B-RENEWALS-390\",\n          \"B-CLAIMS-390\",\n          \"B-AE-QUEUE-1280\"\n        ],\n        \"reasoning\": \"Desktop navigation and tables are consistent, but the same components collapse poorly on mobile with wrapped columns and clipped content.\",\n        \"fix\": \"Introduce a dedicated mobile broker layout using stacked rows with visible primary fields and overflow details.\"\n      }\n    },\n    \"error_prevention\": {\n      \"client\": {\n        \"score\": 3,\n        \"evidence\": [\n          \"C-CERT-390\",\n          \"C-CLAIM-NEW-1280\",\n          \"C-THREAD-1280\",\n          \"C-TRACKER-390\"\n        ],\n        \"reasoning\": \"Stepper states, disabled-looking Continue, file limits, metadata stripping and insurer disclaimer reduce mistakes, but long forms lack visible validation examples.\",\n        \"fix\": \"Add inline validation and pre-submit review summaries for certificate, change and claim flows.\"\n      },\n      \"broker\": {\n        \"score\": 3,\n        \"evidence\": [\n          \"B-PR-APPROVAL-1280\",\n          \"B-PR-QUEUE-1280\",\n          \"B-CLAIM-1280\",\n          \"B-OP-GOV-1280\"\n        ],\n        \"reasoning\": \"Principal routing, confidence, completeness checks, file context and release checks prevent high-risk actions, though mobile compression increases error risk.\",\n        \"fix\": \"Block approval/action controls on unusable small-screen table states until a readable detail view is opened.\"\n      }\n    },\n    \"recognition\": {\n      \"client\": {\n        \"score\": 2,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-PROFILE-390\",\n          \"C-DOCUMENTS-390\",\n          \"T-J5-1\",\n          \"T-J7-2\"\n        ],\n        \"reasoning\": \"Core cover and profile options are recognizable, but renewal, people management and specific document discovery fail or require knowing where to look.\",\n        \"fix\": \"Add explicit Home/Profile shortcuts for Renewal, People who can act, Schedules and PDS.\"\n      },\n      \"broker\": {\n        \"score\": 2,\n        \"evidence\": [\n          \"B-CLIENT-1280\",\n          \"B-AE-INBOX-1280\",\n          \"B-CLAIM-1280\",\n          \"B-RENEWALS-1280\"\n        ],\n        \"reasoning\": \"Queues and filters support recognition, but raw timeline events, IDs and dense tables force staff to interpret system data.\",\n        \"fix\": \"Replace raw event payloads with summarized human-readable activity rows and expandable technical detail.\"\n      }\n    },\n    \"flexibility\": {\n      \"client\": {\n        \"score\": 2,\n        \"evidence\": [\n          \"C-PLUS-390\",\n          \"C-HOME-390\",\n          \"C-POLICY-390\",\n          \"C-ACTIVITY-390\"\n        ],\n        \"reasoning\": \"The plus sheet and policy quick actions shorten common paths, but desktop remains a mobile frame and failed renewal/people/doc paths limit efficiency.\",\n        \"fix\": \"Add adaptive desktop shortcuts and a persistent search/action launcher for renewal, documents and people.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-INBOX-1280\",\n          \"B-AE-QUEUE-1280\",\n          \"B-RENEWALS-1280\",\n          \"B-CLAIMS-1280\"\n        ],\n        \"reasoning\": \"Keyboard shortcuts, queue filters, role-specific navigation and table actions support efficient expert workflows.\",\n        \"fix\": \"Add saved filters/views for common AE, Principal and Operator work modes.\"\n      }\n    },\n    \"aesthetic\": {\n      \"client\": {\n        \"score\": 3,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-POLICY-390\",\n          \"C-MESSAGES-390\",\n          \"C-HOME-1280\"\n        ],\n        \"reasoning\": \"The client UI is clean, scannable and card-based, but fixed preview/bottom bars and desktop whitespace reduce polish.\",\n        \"fix\": \"Tune responsive layout so desktop uses space productively and fixed bars never cover content.\"\n      },\n      \"broker\": {\n        \"score\": 2,\n        \"evidence\": [\n          \"B-AE-INBOX-1280\",\n          \"B-AE-QUEUE-390\",\n          \"B-CLAIM-1280\",\n          \"B-OP-GOV-1280\"\n        ],\n        \"reasoning\": \"Desktop admin screens are dense but workable; mobile broker screens become visually cluttered and hard to read.\",\n        \"fix\": \"Redesign broker mobile as task cards rather than forcing desktop tables into the viewport.\"\n      }\n    },\n    \"recovery\": {\n      \"client\": {\n        \"score\": 2,\n        \"evidence\": [\n          \"C-CERT-390\",\n          \"C-CHANGE-390\",\n          \"C-TRACKER-390\",\n          \"C-PROFILE-390\"\n        ],\n        \"reasoning\": \"Cancel, message broker and complaint paths exist, but no evidenced inline error messages, undo states or failed-submit recovery are shown.\",\n        \"fix\": \"Show field-level errors, save drafts, and offer clear retry/contact-broker recovery after failed submissions.\"\n      },\n      \"broker\": {\n        \"score\": 3,\n        \"evidence\": [\n          \"B-ALERTS-1280\",\n          \"B-CLAIM-1280\",\n          \"B-OP-GOV-1280\",\n          \"B-AE-QUEUE-1280\"\n        ],\n        \"reasoning\": \"Alerts, re-checks, governance controls and queues help recover operational issues, though form/action error recovery is not evidenced.\",\n        \"fix\": \"Add explicit retry, rollback and audit-confirmation states for broker actions.\"\n      }\n    },\n    \"help\": {\n      \"client\": {\n        \"score\": 2,\n        \"evidence\": [\n          \"C-PROFILE-390\",\n          \"C-CLAIM-NEW-1280\",\n          \"C-TRACKER-390\",\n          \"C-RENEWAL-390\"\n        ],\n        \"reasoning\": \"Help/contact broker and some explanatory copy exist, but contextual help is sparse for complex tasks like renewal, claims and certificates.\",\n        \"fix\": \"Add contextual help panels explaining each flow, required information and what happens next.\"\n      },\n      \"broker\": {\n        \"score\": 2,\n        \"evidence\": [\n          \"B-AE-INBOX-390\",\n          \"B-AE-QUEUE-1280\",\n          \"B-OP-GOV-1280\",\n          \"B-ALERTS-390\"\n        ],\n        \"reasoning\": \"Keyboard hints, release checks and operational labels help experts, but there is little procedural guidance for less frequent tasks.\",\n        \"fix\": \"Add inline playbooks/checklists for approvals, claims handling, renewals and operator governance.\"\n      }\n    },\n    \"am_i_covered\": {\n      \"client\": {\n        \"score\": 3,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-POLICY-390\",\n          \"T-J1-1\",\n          \"C-TRACKER-390\"\n        ],\n        \"reasoning\": \"Home cards and policy detail show status, sum insured/limit and covered items quickly, but claims still require care to distinguish quote/coverage decision.\",\n        \"fix\": \"Add a single explicit covered/not-covered status chip on each policy and claim context.\"\n      },\n      \"broker\": {\n        \"score\": \"n/a\",\n        \"evidence\": [],\n        \"reasoning\": \"n/a\",\n        \"fix\": \"n/a\"\n      }\n    },\n    \"who_by_when\": {\n      \"client\": {\n        \"score\": 2,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-ACTIVITY-390\",\n          \"C-TRACKER-390\",\n          \"C-MESSAGES-390\"\n        ],\n        \"reasoning\": \"Payments and claim handler are visible, but client matters rarely show a named owner, SLA or promised next date.\",\n        \"fix\": \"Add owner name, next step and due-by date to every attention item, claim and renewal card.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-INBOX-1280\",\n          \"B-AE-QUEUE-1280\",\n          \"B-RENEWALS-1280\",\n          \"B-CLAIM-1280\"\n        ],\n        \"reasoning\": \"Inbox reply-by times, queue countdowns/routes, renewal next steps and claim acknowledgement deadlines clearly show ownership and timing.\",\n        \"fix\": \"Expose assignee names consistently wherever the current column shows only a dash.\"\n      }\n    },\n    \"no_engine\": {\n      \"client\": {\n        \"score\": 2,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-ACTIVITY-390\",\n          \"C-PROFILE-1280\",\n          \"C-LOGIN-390\"\n        ],\n        \"reasoning\": \"Client screens expose preview-only DEV AUTH, demo, MOCKED and dev-only jurisdiction elements that would be inappropriate in a client experience.\",\n        \"fix\": \"Gate all development, mocked and jurisdiction-preview elements behind an internal-only wrapper outside client review flows.\"\n      },\n      \"broker\": {\n        \"score\": 1,\n        \"evidence\": [\n          \"B-AE-INBOX-1280\",\n          \"B-CLIENT-1280\",\n          \"B-AE-QUEUE-1280\",\n          \"B-OP-GOV-1280\"\n        ],\n        \"reasoning\": \"Broker screens expose build hashes, registry tags, raw IDs and JSON-like payloads throughout operational views.\",\n        \"fix\": \"Move build/registry/raw payloads into an optional diagnostics drawer restricted to operators.\"\n      }\n    },\n    \"regulatory\": {\n      \"client\": {\n        \"score\": 3,\n        \"evidence\": [\n          \"C-MESSAGES-390\",\n          \"C-THREAD-1280\",\n          \"C-DOCUMENTS-390\",\n          \"C-RENEWAL-390\",\n          \"C-PROFILE-1280\"\n        ],\n        \"reasoning\": \"General advice warnings, PDS/TMD documents, privacy notice and renewal disclosure are present, though some are low-visibility or buried.\",\n        \"fix\": \"Make regulatory notices contextually prominent at decision points while keeping downloadable documents easy to identify.\"\n      },\n      \"broker\": {\n        \"score\": 3,\n        \"evidence\": [\n          \"B-PR-APPROVAL-1280\",\n          \"B-CLAIM-MSG-1280\",\n          \"B-CLAIM-1280\",\n          \"B-OP-GOV-1280\"\n        ],\n        \"reasoning\": \"Approval queues, advice-sensitive replies, document handling and governance checks support regulatory control, but raw system traces reduce clarity.\",\n        \"fix\": \"Add a compliance summary panel that states the required disclosure/approval status in plain language for each regulated action.\"\n      }\n    }\n  },\n  \"tasks\": {\n    \"J1\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"One tap reaches policy detail with insured item, amount and excess; lower Home cards can be partly obscured by the bottom bar.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"One tap pattern supports checking a unit policy, provided the unit appears as a Home cover card.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Ute/tool-style cover can be checked from Home in one tap with sum insured visible.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Business pack or contents cards expose amount and status from Home with one tap to detail.\"\n      },\n      \"household\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Policy-card pattern is likely clear for household cover if the relevant item is listed.\"\n      },\n      \"professional\": {\n        \"success\": \"n/a\",\n        \"measured_taps\": null,\n        \"friction\": \"A20 marks J1 for professional as not applicable.\"\n      }\n    },\n    \"J2\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Three taps via +, certificate mode and policy selection; holder form is clear but requires choosing the right cover.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Certificate flow names a counterparty and is step-based, with moderate policy-picking friction.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Certificate request is reachable and holder fields match the job; policy selection adds a step.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Counterparty certificate is discoverable from the + sheet but not a direct Home card action until a policy is chosen.\"\n      },\n      \"household\": {\n        \"success\": \"n/a\",\n        \"measured_taps\": null,\n        \"friction\": \"A20 marks J2 for household as not applicable.\"\n      },\n      \"professional\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Certificate path is generic enough for professional cover, assuming the relevant policy card is selectable.\"\n      }\n    },\n    \"J3\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Two taps reach claim lodgement; long form and bottom nav overlap add mobile friction before submission.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Claim flow supports broad categories, but property/unit specificity depends on choosing the right policy/type.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Motor/property/liability chips make tradie claims findable, though the form is lengthy.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"General claim path is quick, but business-pack specifics may require free-text explanation.\"\n      },\n      \"household\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Two taps to claim form with 'Not sure' policy fallback helps non-expert users.\"\n      },\n      \"professional\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Claim lodgement is reachable, though PI/professional categories are not visibly specialised in the evidence.\"\n      }\n    },\n    \"J4\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"One tap reaches payment due with BPAY biller/reference and copy actions.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Activity payment card is prominent and filterable, though payment is mocked in preview.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Payment due and pay/copy actions are reachable from Home in one tap.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Amount owed and how to pay are explicit, with minimal navigation friction.\"\n      },\n      \"household\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Payment information is straightforward if the user has permission to pay.\"\n      },\n      \"professional\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Payment task succeeds quickly via Activity, independent of policy type.\"\n      }\n    },\n    \"J5\": {\n      \"farmer\": {\n        \"success\": \"Partial\",\n        \"measured_taps\": 1,\n        \"friction\": \"Measured path reached policy detail but no renewal/review entry was visible, despite a standalone renewal screen existing.\"\n      },\n      \"landlord\": {\n        \"success\": \"Partial\",\n        \"measured_taps\": 1,\n        \"friction\": \"Renewal review is not reliably discoverable from the relevant policy detail.\"\n      },\n      \"tradie\": {\n        \"success\": \"Partial\",\n        \"measured_taps\": 1,\n        \"friction\": \"Tools/equipment renewal screen exists but the Home-to-policy measured path did not expose it.\"\n      },\n      \"cafe\": {\n        \"success\": \"Partial\",\n        \"measured_taps\": 1,\n        \"friction\": \"Confirming renewal details depends on finding a renewal entry elsewhere rather than from the policy card.\"\n      },\n      \"household\": {\n        \"success\": \"Partial\",\n        \"measured_taps\": 1,\n        \"friction\": \"The task is blocked from the measured policy route because no renewal label or review action appears.\"\n      },\n      \"professional\": {\n        \"success\": \"Partial\",\n        \"measured_taps\": 1,\n        \"friction\": \"Renewal comparison exists in evidence, but discovery from Home fails in the measured path.\"\n      }\n    },\n    \"J6\": {\n      \"farmer\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"Measured path to Profile found no Add person, Invite, People or Who can act control.\"\n      },\n      \"landlord\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"No evidenced way to let a spouse/contact/bookkeeper act from Profile.\"\n      },\n      \"tradie\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"Bookkeeper/contact permission management is not discoverable in the screenshots.\"\n      },\n      \"cafe\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"Profile shows account details but no people-management action.\"\n      },\n      \"household\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"Spouse/owner delegation cannot be completed from the measured path.\"\n      },\n      \"professional\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"No visible invite or role-permission control for adding a delegate.\"\n      }\n    },\n    \"J7\": {\n      \"farmer\": {\n        \"success\": \"Partial\",\n        \"measured_taps\": 2,\n        \"friction\": \"Documents is reachable in two taps, but no schedule/year filter is visible and PDS is only spelled out as Product Disclosure Statement.\"\n      },\n      \"landlord\": {\n        \"success\": \"Partial\",\n        \"measured_taps\": 2,\n        \"friction\": \"Document list has disclosure documents but not an obvious last-year schedule.\"\n      },\n      \"tradie\": {\n        \"success\": \"Partial\",\n        \"measured_taps\": 2,\n        \"friction\": \"The user can find documents, but the measured goal fails because Schedule/PDS labels are not surfaced as expected.\"\n      },\n      \"cafe\": {\n        \"success\": \"Partial\",\n        \"measured_taps\": 2,\n        \"friction\": \"Many documents appear without search, policy grouping or last-year schedule labelling.\"\n      },\n      \"household\": {\n        \"success\": \"Partial\",\n        \"measured_taps\": 2,\n        \"friction\": \"Disclosure documents are available, but historical schedule discovery is weak.\"\n      },\n      \"professional\": {\n        \"success\": \"Partial\",\n        \"measured_taps\": 2,\n        \"friction\": \"Documents page exists, but it lacks clear PDS acronym, schedule and year-based retrieval cues.\"\n      }\n    }\n  }\n}",
+ "attempts": [
+  {
+   "attempt": 1,
+   "errors": [],
+   "temperature": "provider default (temperature not accepted)"
+  }
+ ]
+}

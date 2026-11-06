@@ -1,0 +1,516 @@
+{
+ "model": "Gemini 3.1 Pro",
+ "provider": "gemini",
+ "model_id": "gemini-3.1-pro-preview",
+ "output": {
+  "heuristics": {
+   "visibility": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-TRACKER-390",
+      "C-ACTIVITY-390"
+     ],
+     "reasoning": "Clear visual indicators for claim progress stages and payment statuses.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-INBOX-1280",
+      "B-AE-QUEUE-1280"
+     ],
+     "reasoning": "Clear SLA countdowns and status tags on work items in queues.",
+     "fix": "None needed."
+    }
+   },
+   "real_world": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-PLUS-390",
+      "C-HOME-390"
+     ],
+     "reasoning": "Uses plain language like 'Make a claim' and 'Get a certificate' instead of jargon.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-RENEWALS-1280"
+     ],
+     "reasoning": "Matches professional broker terminology like Endorsement, SLA, and Bind.",
+     "fix": "None needed."
+    }
+   },
+   "control": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-CERT-390",
+      "C-HOME-390"
+     ],
+     "reasoning": "Clear cancel buttons on forms and persistent bottom navigation for easy exit.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-PR-QUEUE-1280"
+     ],
+     "reasoning": "High control with keyboard shortcuts and explicit approve/reject routing.",
+     "fix": "None needed."
+    }
+   },
+   "consistency": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-HOME-390",
+      "C-ACTIVITY-390"
+     ],
+     "reasoning": "Consistent card design, typography, and layout across different views.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-CLAIMS-1280",
+      "B-AE-INBOX-1280"
+     ],
+     "reasoning": "Standardized layout for data tables, queues, and message threads.",
+     "fix": "None needed."
+    }
+   },
+   "error_prevention": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-CERT-390",
+      "C-CLAIM-NEW-390"
+     ],
+     "reasoning": "Helpful form placeholders and explicit file size limits prevent user errors.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-PR-APPROVAL-1280"
+     ],
+     "reasoning": "Governance workflow requires Principal approval for advice, preventing rogue messages.",
+     "fix": "None needed."
+    }
+   },
+   "recognition": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-POLICY-390",
+      "C-HOME-390"
+     ],
+     "reasoning": "Clear asset names and policy details are shown so users don't have to recall policy numbers.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-CLIENT-1280"
+     ],
+     "reasoning": "Client 360 view provides full context without requiring the broker to remember details.",
+     "fix": "None needed."
+    }
+   },
+   "flexibility": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-PLUS-390"
+     ],
+     "reasoning": "Global action sheet allows quick task initiation from anywhere in the app.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-1280"
+     ],
+     "reasoning": "Keyboard shortcuts (j/k, Enter, a, r) significantly speed up queue processing for power users.",
+     "fix": "None needed."
+    }
+   },
+   "aesthetic": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-HOME-390",
+      "C-POLICY-390"
+     ],
+     "reasoning": "Clean, minimalist design with good whitespace focuses on essential information.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-1280"
+     ],
+     "reasoning": "High information density is well-structured and appropriate for the professional persona.",
+     "fix": "None needed."
+    }
+   },
+   "recovery": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-CLAIM-NEW-390"
+     ],
+     "reasoning": "Provides a 'Not sure' option in claims to fall back to broker assistance.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-PR-QUEUE-1280"
+     ],
+     "reasoning": "Clear rejection paths allow easy recovery from incorrect endorsements or advice.",
+     "fix": "None needed."
+    }
+   },
+   "help": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-PLUS-390",
+      "C-MESSAGES-390"
+     ],
+     "reasoning": "Direct line to broker via 'Ask my broker' acts as a prominent primary help mechanism.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-INBOX-1280"
+     ],
+     "reasoning": "Built-in documentation for keyboard shortcuts is easily accessible.",
+     "fix": "None needed."
+    }
+   },
+   "am_i_covered": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-POLICY-390",
+      "C-HOME-390"
+     ],
+     "reasoning": "Policy cards and details explicitly show limits, excess, and what is covered.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": "n/a",
+     "evidence": [],
+     "reasoning": "Not applicable for broker surface.",
+     "fix": "None needed."
+    }
+   },
+   "who_by_when": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-TRACKER-390",
+      "C-MESSAGES-390"
+     ],
+     "reasoning": "Claim tracker shows 'Handled by' and messages set clear reply expectations.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-1280"
+     ],
+     "reasoning": "SLAs, overdue tags, and countdown timers clearly indicate deadlines.",
+     "fix": "None needed."
+    }
+   },
+   "no_engine": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-MESSAGES-390"
+     ],
+     "reasoning": "AI is hidden; interactions feel like talking directly to a human broker.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-AE-QUEUE-1280"
+     ],
+     "reasoning": "Engine details like confidence scores are exposed appropriately as context for the professional.",
+     "fix": "None needed."
+    }
+   },
+   "regulatory": {
+    "client": {
+     "score": 4,
+     "evidence": [
+      "C-PROFILE-390",
+      "C-RENEWAL-390"
+     ],
+     "reasoning": "General advice warnings, FSG, and Privacy Policy are present and accessible.",
+     "fix": "None needed."
+    },
+    "broker": {
+     "score": 4,
+     "evidence": [
+      "B-PR-QUEUE-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "Compliance checks and Principal approvals are deeply integrated into the workflow.",
+     "fix": "None needed."
+    }
+   }
+  },
+  "tasks": {
+   "J1": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Very low friction, visible directly from Home or 1 tap to policy details."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Very low friction, visible directly from Home or 1 tap to policy details."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Very low friction, visible directly from Home or 1 tap to policy details."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Very low friction, visible directly from Home or 1 tap to policy details."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Very low friction, visible directly from Home or 1 tap to policy details."
+    },
+    "professional": {
+     "success": "n/a",
+     "measured_taps": null,
+     "friction": "Not applicable for this archetype."
+    }
+   },
+   "J2": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Low friction, clear path via the global add button to certificate request."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Low friction, clear path via the global add button to certificate request."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Low friction, clear path via the global add button to certificate request."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Low friction, clear path via the global add button to certificate request."
+    },
+    "household": {
+     "success": "n/a",
+     "measured_taps": null,
+     "friction": "Not applicable for this archetype."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Low friction, clear path via the global add button to certificate request."
+    }
+   },
+   "J3": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Low friction, clear path via the global add button to claim lodgement."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Low friction, clear path via the global add button to claim lodgement."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Low friction, clear path via the global add button to claim lodgement."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Low friction, clear path via the global add button to claim lodgement."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Low friction, clear path via the global add button to claim lodgement."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Low friction, clear path via the global add button to claim lodgement."
+    }
+   },
+   "J4": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Low friction, attention card on Home makes payments immediately visible."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Low friction, attention card on Home makes payments immediately visible."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Low friction, attention card on Home makes payments immediately visible."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Low friction, attention card on Home makes payments immediately visible."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Low friction, attention card on Home makes payments immediately visible."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Low friction, attention card on Home makes payments immediately visible."
+    }
+   },
+   "J5": {
+    "farmer": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "High friction, blocked because renewal review is not accessible from the policy page."
+    },
+    "landlord": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "High friction, blocked because renewal review is not accessible from the policy page."
+    },
+    "tradie": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "High friction, blocked because renewal review is not accessible from the policy page."
+    },
+    "cafe": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "High friction, blocked because renewal review is not accessible from the policy page."
+    },
+    "household": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "High friction, blocked because renewal review is not accessible from the policy page."
+    },
+    "professional": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "High friction, blocked because renewal review is not accessible from the policy page."
+    }
+   },
+   "J6": {
+    "farmer": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "High friction, blocked because there is no option to add a person in the Profile section."
+    },
+    "landlord": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "High friction, blocked because there is no option to add a person in the Profile section."
+    },
+    "tradie": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "High friction, blocked because there is no option to add a person in the Profile section."
+    },
+    "cafe": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "High friction, blocked because there is no option to add a person in the Profile section."
+    },
+    "household": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "High friction, blocked because there is no option to add a person in the Profile section."
+    },
+    "professional": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "High friction, blocked because there is no option to add a person in the Profile section."
+    }
+   },
+   "J7": {
+    "farmer": {
+     "success": "N",
+     "measured_taps": 2,
+     "friction": "High friction, blocked because specific historical schedules/PDS are not visible in Documents."
+    },
+    "landlord": {
+     "success": "N",
+     "measured_taps": 2,
+     "friction": "High friction, blocked because specific historical schedules/PDS are not visible in Documents."
+    },
+    "tradie": {
+     "success": "N",
+     "measured_taps": 2,
+     "friction": "High friction, blocked because specific historical schedules/PDS are not visible in Documents."
+    },
+    "cafe": {
+     "success": "N",
+     "measured_taps": 2,
+     "friction": "High friction, blocked because specific historical schedules/PDS are not visible in Documents."
+    },
+    "household": {
+     "success": "N",
+     "measured_taps": 2,
+     "friction": "High friction, blocked because specific historical schedules/PDS are not visible in Documents."
+    },
+    "professional": {
+     "success": "N",
+     "measured_taps": 2,
+     "friction": "High friction, blocked because specific historical schedules/PDS are not visible in Documents."
+    }
+   }
+  }
+ },
+ "raw": "{\n  \"heuristics\": {\n    \"visibility\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-TRACKER-390\",\n          \"C-ACTIVITY-390\"\n        ],\n        \"reasoning\": \"Clear visual indicators for claim progress stages and payment statuses.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-INBOX-1280\",\n          \"B-AE-QUEUE-1280\"\n        ],\n        \"reasoning\": \"Clear SLA countdowns and status tags on work items in queues.\",\n        \"fix\": \"None needed.\"\n      }\n    },\n    \"real_world\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-PLUS-390\",\n          \"C-HOME-390\"\n        ],\n        \"reasoning\": \"Uses plain language like 'Make a claim' and 'Get a certificate' instead of jargon.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-QUEUE-1280\",\n          \"B-RENEWALS-1280\"\n        ],\n        \"reasoning\": \"Matches professional broker terminology like Endorsement, SLA, and Bind.\",\n        \"fix\": \"None needed.\"\n      }\n    },\n    \"control\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-CERT-390\",\n          \"C-HOME-390\"\n        ],\n        \"reasoning\": \"Clear cancel buttons on forms and persistent bottom navigation for easy exit.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-QUEUE-1280\",\n          \"B-PR-QUEUE-1280\"\n        ],\n        \"reasoning\": \"High control with keyboard shortcuts and explicit approve/reject routing.\",\n        \"fix\": \"None needed.\"\n      }\n    },\n    \"consistency\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-ACTIVITY-390\"\n        ],\n        \"reasoning\": \"Consistent card design, typography, and layout across different views.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-CLAIMS-1280\",\n          \"B-AE-INBOX-1280\"\n        ],\n        \"reasoning\": \"Standardized layout for data tables, queues, and message threads.\",\n        \"fix\": \"None needed.\"\n      }\n    },\n    \"error_prevention\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-CERT-390\",\n          \"C-CLAIM-NEW-390\"\n        ],\n        \"reasoning\": \"Helpful form placeholders and explicit file size limits prevent user errors.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-PR-APPROVAL-1280\"\n        ],\n        \"reasoning\": \"Governance workflow requires Principal approval for advice, preventing rogue messages.\",\n        \"fix\": \"None needed.\"\n      }\n    },\n    \"recognition\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-POLICY-390\",\n          \"C-HOME-390\"\n        ],\n        \"reasoning\": \"Clear asset names and policy details are shown so users don't have to recall policy numbers.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-CLIENT-1280\"\n        ],\n        \"reasoning\": \"Client 360 view provides full context without requiring the broker to remember details.\",\n        \"fix\": \"None needed.\"\n      }\n    },\n    \"flexibility\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-PLUS-390\"\n        ],\n        \"reasoning\": \"Global action sheet allows quick task initiation from anywhere in the app.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-QUEUE-1280\"\n        ],\n        \"reasoning\": \"Keyboard shortcuts (j/k, Enter, a, r) significantly speed up queue processing for power users.\",\n        \"fix\": \"None needed.\"\n      }\n    },\n    \"aesthetic\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-HOME-390\",\n          \"C-POLICY-390\"\n        ],\n        \"reasoning\": \"Clean, minimalist design with good whitespace focuses on essential information.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-QUEUE-1280\"\n        ],\n        \"reasoning\": \"High information density is well-structured and appropriate for the professional persona.\",\n        \"fix\": \"None needed.\"\n      }\n    },\n    \"recovery\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-CLAIM-NEW-390\"\n        ],\n        \"reasoning\": \"Provides a 'Not sure' option in claims to fall back to broker assistance.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-PR-QUEUE-1280\"\n        ],\n        \"reasoning\": \"Clear rejection paths allow easy recovery from incorrect endorsements or advice.\",\n        \"fix\": \"None needed.\"\n      }\n    },\n    \"help\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-PLUS-390\",\n          \"C-MESSAGES-390\"\n        ],\n        \"reasoning\": \"Direct line to broker via 'Ask my broker' acts as a prominent primary help mechanism.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-INBOX-1280\"\n        ],\n        \"reasoning\": \"Built-in documentation for keyboard shortcuts is easily accessible.\",\n        \"fix\": \"None needed.\"\n      }\n    },\n    \"am_i_covered\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-POLICY-390\",\n          \"C-HOME-390\"\n        ],\n        \"reasoning\": \"Policy cards and details explicitly show limits, excess, and what is covered.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": \"n/a\",\n        \"evidence\": [],\n        \"reasoning\": \"Not applicable for broker surface.\",\n        \"fix\": \"None needed.\"\n      }\n    },\n    \"who_by_when\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-TRACKER-390\",\n          \"C-MESSAGES-390\"\n        ],\n        \"reasoning\": \"Claim tracker shows 'Handled by' and messages set clear reply expectations.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-QUEUE-1280\"\n        ],\n        \"reasoning\": \"SLAs, overdue tags, and countdown timers clearly indicate deadlines.\",\n        \"fix\": \"None needed.\"\n      }\n    },\n    \"no_engine\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-MESSAGES-390\"\n        ],\n        \"reasoning\": \"AI is hidden; interactions feel like talking directly to a human broker.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-AE-QUEUE-1280\"\n        ],\n        \"reasoning\": \"Engine details like confidence scores are exposed appropriately as context for the professional.\",\n        \"fix\": \"None needed.\"\n      }\n    },\n    \"regulatory\": {\n      \"client\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"C-PROFILE-390\",\n          \"C-RENEWAL-390\"\n        ],\n        \"reasoning\": \"General advice warnings, FSG, and Privacy Policy are present and accessible.\",\n        \"fix\": \"None needed.\"\n      },\n      \"broker\": {\n        \"score\": 4,\n        \"evidence\": [\n          \"B-PR-QUEUE-1280\",\n          \"B-OP-GOV-1280\"\n        ],\n        \"reasoning\": \"Compliance checks and Principal approvals are deeply integrated into the workflow.\",\n        \"fix\": \"None needed.\"\n      }\n    }\n  },\n  \"tasks\": {\n    \"J1\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Very low friction, visible directly from Home or 1 tap to policy details.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Very low friction, visible directly from Home or 1 tap to policy details.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Very low friction, visible directly from Home or 1 tap to policy details.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Very low friction, visible directly from Home or 1 tap to policy details.\"\n      },\n      \"household\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Very low friction, visible directly from Home or 1 tap to policy details.\"\n      },\n      \"professional\": {\n        \"success\": \"n/a\",\n        \"measured_taps\": null,\n        \"friction\": \"Not applicable for this archetype.\"\n      }\n    },\n    \"J2\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Low friction, clear path via the global add button to certificate request.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Low friction, clear path via the global add button to certificate request.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Low friction, clear path via the global add button to certificate request.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Low friction, clear path via the global add button to certificate request.\"\n      },\n      \"household\": {\n        \"success\": \"n/a\",\n        \"measured_taps\": null,\n        \"friction\": \"Not applicable for this archetype.\"\n      },\n      \"professional\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 3,\n        \"friction\": \"Low friction, clear path via the global add button to certificate request.\"\n      }\n    },\n    \"J3\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Low friction, clear path via the global add button to claim lodgement.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Low friction, clear path via the global add button to claim lodgement.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Low friction, clear path via the global add button to claim lodgement.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Low friction, clear path via the global add button to claim lodgement.\"\n      },\n      \"household\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Low friction, clear path via the global add button to claim lodgement.\"\n      },\n      \"professional\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 2,\n        \"friction\": \"Low friction, clear path via the global add button to claim lodgement.\"\n      }\n    },\n    \"J4\": {\n      \"farmer\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Low friction, attention card on Home makes payments immediately visible.\"\n      },\n      \"landlord\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Low friction, attention card on Home makes payments immediately visible.\"\n      },\n      \"tradie\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Low friction, attention card on Home makes payments immediately visible.\"\n      },\n      \"cafe\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Low friction, attention card on Home makes payments immediately visible.\"\n      },\n      \"household\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Low friction, attention card on Home makes payments immediately visible.\"\n      },\n      \"professional\": {\n        \"success\": \"Y\",\n        \"measured_taps\": 1,\n        \"friction\": \"Low friction, attention card on Home makes payments immediately visible.\"\n      }\n    },\n    \"J5\": {\n      \"farmer\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"High friction, blocked because renewal review is not accessible from the policy page.\"\n      },\n      \"landlord\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"High friction, blocked because renewal review is not accessible from the policy page.\"\n      },\n      \"tradie\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"High friction, blocked because renewal review is not accessible from the policy page.\"\n      },\n      \"cafe\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"High friction, blocked because renewal review is not accessible from the policy page.\"\n      },\n      \"household\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"High friction, blocked because renewal review is not accessible from the policy page.\"\n      },\n      \"professional\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"High friction, blocked because renewal review is not accessible from the policy page.\"\n      }\n    },\n    \"J6\": {\n      \"farmer\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"High friction, blocked because there is no option to add a person in the Profile section.\"\n      },\n      \"landlord\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"High friction, blocked because there is no option to add a person in the Profile section.\"\n      },\n      \"tradie\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"High friction, blocked because there is no option to add a person in the Profile section.\"\n      },\n      \"cafe\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"High friction, blocked because there is no option to add a person in the Profile section.\"\n      },\n      \"household\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"High friction, blocked because there is no option to add a person in the Profile section.\"\n      },\n      \"professional\": {\n        \"success\": \"N\",\n        \"measured_taps\": 1,\n        \"friction\": \"High friction, blocked because there is no option to add a person in the Profile section.\"\n      }\n    },\n    \"J7\": {\n      \"farmer\": {\n        \"success\": \"N\",\n        \"measured_taps\": 2,\n        \"friction\": \"High friction, blocked because specific historical schedules/PDS are not visible in Documents.\"\n      },\n      \"landlord\": {\n        \"success\": \"N\",\n        \"measured_taps\": 2,\n        \"friction\": \"High friction, blocked because specific historical schedules/PDS are not visible in Documents.\"\n      },\n      \"tradie\": {\n        \"success\": \"N\",\n        \"measured_taps\": 2,\n        \"friction\": \"High friction, blocked because specific historical schedules/PDS are not visible in Documents.\"\n      },\n      \"cafe\": {\n        \"success\": \"N\",\n        \"measured_taps\": 2,\n        \"friction\": \"High friction, blocked because specific historical schedules/PDS are not visible in Documents.\"\n      },\n      \"household\": {\n        \"success\": \"N\",\n        \"measured_taps\": 2,\n        \"friction\": \"High friction, blocked because specific historical schedules/PDS are not visible in Documents.\"\n      },\n      \"professional\": {\n        \"success\": \"N\",\n        \"measured_taps\": 2,\n        \"friction\": \"High friction, blocked because specific historical schedules/PDS are not visible in Documents.\"\n      }\n    }\n  }\n}",
+ "attempts": [
+  {
+   "attempt": 1,
+   "errors": [
+    "heuristics.am_i_covered.broker missing"
+   ],
+   "temperature": 0.2
+  },
+  {
+   "attempt": 2,
+   "errors": [],
+   "temperature": 0.2
+  }
+ ]
+}

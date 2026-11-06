@@ -321,6 +321,7 @@ export function Governance() {
       <section style={card}><BackgroundWork /></section>
       <section style={card}><GoLive /></section>
       <section style={card}><ExposureReport /></section>
+      <section style={card}><a className="k-btn" href="/o/reviews" data-testid="gov-reviews-link">UX reviews (multi-model)</a></section>
       <section style={card}><AiEval /></section>
       <SpendCard s={spendData} />
       <RegistryCard />

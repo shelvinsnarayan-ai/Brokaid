@@ -1,0 +1,555 @@
+{
+ "model": "Claude Opus 5.5",
+ "provider": "anthropic",
+ "model_id": "claude-opus-5-5",
+ "output": {
+  "heuristics": {
+   "visibility": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-HOME-390",
+      "C-ACTIVITY-390",
+      "C-TRACKER-390",
+      "C-THREAD-390"
+     ],
+     "reasoning": "Payments due and claim stages are visible, but Home shows 'You're all up to date' under an overdue A$465, and the tracker says 'declined' while the thread says the insurer approved the repair.",
+     "fix": "Drive the Home summary and the tracker headline from the same live status as the attention items and the thread, so contradictory states cannot co-exist."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-AE-INBOX-1280",
+      "B-AE-QUEUE-1280",
+      "B-CLIENT-1280",
+      "B-AE-QUEUE-390"
+     ],
+     "reasoning": "Reply-by, SLA and Answered/Overdue states are clear at 1280, but the queue reads 'overdue by 595h', the client view says '0 open matters' while claims are open, and status is lost at 390.",
+     "fix": "Show SLA breach in business days and compute Open matters from live claims and threads."
+    }
+   },
+   "real_world": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-HOME-390",
+      "T-J1-1",
+      "C-CLAIM-NEW-390",
+      "C-RENEWAL-390"
+     ],
+     "reasoning": "Language is mostly plain (BPAY, excess, agreed value), but motor cover reads 'up to A$1M' next to a A$28,000 agreed value, peril chips are lowercase, and the renewal says 'same cover' while listing 'Hire car benefit removed'.",
+     "fix": "Lead the motor policy page with the agreed or market value per vehicle and reword liability and benefit lines in client terms."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-CLIENT-1280",
+      "B-AE-QUEUE-1280",
+      "B-CLAIM-1280"
+     ],
+     "reasoning": "Staff language is broker-native in places, but the client 360 shows 'marine_services', CamelCase event names and hour-based countdowns.",
+     "fix": "Render timeline events as broker-readable sentences, for example 'Renewal moved to Lapsed'."
+    }
+   },
+   "control": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-PLUS-390",
+      "C-CERT-390",
+      "C-CLAIM-NEW-1280",
+      "C-POLICY-390"
+     ],
+     "reasoning": "The + sheet has Close, the certificate and claim forms have Cancel, and detail pages have back links; the change-cover form has no Cancel or back.",
+     "fix": "Add Cancel and back to the change-cover request."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-CLAIM-1280",
+      "B-CLAIM-MSG-1280",
+      "B-AE-QUEUE-1280"
+     ],
+     "reasoning": "Back links are present, approve and reject keys exist, and withdraw requires a reason; undo for queue decisions is not evidenced.",
+     "fix": "Offer a short undo window after approve or reject in the queue."
+    }
+   },
+   "consistency": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-CLAIM-NEW-390",
+      "T-J1-1",
+      "C-DOCUMENTS-390",
+      "C-TRACKER-1280"
+     ],
+     "reasoning": "Native unstyled selects sit beside styled chips, a second dev banner renders mid-page on the policy page, Documents repeats entries, and the tracker 1280 layout departs from the app pattern.",
+     "fix": "Replace native selects with the design-system select and fix the duplicated mid-page banner."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-AE-QUEUE-390",
+      "B-RENEWALS-390",
+      "B-CLAIMS-390",
+      "B-AE-QUEUE-1280"
+     ],
+     "reasoning": "The 1280 shell is consistent, but at 390 the nav fills the first screen, tables crush to one-letter columns, and the build badge overlaps content.",
+     "fix": "Collapse the nav into a menu at narrow widths and switch tables to stacked cards."
+    }
+   },
+   "error_prevention": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-CERT-390",
+      "C-CLAIM-NEW-390",
+      "C-ACTIVITY-390"
+     ],
+     "reasoning": "Certificate Continue stays disabled until filled, but the claim form preselects Motor/accident while the policy is 'Not sure', and 'I've paid this' has no confirmation.",
+     "fix": "Require a policy choice first and derive claim type from it, with no preselected peril."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-CLAIM-MSG-1280",
+      "B-CLAIM-1280",
+      "B-AE-QUEUE-1280"
+     ],
+     "reasoning": "File limits are stated, client-visible notes run a coverage guard, withdraw requires a reason, and risky classes route to Principal.",
+     "fix": "Show which guard will run, and why, before Send on a client reply."
+    }
+   },
+   "recognition": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-PLUS-390",
+      "C-POLICY-390",
+      "C-HOME-390"
+     ],
+     "reasoning": "Labelled + sheet actions and per-policy quick actions avoid recall; the certificate flow asks the user to pick a policy from Home via a banner.",
+     "fix": "Show a policy picker inside the certificate sheet instead of sending users back to Home."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-CLAIMS-1280",
+      "B-RENEWALS-1280"
+     ],
+     "reasoning": "The Client column is '—' on every queue row and AE is '—' on claims, so staff must open items to recall context.",
+     "fix": "Populate client name and owner on every queue and claims row."
+    }
+   },
+   "flexibility": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-PLUS-390",
+      "C-POLICY-390",
+      "C-HOME-390"
+     ],
+     "reasoning": "Key jobs are reachable from both the + sheet and policy pages, and Pay now sits on Home.",
+     "fix": "Add a direct pay-by-card or BPAY deep link to the Pay now card."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-AE-QUEUE-1280",
+      "B-CLAIMS-1280",
+      "B-RENEWALS-1280",
+      "B-AE-QUEUE-390"
+     ],
+     "reasoning": "Keyboard map, ⌘K and filters are strong on desktop, but the 390 layout is barely usable.",
+     "fix": "Make the core queue and inbox usable at 390 for on-the-go triage."
+    }
+   },
+   "aesthetic": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-DOCUMENTS-1280",
+      "C-NOTIFS-1280",
+      "C-TRACKER-1280",
+      "C-PROFILE-1280"
+     ],
+     "reasoning": "Home is clean, but Documents is a long duplicate list, Notifications is a wall of test replies, and the tracker at 1280 is a tiny, sprawling page.",
+     "fix": "Group Documents by policy and term with one current version shown and older ones collapsed."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-ALERTS-1280",
+      "B-CLIENT-1280",
+      "B-AE-QUEUE-390"
+     ],
+     "reasoning": "Alerts is an unprioritised wall, the client timeline is raw JSON, and mobile layouts are crushed.",
+     "fix": "Group alerts by client and severity with collapse, and summarise timeline payloads."
+    }
+   },
+   "recovery": {
+    "client": {
+     "score": "insufficient evidence",
+     "evidence": [
+      "C-CERT-390",
+      "C-CLAIM-NEW-390"
+     ],
+     "reasoning": "No validation or error states are captured; forms are shown only before submit.",
+     "fix": "Capture inline validation and failure states for the certificate, claim and payment flows."
+    },
+    "broker": {
+     "score": "insufficient evidence",
+     "evidence": [
+      "B-CLAIM-MSG-1280"
+     ],
+     "reasoning": "No send-failure or validation states are shown.",
+     "fix": "Capture reply-send and upload failure states."
+    }
+   },
+   "help": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-PROFILE-390",
+      "C-CHANGE-390",
+      "C-CERT-390"
+     ],
+     "reasoning": "There is 'Help — contact my broker' and some helper copy, but no contextual explanations of terms such as excess or agreed value.",
+     "fix": "Add inline 'What does this mean?' explanations on the policy page for excess, sum insured and agreed value."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-AE-INBOX-1280",
+      "B-CLAIMS-1280"
+     ],
+     "reasoning": "A keyboard map exists, but there is no in-product guidance on queue classes, confidence or routing.",
+     "fix": "Add hover or ? explanations for queue Class, Confidence and Route."
+    }
+   },
+   "am_i_covered": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-HOME-390",
+      "C-HOME-1280",
+      "C-POLICY-390",
+      "T-J1-1"
+     ],
+     "reasoning": "Home cards show item, sum (agreed value or limit) and Active/renews in one glance, but the motor detail heroes the excess rather than the vehicle value.",
+     "fix": "On motor policies, hero each vehicle's insured value and keep excess secondary."
+    },
+    "broker": {
+     "score": "n/a",
+     "evidence": [],
+     "reasoning": "Row not applicable to the broker surface.",
+     "fix": "n/a"
+    }
+   },
+   "who_by_when": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-TRACKER-390",
+      "C-PROFILE-1280",
+      "C-RENEWAL-390"
+     ],
+     "reasoning": "The tracker shows 'Handled by Account executive' with no named person or next-step date, and the renewal only says 'Talk to your broker'.",
+     "fix": "Show the named handler and an expected 'next update by' date on the tracker and renewal."
+    },
+    "broker": {
+     "score": 3,
+     "evidence": [
+      "B-AE-INBOX-1280",
+      "B-RENEWALS-1280",
+      "B-AE-QUEUE-1280",
+      "B-CLAIMS-1280"
+     ],
+     "reasoning": "Reply-by, Route and Next step columns are clear, but AE is often '—'.",
+     "fix": "Force an owner on every claim and renewal and flag unassigned items."
+    }
+   },
+   "no_engine": {
+    "client": {
+     "score": 2,
+     "evidence": [
+      "C-NOTIFS-390",
+      "C-TRACKER-1280",
+      "C-PROFILE-390"
+     ],
+     "reasoning": "Raw 'BROKER_REPLY' enums, an internal insurer claim id, a cryptic 'Policy in force ABBD' line and a 'NAME Client' placeholder leak implementation detail.",
+     "fix": "Map event types to human labels and hide internal identifiers."
+    },
+    "broker": {
+     "score": 1,
+     "evidence": [
+      "B-CLIENT-1280",
+      "B-CLIENT-390",
+      "B-CLAIM-1280"
+     ],
+     "reasoning": "The client 360 timeline prints raw JSON payloads with UUIDs, and notes mention a 'coverage guard'.",
+     "fix": "Replace JSON payloads with templated event sentences linking to the matter."
+    }
+   },
+   "regulatory": {
+    "client": {
+     "score": 3,
+     "evidence": [
+      "C-RENEWAL-390",
+      "C-THREAD-1280",
+      "C-PROFILE-1280",
+      "C-DOCUMENTS-390",
+      "C-TRACKER-1280"
+     ],
+     "reasoning": "The general advice warning appears on the renewal and in replies, PDS/TMD are listed, Privacy, FSG and ASIC notices are on Profile, and AFCA plus complaint appear on the declined claim.",
+     "fix": "Make the FSG a downloadable document in Documents, not just a notice."
+    },
+    "broker": {
+     "score": 2,
+     "evidence": [
+      "B-PR-APPROVAL-1280",
+      "B-CLAIMS-1280",
+      "B-OP-GOV-1280"
+     ],
+     "reasoning": "'Never decisions' framing and the go-live checklist exist, but no pending Principal approval with files is evidenced, and an advice-like 'I recommend you increase the excess' shows no approval or warning marker.",
+     "fix": "Badge every advice-like reply with its approval status and the general advice warning applied."
+    }
+   }
+  },
+  "tasks": {
+   "J1": {
+    "farmer": {
+     "success": "Partial",
+     "measured_taps": 1,
+     "friction": "Ute value is visible on Home, but sheds and hay are not itemised anywhere in the evidence."
+    },
+    "landlord": {
+     "success": "Partial",
+     "measured_taps": 1,
+     "friction": "No per-unit cards are evidenced; the Home grouping is only Vehicles and Business."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Ute value is on Home; the motor detail heroes excess and 'up to A$1M', which confuses."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Business pack contents A$120,000 is shown on Home."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Sum and status are visible, but the motor detail page muddles value and excess."
+    },
+    "professional": {
+     "success": "n/a",
+     "measured_taps": null,
+     "friction": "n/a per A20."
+    }
+   },
+   "J2": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "After the + sheet the user is bounced to Home to pick a policy via a banner."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Same policy-pick detour via Home."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Policy-pick detour; the form itself is clear."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Policy-pick detour."
+    },
+    "household": {
+     "success": "n/a",
+     "measured_taps": null,
+     "friction": "n/a per A20."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 3,
+     "friction": "Policy-pick detour; the PI-specific holder wording is unevidenced."
+    }
+   },
+   "J3": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Policy defaults to 'Not sure' while Motor/accident is preselected; native selects."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Must switch to Property damage and choose a policy from a native select."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Motor is preselected; the vehicle must be picked from an unstyled select."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Must change the preselected Motor type."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 2,
+     "friction": "Long single form; type is preselected."
+    },
+    "professional": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "No PI-specific claim path is evidenced; only Liability/Other."
+    }
+   },
+   "J4": {
+    "farmer": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "BPAY codes can be copied, but Home simultaneously says 'all up to date'."
+    },
+    "landlord": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "No card payment option is evidenced; BPAY only."
+    },
+    "tradie": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "'I've paid this' has no confirmation step."
+    },
+    "cafe": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Clear amount, due date and reference."
+    },
+    "household": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "Contradictory 'all up to date' message on Home."
+    },
+    "professional": {
+     "success": "Y",
+     "measured_taps": 1,
+     "friction": "BPAY only."
+    }
+   },
+   "J5": {
+    "farmer": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "There is no renewal entry from the policy page; the renewal screen shows premiums but no sums insured."
+    },
+    "landlord": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "Blocked at the policy page; no renewal link."
+    },
+    "tradie": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "Blocked; the renewal page says 'cover has ended' and omits sums."
+    },
+    "cafe": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "Blocked at the policy page."
+    },
+    "household": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "Blocked at the policy page."
+    },
+    "professional": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "Blocked at the policy page."
+    }
+   },
+   "J6": {
+    "farmer": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "Profile has a 'people' heading but no add or invite control."
+    },
+    "landlord": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "No way to add a person is evidenced."
+    },
+    "tradie": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "No bookkeeper invite is evidenced."
+    },
+    "cafe": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "No bookkeeper invite is evidenced."
+    },
+    "household": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "No way to add a spouse or second owner."
+    },
+    "professional": {
+     "success": "N",
+     "measured_taps": 1,
+     "friction": "No delegate access is evidenced."
+    }
+   },
+   "J7": {
+    "farmer": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "PDS is found, but there is no policy schedule and no prior-year filter; the list is duplicated."
+    },
+    "landlord": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "PDS only; no schedule."
+    },
+    "tradie": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "PDS only; documents are not grouped by term."
+    },
+    "cafe": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "PDS only; long duplicate list."
+    },
+    "household": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "PDS only; no schedule."
+    },
+    "professional": {
+     "success": "Partial",
+     "measured_taps": 2,
+     "friction": "PDS only; no schedule."
+    }
+   }
+  }
+ },
+ "raw": "{\"heuristics\":{\"visibility\":{\"client\":{\"score\":2,\"evidence\":[\"C-HOME-390\",\"C-ACTIVITY-390\",\"C-TRACKER-390\",\"C-THREAD-390\"],\"reasoning\":\"Payments due and claim stages are visible, but Home shows 'You're all up to date' under an overdue A$465, and the tracker says 'declined' while the thread says the insurer approved the repair.\",\"fix\":\"Drive the Home summary and the tracker headline from the same live status as the attention items and the thread, so contradictory states cannot co-exist.\"},\"broker\":{\"score\":2,\"evidence\":[\"B-AE-INBOX-1280\",\"B-AE-QUEUE-1280\",\"B-CLIENT-1280\",\"B-AE-QUEUE-390\"],\"reasoning\":\"Reply-by, SLA and Answered/Overdue states are clear at 1280, but the queue reads 'overdue by 595h', the client view says '0 open matters' while claims are open, and status is lost at 390.\",\"fix\":\"Show SLA breach in business days and compute Open matters from live claims and threads.\"}},\"real_world\":{\"client\":{\"score\":2,\"evidence\":[\"C-HOME-390\",\"T-J1-1\",\"C-CLAIM-NEW-390\",\"C-RENEWAL-390\"],\"reasoning\":\"Language is mostly plain (BPAY, excess, agreed value), but motor cover reads 'up to A$1M' next to a A$28,000 agreed value, peril chips are lowercase, and the renewal says 'same cover' while listing 'Hire car benefit removed'.\",\"fix\":\"Lead the motor policy page with the agreed or market value per vehicle and reword liability and benefit lines in client terms.\"},\"broker\":{\"score\":2,\"evidence\":[\"B-CLIENT-1280\",\"B-AE-QUEUE-1280\",\"B-CLAIM-1280\"],\"reasoning\":\"Staff language is broker-native in places, but the client 360 shows 'marine_services', CamelCase event names and hour-based countdowns.\",\"fix\":\"Render timeline events as broker-readable sentences, for example 'Renewal moved to Lapsed'.\"}},\"control\":{\"client\":{\"score\":3,\"evidence\":[\"C-PLUS-390\",\"C-CERT-390\",\"C-CLAIM-NEW-1280\",\"C-POLICY-390\"],\"reasoning\":\"The + sheet has Close, the certificate and claim forms have Cancel, and detail pages have back links; the change-cover form has no Cancel or back.\",\"fix\":\"Add Cancel and back to the change-cover request.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-CLAIM-1280\",\"B-CLAIM-MSG-1280\",\"B-AE-QUEUE-1280\"],\"reasoning\":\"Back links are present, approve and reject keys exist, and withdraw requires a reason; undo for queue decisions is not evidenced.\",\"fix\":\"Offer a short undo window after approve or reject in the queue.\"}},\"consistency\":{\"client\":{\"score\":2,\"evidence\":[\"C-CLAIM-NEW-390\",\"T-J1-1\",\"C-DOCUMENTS-390\",\"C-TRACKER-1280\"],\"reasoning\":\"Native unstyled selects sit beside styled chips, a second dev banner renders mid-page on the policy page, Documents repeats entries, and the tracker 1280 layout departs from the app pattern.\",\"fix\":\"Replace native selects with the design-system select and fix the duplicated mid-page banner.\"},\"broker\":{\"score\":2,\"evidence\":[\"B-AE-QUEUE-390\",\"B-RENEWALS-390\",\"B-CLAIMS-390\",\"B-AE-QUEUE-1280\"],\"reasoning\":\"The 1280 shell is consistent, but at 390 the nav fills the first screen, tables crush to one-letter columns, and the build badge overlaps content.\",\"fix\":\"Collapse the nav into a menu at narrow widths and switch tables to stacked cards.\"}},\"error_prevention\":{\"client\":{\"score\":2,\"evidence\":[\"C-CERT-390\",\"C-CLAIM-NEW-390\",\"C-ACTIVITY-390\"],\"reasoning\":\"Certificate Continue stays disabled until filled, but the claim form preselects Motor/accident while the policy is 'Not sure', and 'I've paid this' has no confirmation.\",\"fix\":\"Require a policy choice first and derive claim type from it, with no preselected peril.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-CLAIM-MSG-1280\",\"B-CLAIM-1280\",\"B-AE-QUEUE-1280\"],\"reasoning\":\"File limits are stated, client-visible notes run a coverage guard, withdraw requires a reason, and risky classes route to Principal.\",\"fix\":\"Show which guard will run, and why, before Send on a client reply.\"}},\"recognition\":{\"client\":{\"score\":3,\"evidence\":[\"C-PLUS-390\",\"C-POLICY-390\",\"C-HOME-390\"],\"reasoning\":\"Labelled + sheet actions and per-policy quick actions avoid recall; the certificate flow asks the user to pick a policy from Home via a banner.\",\"fix\":\"Show a policy picker inside the certificate sheet instead of sending users back to Home.\"},\"broker\":{\"score\":2,\"evidence\":[\"B-AE-QUEUE-1280\",\"B-CLAIMS-1280\",\"B-RENEWALS-1280\"],\"reasoning\":\"The Client column is '—' on every queue row and AE is '—' on claims, so staff must open items to recall context.\",\"fix\":\"Populate client name and owner on every queue and claims row.\"}},\"flexibility\":{\"client\":{\"score\":3,\"evidence\":[\"C-PLUS-390\",\"C-POLICY-390\",\"C-HOME-390\"],\"reasoning\":\"Key jobs are reachable from both the + sheet and policy pages, and Pay now sits on Home.\",\"fix\":\"Add a direct pay-by-card or BPAY deep link to the Pay now card.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-AE-QUEUE-1280\",\"B-CLAIMS-1280\",\"B-RENEWALS-1280\",\"B-AE-QUEUE-390\"],\"reasoning\":\"Keyboard map, ⌘K and filters are strong on desktop, but the 390 layout is barely usable.\",\"fix\":\"Make the core queue and inbox usable at 390 for on-the-go triage.\"}},\"aesthetic\":{\"client\":{\"score\":2,\"evidence\":[\"C-DOCUMENTS-1280\",\"C-NOTIFS-1280\",\"C-TRACKER-1280\",\"C-PROFILE-1280\"],\"reasoning\":\"Home is clean, but Documents is a long duplicate list, Notifications is a wall of test replies, and the tracker at 1280 is a tiny, sprawling page.\",\"fix\":\"Group Documents by policy and term with one current version shown and older ones collapsed.\"},\"broker\":{\"score\":2,\"evidence\":[\"B-ALERTS-1280\",\"B-CLIENT-1280\",\"B-AE-QUEUE-390\"],\"reasoning\":\"Alerts is an unprioritised wall, the client timeline is raw JSON, and mobile layouts are crushed.\",\"fix\":\"Group alerts by client and severity with collapse, and summarise timeline payloads.\"}},\"recovery\":{\"client\":{\"score\":\"insufficient evidence\",\"evidence\":[\"C-CERT-390\",\"C-CLAIM-NEW-390\"],\"reasoning\":\"No validation or error states are captured; forms are shown only before submit.\",\"fix\":\"Capture inline validation and failure states for the certificate, claim and payment flows.\"},\"broker\":{\"score\":\"insufficient evidence\",\"evidence\":[\"B-CLAIM-MSG-1280\"],\"reasoning\":\"No send-failure or validation states are shown.\",\"fix\":\"Capture reply-send and upload failure states.\"}},\"help\":{\"client\":{\"score\":2,\"evidence\":[\"C-PROFILE-390\",\"C-CHANGE-390\",\"C-CERT-390\"],\"reasoning\":\"There is 'Help — contact my broker' and some helper copy, but no contextual explanations of terms such as excess or agreed value.\",\"fix\":\"Add inline 'What does this mean?' explanations on the policy page for excess, sum insured and agreed value.\"},\"broker\":{\"score\":2,\"evidence\":[\"B-AE-INBOX-1280\",\"B-CLAIMS-1280\"],\"reasoning\":\"A keyboard map exists, but there is no in-product guidance on queue classes, confidence or routing.\",\"fix\":\"Add hover or ? explanations for queue Class, Confidence and Route.\"}},\"am_i_covered\":{\"client\":{\"score\":3,\"evidence\":[\"C-HOME-390\",\"C-HOME-1280\",\"C-POLICY-390\",\"T-J1-1\"],\"reasoning\":\"Home cards show item, sum (agreed value or limit) and Active/renews in one glance, but the motor detail heroes the excess rather than the vehicle value.\",\"fix\":\"On motor policies, hero each vehicle's insured value and keep excess secondary.\"},\"broker\":{\"score\":\"n/a\",\"evidence\":[],\"reasoning\":\"Row not applicable to the broker surface.\",\"fix\":\"n/a\"}},\"who_by_when\":{\"client\":{\"score\":2,\"evidence\":[\"C-TRACKER-390\",\"C-PROFILE-1280\",\"C-RENEWAL-390\"],\"reasoning\":\"The tracker shows 'Handled by Account executive' with no named person or next-step date, and the renewal only says 'Talk to your broker'.\",\"fix\":\"Show the named handler and an expected 'next update by' date on the tracker and renewal.\"},\"broker\":{\"score\":3,\"evidence\":[\"B-AE-INBOX-1280\",\"B-RENEWALS-1280\",\"B-AE-QUEUE-1280\",\"B-CLAIMS-1280\"],\"reasoning\":\"Reply-by, Route and Next step columns are clear, but AE is often '—'.\",\"fix\":\"Force an owner on every claim and renewal and flag unassigned items.\"}},\"no_engine\":{\"client\":{\"score\":2,\"evidence\":[\"C-NOTIFS-390\",\"C-TRACKER-1280\",\"C-PROFILE-390\"],\"reasoning\":\"Raw 'BROKER_REPLY' enums, an internal insurer claim id, a cryptic 'Policy in force ABBD' line and a 'NAME Client' placeholder leak implementation detail.\",\"fix\":\"Map event types to human labels and hide internal identifiers.\"},\"broker\":{\"score\":1,\"evidence\":[\"B-CLIENT-1280\",\"B-CLIENT-390\",\"B-CLAIM-1280\"],\"reasoning\":\"The client 360 timeline prints raw JSON payloads with UUIDs, and notes mention a 'coverage guard'.\",\"fix\":\"Replace JSON payloads with templated event sentences linking to the matter.\"}},\"regulatory\":{\"client\":{\"score\":3,\"evidence\":[\"C-RENEWAL-390\",\"C-THREAD-1280\",\"C-PROFILE-1280\",\"C-DOCUMENTS-390\",\"C-TRACKER-1280\"],\"reasoning\":\"The general advice warning appears on the renewal and in replies, PDS/TMD are listed, Privacy, FSG and ASIC notices are on Profile, and AFCA plus complaint appear on the declined claim.\",\"fix\":\"Make the FSG a downloadable document in Documents, not just a notice.\"},\"broker\":{\"score\":2,\"evidence\":[\"B-PR-APPROVAL-1280\",\"B-CLAIMS-1280\",\"B-OP-GOV-1280\"],\"reasoning\":\"'Never decisions' framing and the go-live checklist exist, but no pending Principal approval with files is evidenced, and an advice-like 'I recommend you increase the excess' shows no approval or warning marker.\",\"fix\":\"Badge every advice-like reply with its approval status and the general advice warning applied.\"}}},\"tasks\":{\"J1\":{\"farmer\":{\"success\":\"Partial\",\"measured_taps\":1,\"friction\":\"Ute value is visible on Home, but sheds and hay are not itemised anywhere in the evidence.\"},\"landlord\":{\"success\":\"Partial\",\"measured_taps\":1,\"friction\":\"No per-unit cards are evidenced; the Home grouping is only Vehicles and Business.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"Ute value is on Home; the motor detail heroes excess and 'up to A$1M', which confuses.\"},\"cafe\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"Business pack contents A$120,000 is shown on Home.\"},\"household\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"Sum and status are visible, but the motor detail page muddles value and excess.\"},\"professional\":{\"success\":\"n/a\",\"measured_taps\":null,\"friction\":\"n/a per A20.\"}},\"J2\":{\"farmer\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"After the + sheet the user is bounced to Home to pick a policy via a banner.\"},\"landlord\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Same policy-pick detour via Home.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Policy-pick detour; the form itself is clear.\"},\"cafe\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Policy-pick detour.\"},\"household\":{\"success\":\"n/a\",\"measured_taps\":null,\"friction\":\"n/a per A20.\"},\"professional\":{\"success\":\"Y\",\"measured_taps\":3,\"friction\":\"Policy-pick detour; the PI-specific holder wording is unevidenced.\"}},\"J3\":{\"farmer\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"Policy defaults to 'Not sure' while Motor/accident is preselected; native selects.\"},\"landlord\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"Must switch to Property damage and choose a policy from a native select.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"Motor is preselected; the vehicle must be picked from an unstyled select.\"},\"cafe\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"Must change the preselected Motor type.\"},\"household\":{\"success\":\"Y\",\"measured_taps\":2,\"friction\":\"Long single form; type is preselected.\"},\"professional\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"No PI-specific claim path is evidenced; only Liability/Other.\"}},\"J4\":{\"farmer\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"BPAY codes can be copied, but Home simultaneously says 'all up to date'.\"},\"landlord\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"No card payment option is evidenced; BPAY only.\"},\"tradie\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"'I've paid this' has no confirmation step.\"},\"cafe\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"Clear amount, due date and reference.\"},\"household\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"Contradictory 'all up to date' message on Home.\"},\"professional\":{\"success\":\"Y\",\"measured_taps\":1,\"friction\":\"BPAY only.\"}},\"J5\":{\"farmer\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"There is no renewal entry from the policy page; the renewal screen shows premiums but no sums insured.\"},\"landlord\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"Blocked at the policy page; no renewal link.\"},\"tradie\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"Blocked; the renewal page says 'cover has ended' and omits sums.\"},\"cafe\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"Blocked at the policy page.\"},\"household\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"Blocked at the policy page.\"},\"professional\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"Blocked at the policy page.\"}},\"J6\":{\"farmer\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"Profile has a 'people' heading but no add or invite control.\"},\"landlord\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"No way to add a person is evidenced.\"},\"tradie\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"No bookkeeper invite is evidenced.\"},\"cafe\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"No bookkeeper invite is evidenced.\"},\"household\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"No way to add a spouse or second owner.\"},\"professional\":{\"success\":\"N\",\"measured_taps\":1,\"friction\":\"No delegate access is evidenced.\"}},\"J7\":{\"farmer\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"PDS is found, but there is no policy schedule and no prior-year filter; the list is duplicated.\"},\"landlord\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"PDS only; no schedule.\"},\"tradie\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"PDS only; documents are not grouped by term.\"},\"cafe\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"PDS only; long duplicate list.\"},\"household\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"PDS only; no schedule.\"},\"professional\":{\"success\":\"Partial\",\"measured_taps\":2,\"friction\":\"PDS only; no schedule.\"}}}}",
+ "attempts": [
+  {
+   "attempt": 1,
+   "errors": [],
+   "temperature": "provider default (temperature not accepted)"
+  }
+ ]
+}
