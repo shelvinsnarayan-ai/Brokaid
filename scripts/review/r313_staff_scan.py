@@ -12,10 +12,17 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 BASE = sys.argv[1].rstrip("/")
-WHO = sys.argv[2] if len(sys.argv) > 2 else "ae@harbourline.example"
+WHO = next((a for a in sys.argv[2:] if "@" in a), "ae@harbourline.example")
 OUT = Path("/tmp/r313")
 ROUTES = ["/o/queue", "/o/inbox", "/o/claims", "/o/renewals", "/o/renewal-review", "/o/clients", "/o/alerts", "/o/governance",
           "/o/invites", "/o/users", "/o/policies", "/o/matters", "/o/compliance", "/o/clients/00000000-0000-4000-8000-000000000001"]
+# R3.13c: the remaining staff routes (bank, compliance library, reviews, import, export, KPI drill, weekly pack, shadow mode, chase)
+EXTRA = ["/o/bank", "/o/reviews", "/o/import", "/o/export", "/o/kpi/10", "/o/weekly-pack", "/o/shadow-mode", "/o/chase",
+         "/o/compliance?tab=library", "/o/governance"]
+if "--extra" in sys.argv:
+    ROUTES = EXTRA
+elif "--all" in sys.argv:
+    ROUTES = ROUTES + [r for r in EXTRA if r not in ROUTES]
 PAT = {"uuid": re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I),
        "sha": re.compile(r"\b[0-9a-f]{40,64}\b", re.I), "json": re.compile(r'\{"')}
 DENIED = {"payload", "user_id", "membership_id", "invite_id", "token_id", "event_id", "source_event_id", "proposal_ref"}
@@ -44,16 +51,30 @@ def bad_keys(obj, path=""):
     return out
 
 
+ID_KEY = re.compile(r"^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{40,64})$", re.I)
+
+
+def id_keys(obj):
+    """ids used as dict keys (e.g. per-person counts keyed by user id)."""
+    if isinstance(obj, dict):
+        return [k for k in obj if ID_KEY.match(str(k))] + [x for v in obj.values() for x in id_keys(v)]
+    if isinstance(obj, list):
+        return [x for v in obj for x in id_keys(v)]
+    return []
+
+
 async def on_response(resp):
     u = resp.url
     if "/api/" not in u or "/api/auth/" in u or "/api/me" in u or "json" not in (resp.headers.get("content-type") or ""):
         return
     try:
-        bad = bad_keys(await resp.json())
+        body = await resp.json()
+        bad = bad_keys(body)
     except Exception:  # noqa: BLE001
         return
     path = u.split("/api/", 1)[1].split("?")[0]
     bad = [b for b in bad if not any(rp.match(path) and rk.match(b) for rp, rk in ALLOW)]
+    bad += [f"key:{k}" for k in id_keys(body)]
     if bad:
         API_HITS.append({"url": path[:90], "keys": sorted(set(bad))[:5]})
 

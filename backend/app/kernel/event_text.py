@@ -280,7 +280,7 @@ def redact(obj):
     if isinstance(obj, dict):
         return {k: ([{"user_id": a.get("user_id"), "name": a.get("name")} for a in v if isinstance(a, dict)]
                     if k in ALLOWED_PICKERS and isinstance(v, list) else redact(v))
-                for k, v in obj.items() if not _deny(str(k), v)}
+                for k, v in obj.items() if not _deny(str(k), v) and not _id_key(k)}
     if isinstance(obj, list):
         return [redact(x) for x in obj]
     return obj
@@ -294,3 +294,64 @@ def plain(rows: list[dict]) -> list[dict]:
 
 def staff_out(session, obj):
     return obj if raw_ok(session) else redact(obj)
+
+
+def _id_key(k) -> bool:
+    """Dict keys that are ids (uuid/hex) never reach AE/Principal; callers relabel known per-person maps first."""
+    return isinstance(k, str) and bool(_UUID.match(k) or _HEX.match(k))
+
+
+ROLE_LABEL = {"ae": "Account executive", "principal": "Principal", "operator": "Operator", "accounts": "Accounts",
+              "platform_admin": "Platform admin", "client_owner": "Client owner", "claims": "Claims"}
+
+
+async def person_labels(store, tid: str, roles: dict) -> dict:
+    """{user_id: display name}; ids with no user record become '<Role> A', '<Role> B' … (never the raw id)."""
+    nm = await names(store, tid, [{"id": u} for u in roles])
+    seen: dict[str, int] = {}
+    out = {}
+    for uid, role in roles.items():
+        if uid in nm and nm[uid] != "Someone":
+            out[uid] = nm[uid]
+            continue
+        base = ROLE_LABEL.get(role or "") or ROLE_LABEL.get(str(uid).split("-")[0]) or "Team member"
+        seen[base] = seen.get(base, 0) + 1
+        out[uid] = f"{base} {chr(64 + seen[base]) if seen[base] <= 26 else seen[base]}"
+    return out
+
+
+async def kpi_people(store, tid: str, kpis: list[dict]) -> list[dict]:
+    """KPI metas name people, not ids: events[].user_id -> who, per_user_count keys -> names."""
+    roles: dict = {}
+    for k in kpis:
+        m = k.get("meta") or {}
+        for e in m.get("events") or []:
+            if isinstance(e, dict) and e.get("user_id"):
+                roles.setdefault(e["user_id"], e.get("role"))
+        for uid in (m.get("per_user_count") or {}):
+            roles.setdefault(uid, None)
+    lab = await person_labels(store, tid, roles)
+    for k in kpis:
+        m = k.get("meta") or {}
+        for e in m.get("events") or []:
+            if isinstance(e, dict) and e.get("user_id"):
+                e["who"] = lab[e["user_id"]]
+        if isinstance(m.get("per_user_count"), dict):
+            pc: dict = {}
+            for uid, n in m["per_user_count"].items():
+                pc[lab[uid]] = pc.get(lab[uid], 0) + n
+            m["per_user_count"] = pc
+    return kpis
+
+
+_NOTE_FIELDS = ("message", "raw_message", "note", "reason", "term_label", "title", "draft", "body", "summary")
+_QA = re.compile(r"TEST_|\bQA\b")  # case-sensitive: "qa-swap" idempotency keys etc. don't count
+
+
+def is_test_note(e: dict) -> bool:
+    """QA/TEST_/cleanup notes and demo test bookkeeping are test artifacts, hidden from AE/Principal timelines."""
+    if re.match(r"^Demo.*(Flag|Artifact)", e.get("type") or ""):
+        return True
+    p = e.get("payload") or {}
+    return isinstance(p, dict) and any(isinstance(p.get(k), str) and (_QA.search(p[k]) or "cleanup" in p[k].lower())
+                                       for k in _NOTE_FIELDS)

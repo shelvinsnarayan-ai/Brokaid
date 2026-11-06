@@ -127,7 +127,7 @@ def _bad_keys(obj, path="") -> list[str]:
             kl = str(k).lower()
             if kl == "aes":  # explicitly allowed: AE picker options {user_id, name}
                 continue
-            if kl in DENIED or "sha256" in kl or kl.endswith("_hash"):
+            if kl in DENIED or "sha256" in kl or kl.endswith("_hash") or UUID.fullmatch(str(k)) or re.fullmatch(r"[0-9a-f]{40,64}", kl):
                 out.append(f"{path}.{k}")
             out += _bad_keys(v, f"{path}.{k}")
     elif isinstance(obj, list):
@@ -196,4 +196,54 @@ def test_staff_event_and_evidence_endpoints_redact_for_ae_and_principal():
         if prj:
             ev = await c.get("/api/o/compliance/ai-eval", cookies=prj)
             assert ev.status_code == 200 and not _bad_keys(ev.json()), _bad_keys(ev.json())[:3]
+    run(go)
+
+
+def _strings(o):
+    if isinstance(o, dict):
+        for k, v in o.items():
+            yield str(k)
+            yield from _strings(v)
+    elif isinstance(o, list):
+        for x in o:
+            yield from _strings(x)
+    elif isinstance(o, str):
+        yield o
+
+
+def test_kpi_summary_and_drill_name_people_not_ids_and_hide_qa_notes():
+    """R3.13c: KPI summary/drill (incl. kpi 10 approvals load) carry names, not user ids — as values or dict keys;
+    QA/TEST_/cleanup notes stay off AE/Principal timelines. Operator keeps raw values."""
+    async def go(db, c, app):
+        from app.kernel import renewals as rn
+        tid = await _tid(db)
+        async with use_tenant(tid):
+            ae = await wrap(db).users.find_one({"email": "ae@harbourline.example"})
+            op = await wrap(db).users.find_one({"email": "operator@harbourline.example"})
+            pr = await wrap(db).users.find_one({"email": "qa.principal@harbourline.example"})
+            ids = {u["user_id"] async for u in wrap(db).users.find({}, {"user_id": 1})}
+        for i, uid in enumerate((ae["user_id"], "accounts-a", "accounts-b")):
+            await rn._event(db, tid, "Approval", {"user_id": uid, "role": "ae" if i == 0 else "accounts", "decision": "approved",
+                            "envelope_id": f"00000000-0000-4000-8000-00000000e{i:03d}"}, f"r313c:test:appr:{i}", uid, "ae")
+        await rn._event(db, tid, "ClientQuestionAsked", {"client_id": CID, "message": "TEST_ cleanup after QA"}, "r313c:test:qa", "system")
+        ids |= {"accounts-a", "accounts-b"}
+
+        async def jar(uid, role):
+            s = await create_session_scoped(db, tid, user_id=uid, active_role=role, mfa_verified=True, ttl=timedelta(minutes=30))
+            return {COOKIE_NAME: s.session_id}
+        for j in (await jar(ae["user_id"], "ae"), await jar((pr or op)["user_id"], "principal")):
+            summ = (await c.get("/api/o/kpi/summary", cookies=j)).json()
+            assert not _bad_keys(summ), _bad_keys(summ)[:5]
+            assert not (set(_strings(summ)) & ids), sorted(set(_strings(summ)) & ids)[:5]
+            k10 = next(k for k in summ["kpis"] if k["kpi_id"] == 10)["meta"]
+            assert {"Accounts A", "Accounts B"} <= set(k10["per_user_count"]), k10["per_user_count"]
+            assert all(e.get("who") for e in k10["events"])
+            dr = (await c.get("/api/o/kpi/10/events?limit=500", cookies=j)).json()
+            assert not _bad_keys(dr) and not (set(_strings(dr)) & ids)
+            assert any(e["who"] == "Accounts A" and "approved" in e["text"] for e in dr["events"]), dr["events"][:3]
+            tl = (await c.get(f"/api/o/client/{CID}/timeline?limit=200", cookies=j)).text
+            assert "TEST_" not in tl and "QA" not in tl
+        opj = await jar(op["user_id"], "operator")
+        raw = (await c.get("/api/o/kpi/summary", cookies=opj)).json()
+        assert "accounts-a" in next(k for k in raw["kpis"] if k["kpi_id"] == 10)["meta"]["per_user_count"]
     run(go)

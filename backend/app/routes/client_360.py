@@ -82,10 +82,10 @@ async def client_timeline(
             "actor": scrub(_parse(r["actor"])),
             "payload": scrub(_parse(r["payload"])),
         })
-    from app.kernel.event_text import plain, raw_ok, render
+    from app.kernel.event_text import is_test_note, plain, raw_ok, render
     await render(_store(request), session.tenant_id, events)
     if not raw_ok(session):
-        events = plain(events)
+        events = plain([e for e in events if not is_test_note(e)])
     return {
         "client_id": client_id, "total": total,
         "limit": limit, "offset": offset, "events": events,

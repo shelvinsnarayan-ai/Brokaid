@@ -27,10 +27,13 @@ async def summary(
 ) -> dict:
     store = _store(request)
     values = await kpis_dispatch.compute_all(store, session.tenant_id)
-    return {
-        "day": datetime.now(timezone.utc).date().isoformat(),
-        "kpis": [v.to_dict() for v in values],
-    }
+    out = {"day": datetime.now(timezone.utc).date().isoformat(), "kpis": [v.to_dict() for v in values]}
+    from app.kernel.event_text import kpi_people, raw_ok, staff_out
+    if raw_ok(session):
+        return out
+    import copy
+    out["kpis"] = await kpi_people(store, session.tenant_id, copy.deepcopy(out["kpis"]))
+    return staff_out(session, out)
 
 
 @router.get("/{kpi_id}/events")
@@ -50,14 +53,18 @@ async def drill(
     events = list(target.meta.get("events") or [])
     total = len(events)
     page = events[offset: offset + limit]
-    from app.kernel.event_text import plain, raw_ok, render
-    await render(request.app.state.mongo_db, session.tenant_id, page)
-    if not raw_ok(session):
-        page = plain(page)
-    return {
-        "kpi_id": kpi_id,
-        "label": target.meta.get("label"),
-        "scalar": target.scalar,
-        "count": total,
-        "events": page,
-    }
+    from app.kernel.event_text import kpi_people, plain, raw_ok, render, staff_out
+    if raw_ok(session):
+        await render(store, session.tenant_id, page)
+        return {"kpi_id": kpi_id, "label": target.meta.get("label"), "scalar": target.scalar, "count": total, "events": page}
+    import copy
+    page = copy.deepcopy(page)
+    await kpi_people(store, session.tenant_id, [{"meta": {"events": page}}])
+    for r in page:  # approvals-load rows carry decision fields, not a ledger event
+        if "type" not in r:
+            r["type"], r["payload"] = "Approval", {"decision": r.get("decision")}
+        if r.get("who"):
+            r["actor"] = {"kind": "label", "name": r["who"]}
+    await render(store, session.tenant_id, page)
+    return staff_out(session, {"kpi_id": kpi_id, "label": target.meta.get("label"), "scalar": target.scalar, "count": total,
+                               "events": plain(page)})
